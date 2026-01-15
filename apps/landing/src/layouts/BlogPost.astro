@@ -1,0 +1,501 @@
+---
+import { Image } from 'astro:assets';
+import type { CollectionEntry } from 'astro:content';
+import BaseHead from '../components/BaseHead.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+
+type Props = CollectionEntry<'blog'>['data'] & {
+	readingTime?: number;
+	headings?: { depth: number; slug: string; text: string }[];
+};
+
+const { title, description, pubDate, updatedDate, heroImage, readingTime, headings } = Astro.props;
+
+const hasTableOfContents = headings && headings.filter(h => h.depth <= 3).length > 2;
+---
+
+<html lang="en" class="scroll-smooth">
+	<head>
+		<BaseHead title={title} description={description} image={heroImage} />
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+	</head>
+	<body class="bg-background text-text antialiased">
+		<Nav />
+		
+		<div id="reading-progress" class="fixed top-[72px] left-0 h-1 bg-brand z-[100] transition-all duration-150" style="width: 0%"></div>
+		
+		<main class="pt-24 pb-20">
+			<article class="relative">
+				<header class="max-w-3xl mx-auto px-6 mb-12 text-center">
+					<div class="flex items-center justify-center gap-3 text-sm text-text-muted mb-6">
+						<FormattedDate date={pubDate} />
+						{readingTime && (
+							<>
+								<span class="text-border">·</span>
+								<span>{readingTime} min read</span>
+							</>
+						)}
+						{updatedDate && (
+							<>
+								<span class="text-border">·</span>
+								<span class="text-text-muted">
+									Updated <FormattedDate date={updatedDate} />
+								</span>
+							</>
+						)}
+					</div>
+					<h1 class="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 text-balance leading-[1.1] text-text">
+						{title}
+					</h1>
+					{description && (
+						<p class="text-xl md:text-2xl text-text-subtle max-w-2xl mx-auto leading-relaxed font-light">
+							{description}
+						</p>
+					)}
+				</header>
+
+				{heroImage && (
+					<div class="max-w-5xl mx-auto px-6 mb-16">
+						<div class="rounded-2xl overflow-hidden border border-border-subtle shadow-lg">
+							<Image 
+								width={1200} 
+								height={630} 
+								src={heroImage} 
+								alt={title}
+								class="w-full h-auto"
+							/>
+						</div>
+					</div>
+				)}
+
+				<div class="max-w-7xl mx-auto px-6">
+					<div class="flex gap-12 lg:gap-16">
+						{hasTableOfContents && (
+							<aside class="hidden xl:block w-64 shrink-0">
+								<nav class="sticky top-24">
+									<p class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">On this page</p>
+									<ul class="space-y-2 text-sm border-l border-border-subtle">
+										{headings?.filter(h => h.depth <= 3).map((heading) => (
+											<li>
+												<a 
+													href={`#${heading.slug}`}
+													class:list={[
+														"block py-1 text-text-subtle hover:text-text transition-colors border-l-2 -ml-[2px]",
+														"border-transparent hover:border-brand",
+														heading.depth === 2 ? "pl-4" : "pl-8"
+													]}
+													data-toc-link
+												>
+													{heading.text}
+												</a>
+											</li>
+										))}
+									</ul>
+								</nav>
+							</aside>
+						)}
+
+						<div class="flex-1 max-w-3xl mx-auto">
+							<div class="prose">
+								<slot />
+							</div>
+
+							<hr class="border-border-subtle my-16" />
+
+							<div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+								<div class="flex items-center gap-4">
+									<div class="w-12 h-12 rounded-full bg-surface-subtle border border-border-subtle flex items-center justify-center">
+										<img src="/logo.svg" alt="soljar" class="w-8 h-8" />
+									</div>
+									<div>
+										<p class="font-semibold text-text">team soljar</p>
+										<p class="text-sm text-text-muted">Building the future of payments</p>
+									</div>
+								</div>
+
+								<div class="flex items-center gap-3">
+									<span class="text-sm text-text-muted">Share</span>
+									<button 
+										id="share-twitter"
+										class="w-10 h-10 rounded-full bg-surface-subtle hover:bg-surface-hover flex items-center justify-center transition-colors text-text-subtle hover:text-text"
+										aria-label="Share on Twitter"
+									>
+										<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+									</button>
+									<button 
+										id="share-linkedin"
+										class="w-10 h-10 rounded-full bg-surface-subtle hover:bg-surface-hover flex items-center justify-center transition-colors text-text-subtle hover:text-text"
+										aria-label="Share on LinkedIn"
+									>
+										<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+									</button>
+									<button 
+										id="copy-link"
+										class="w-10 h-10 rounded-full bg-surface-subtle hover:bg-surface-hover flex items-center justify-center transition-colors text-text-subtle hover:text-text group relative"
+										aria-label="Copy link"
+									>
+										<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+										<span class="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-primary text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+											Copy link
+										</span>
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="hidden xl:block w-64 shrink-0"></div>
+					</div>
+				</div>
+			</article>
+		</main>
+		<Footer />
+
+		<script>
+			const progressBar = document.getElementById('reading-progress');
+			const article = document.querySelector('article');
+			
+			if (progressBar && article) {
+				const updateProgress = () => {
+					const scrollTop = window.scrollY;
+					const docHeight = document.documentElement.scrollHeight;
+					const winHeight = window.innerHeight;
+					const scrollPercent = scrollTop / (docHeight - winHeight);
+					
+					progressBar.style.width = `${Math.min(scrollPercent * 100, 100)}%`;
+				};
+				
+				window.addEventListener('scroll', updateProgress, { passive: true });
+				updateProgress();
+			}
+
+			const tocLinks = document.querySelectorAll('[data-toc-link]');
+			if (tocLinks.length > 0) {
+				const headings = document.querySelectorAll('.prose h2, .prose h3');
+				
+				const observer = new IntersectionObserver(
+					(entries) => {
+						entries.forEach((entry) => {
+							if (entry.isIntersecting) {
+								tocLinks.forEach((link) => {
+									link.classList.remove('text-text', 'border-brand');
+									link.classList.add('text-text-subtle', 'border-transparent');
+								});
+								const activeLink = document.querySelector(`[href="#${entry.target.id}"]`);
+								if (activeLink) {
+									activeLink.classList.remove('text-text-subtle', 'border-transparent');
+									activeLink.classList.add('text-text', 'border-brand');
+								}
+							}
+						});
+					},
+					{ rootMargin: '-20% 0% -60% 0%' }
+				);
+				
+				headings.forEach((heading) => observer.observe(heading));
+			}
+
+			const shareTwitter = document.getElementById('share-twitter');
+			const shareLinkedin = document.getElementById('share-linkedin');
+			const copyLink = document.getElementById('copy-link');
+			
+			const pageUrl = encodeURIComponent(window.location.href);
+			const pageTitle = encodeURIComponent(document.title);
+			
+			shareTwitter?.addEventListener('click', () => {
+				window.open(`https://twitter.com/intent/tweet?url=${pageUrl}&text=${pageTitle}`, '_blank', 'width=550,height=420');
+			});
+			
+			shareLinkedin?.addEventListener('click', () => {
+				window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${pageUrl}`, '_blank', 'width=550,height=420');
+			});
+			
+			copyLink?.addEventListener('click', async () => {
+				await navigator.clipboard.writeText(window.location.href);
+				const tooltip = copyLink.querySelector('span');
+				if (tooltip) {
+					tooltip.textContent = 'Copied!';
+					setTimeout(() => {
+						tooltip.textContent = 'Copy link';
+					}, 2000);
+				}
+			});
+		</script>
+	</body>
+</html>
+
+<style is:global>
+	.prose {
+		color: #374151;
+		font-family: 'Lora', Georgia, 'Times New Roman', serif;
+		font-size: 1.125rem;
+		line-height: 1.85;
+		letter-spacing: -0.003em;
+	}
+	
+	.prose > * + * {
+		margin-top: 1.5em;
+	}
+	
+	.prose p {
+		margin-bottom: 0;
+	}
+
+	.prose h1,
+	.prose h2,
+	.prose h3,
+	.prose h4,
+	.prose h5,
+	.prose h6 {
+		color: #202329;
+		font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+		font-weight: 700;
+		letter-spacing: -0.02em;
+		line-height: 1.3;
+		scroll-margin-top: 6rem;
+	}
+
+	.prose h2 {
+		font-size: 1.875rem;
+		margin-top: 3rem;
+		margin-bottom: 1rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid rgba(107, 114, 128, 0.2);
+	}
+
+	.prose h3 {
+		font-size: 1.5rem;
+		margin-top: 2.5rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.prose h4 {
+		font-size: 1.25rem;
+		margin-top: 2rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.prose a {
+		color: #4285f4;
+		text-decoration: underline;
+		text-decoration-color: rgba(66, 133, 244, 0.3);
+		text-underline-offset: 3px;
+		transition: all 0.2s ease;
+	}
+
+	.prose a:hover {
+		text-decoration-color: #4285f4;
+	}
+
+	.prose strong {
+		color: #202329;
+		font-weight: 600;
+	}
+
+	.prose em {
+		font-style: italic;
+	}
+
+	.prose code {
+		background-color: #F5F5F5;
+		padding: 0.2em 0.4em;
+		border-radius: 6px;
+		font-size: 0.875em;
+		color: #D63384;
+		font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+	}
+
+	.prose pre {
+		background: #1e1e1e;
+		border: 1px solid rgba(107, 114, 128, 0.2);
+		border-radius: 16px;
+		padding: 1.5em;
+		overflow-x: auto;
+		margin: 2em 0;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+	}
+
+	.prose pre code {
+		background: none;
+		padding: 0;
+		color: #e4e4e7;
+		font-size: 0.9em;
+		line-height: 1.7;
+	}
+
+	.prose blockquote {
+		position: relative;
+		border: none;
+		padding: 1.5em 2em;
+		margin: 2em 0;
+		background: linear-gradient(135deg, rgba(66, 133, 244, 0.08), rgba(66, 133, 244, 0.03));
+		border-radius: 12px;
+		font-size: 1.125em;
+		font-style: italic;
+		color: #6B7280;
+	}
+
+	.prose blockquote::before {
+		content: '"';
+		position: absolute;
+		top: -0.2em;
+		left: 0.3em;
+		font-size: 4em;
+		color: rgba(66, 133, 244, 0.2);
+		font-family: Georgia, serif;
+		line-height: 1;
+	}
+
+	.prose blockquote p {
+		margin: 0;
+		position: relative;
+		z-index: 1;
+	}
+
+	.prose ul,
+	.prose ol {
+		padding-left: 1.5em;
+	}
+
+	.prose ul {
+		list-style: none;
+	}
+
+	.prose ul li {
+		position: relative;
+		padding-left: 0.5em;
+		margin-bottom: 0.75em;
+	}
+
+	.prose ul li::before {
+		content: '';
+		position: absolute;
+		left: -1em;
+		top: 0.65em;
+		width: 6px;
+		height: 6px;
+		background: #4285f4;
+		border-radius: 50%;
+	}
+
+	.prose ol {
+		list-style: none;
+		counter-reset: ol-counter;
+	}
+
+	.prose ol li {
+		position: relative;
+		padding-left: 0.5em;
+		margin-bottom: 0.75em;
+		counter-increment: ol-counter;
+	}
+
+	.prose ol li::before {
+		content: counter(ol-counter);
+		position: absolute;
+		left: -1.5em;
+		top: 0;
+		font-size: 0.875em;
+		font-weight: 700;
+		color: #4285f4;
+	}
+
+	.prose hr {
+		border: none;
+		height: 1px;
+		background: linear-gradient(90deg, transparent, rgba(107, 114, 128, 0.3), transparent);
+		margin: 3em 0;
+	}
+
+	.prose img {
+		border-radius: 16px;
+		margin: 2em 0;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+	}
+
+	.prose figure {
+		margin: 2.5em 0;
+	}
+
+	.prose figcaption {
+		text-align: center;
+		font-size: 0.875em;
+		color: #6B7280;
+		margin-top: 0.75em;
+	}
+
+	.prose table {
+		width: 100%;
+		border-collapse: separate;
+		border-spacing: 0;
+		margin: 2em 0;
+		overflow: hidden;
+		border-radius: 12px;
+		border: 1px solid rgba(107, 114, 128, 0.2);
+	}
+
+	.prose th,
+	.prose td {
+		padding: 1em 1.25em;
+		text-align: left;
+		border-bottom: 1px solid rgba(107, 114, 128, 0.2);
+	}
+
+	.prose th {
+		background: #F5F5F5;
+		color: #202329;
+		font-weight: 600;
+		font-size: 0.875em;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.prose tr:last-child td {
+		border-bottom: none;
+	}
+
+	.prose tr:nth-child(even) {
+		background: #FAFAFA;
+	}
+
+	.prose > p:first-of-type {
+		font-size: 1.25em;
+		line-height: 1.7;
+		color: #4B5563;
+	}
+
+	.prose > p:first-of-type::first-letter {
+		float: left;
+		font-size: 3.5em;
+		line-height: 0.8;
+		font-weight: 700;
+		margin-right: 0.1em;
+		margin-top: 0.1em;
+		color: #4285f4;
+	}
+
+	@media (max-width: 640px) {
+		.prose {
+			font-size: 1.0625rem;
+		}
+		
+		.prose h2 {
+			font-size: 1.5rem;
+		}
+		
+		.prose h3 {
+			font-size: 1.25rem;
+		}
+		
+		.prose blockquote {
+			padding: 1em 1.25em;
+		}
+		
+		.prose blockquote::before {
+			font-size: 3em;
+		}
+	}
+</style>

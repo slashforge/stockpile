@@ -1,0 +1,13 @@
+{
+  "name": "@soljar/functions",
+  "version": "0.0.0",
+  "type": "module",
+ "dependencies": {
+   "@solana-tracker/data-api": "^0.1.6",
+    "sst": "*",
+    "@soljar/core": "*"
+ },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159"
+  }
+}

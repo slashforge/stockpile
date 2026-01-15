@@ -1,0 +1,13 @@
+{
+  "name": "@soljar/core",
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "nanoid": "^5.1.5",
+    "sst": "*"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "^0.44.7"
+  }
+}

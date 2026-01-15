@@ -1,0 +1,51 @@
+{
+  "cli": {
+    "version": ">= 16.3.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ENV": "dev",
+        "EXPO_PUBLIC_API_URL": "https://api.riven.cash",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmkf3lnai016fkv0d6m7yuog9",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6V7hezGx4K3req5bidbcYg3ixhMsjpvDiD496Depanv"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_ENV": "beta",
+        "EXPO_PUBLIC_API_URL": "https://beta.api.riven.cash",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmkf3lnai016fkv0d6m7yuog9",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6V7hezGx4K3req5bidbcYg3ixhMsjpvDiD496Depanv"
+      }
+    },
+    "beta": {
+      "autoIncrement": "buildNumber",
+      "channel": "beta",
+      "env": {
+        "EXPO_PUBLIC_ENV": "beta",
+        "EXPO_PUBLIC_API_URL": "https://beta.api.riven.cash",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmkf3lnai016fkv0d6m7yuog9",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6V7hezGx4K3req5bidbcYg3ixhMsjpvDiD496Depanv"
+      }
+    },
+    "production": {
+      "autoIncrement": "buildNumber",
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_ENV": "prod",
+        "EXPO_PUBLIC_API_URL": "https://api.riven.cash",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmkf3lnai016fkv0d6m7yuog9",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6V7hezGx4K3req5bidbcYg3ixhMsjpvDiD496Depanv"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
