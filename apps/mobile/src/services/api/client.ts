@@ -4,7 +4,7 @@
  * Uses Privy identity tokens for authentication via the `privy-id-token` header.
  */
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.riven.cash";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.__DOMAIN__";
 
 // Will be set by the auth hook when user logs in
 let getIdentityTokenFn: (() => Promise<string | null>) | null = null;

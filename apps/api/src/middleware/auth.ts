@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
-import { db } from "@soljar/core/db";
-import { users } from "@soljar/core/db/schema";
+import { db } from "__SCOPE__/core/db";
+import { users } from "__SCOPE__/core/db/schema";
 import { getPrivyClient, getEmail, type PrivyUser } from "../lib/privy";
 
 export type AuthVariables = {

@@ -8,7 +8,7 @@ import aws from "astro-sst";
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://beta.soljar.xyz',
+	site: 'https://__DOMAIN__',
 	adapter: aws(),
 	integrations: [
 		tailwind(),

@@ -1,5 +1,5 @@
 {
-  "name": "@soljar/core",
+  "name": "__SCOPE__/core",
   "version": "0.0.0",
   "type": "module",
   "dependencies": {

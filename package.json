@@ -1,8 +1,11 @@
 {
-  "name": "riven",
+  "name": "__NAME__",
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "setup": "bun scripts/setup.ts"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",

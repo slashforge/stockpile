@@ -3,7 +3,7 @@
 export default $config({
   app(input) {
     return {
-      name: "riven",
+      name: "__NAME__",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "aws",

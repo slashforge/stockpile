@@ -1,15 +1,15 @@
 const env = process.env.EXPO_PUBLIC_ENV;
 const bundleIdentifier = env
-  ? `cash.riven.app.${env}`
-  : `cash.riven.app`;
-const scheme = env ? `riven${env}` : `riven`;
+  ? `__REVERSE_DOMAIN__.app.${env}`
+  : `__REVERSE_DOMAIN__.app`;
+const scheme = env ? `__NAME__${env}` : `__NAME__`;
 
-const name = env ? `riven (${env.toUpperCase()})` : "riven";
+const name = env ? `__NAME__ (${env.toUpperCase()})` : "__NAME__";
 
 const config = {
   expo: {
     name: name,
-    slug: "riven",
+    slug: "__NAME__",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

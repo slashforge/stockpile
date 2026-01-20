@@ -16,7 +16,7 @@ import { Box, Text, Button } from "@/components/ui/primitives";
 import { isOnboardingComplete, hasWallet, deleteWallet, resetOnboarding } from "@/services/wallet";
 import { syncUserWithBackend, checkSyncStatus } from "@/hooks/use-privy-auth";
 import { privyStorage } from "@/services/privy-storage";
-import RivenIcon from "@/assets/icons/riven-icon";
+import AppIcon from "@/assets/icons/app-icon";
 
 type AppState = 
   | { status: "loading" }
@@ -45,7 +45,7 @@ const SplashLoader = ({ skipIntro = false }: SplashLoaderProps) => {
         -1,
         false
       );
-        <RivenIcon width={SPLASH_ICON_SIZE} height={SPLASH_ICON_SIZE} />
+        <AppIcon width={SPLASH_ICON_SIZE} height={SPLASH_ICON_SIZE} />
     } else {
       // Scale down the icon from splash size to final size
       iconScale.value = withDelay(
@@ -100,7 +100,7 @@ const SplashLoader = ({ skipIntro = false }: SplashLoaderProps) => {
       </Animated.View>
       {/* Icon - scales down independently, positioned on top */}
       <Animated.View style={[styles.iconWrapper, iconStyle]}>
-        <RivenIcon width={SPLASH_ICON_SIZE} height={SPLASH_ICON_SIZE} />
+        <AppIcon width={SPLASH_ICON_SIZE} height={SPLASH_ICON_SIZE} />
       </Animated.View>
     </Box>
   );

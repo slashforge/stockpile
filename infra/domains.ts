@@ -1,6 +1,6 @@
 const SUB = $app.stage === "prod" ? "" : `${$app.stage}.`;
 
-const HOST = "pager.chat";
+const HOST = "__DOMAIN__";
 
 export const domains = {
   api: `${SUB}api.${HOST}`,

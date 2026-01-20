@@ -1,4 +1,4 @@
-# riven
+# __NAME__
 
 A template monorepo with mobile app, backend API, and landing page.
 

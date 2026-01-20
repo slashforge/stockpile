@@ -1,12 +1,12 @@
 import Svg, { Path, SvgProps } from "react-native-svg";
 import { useUnistyles } from "react-native-unistyles";
 
-type RivenIconProps = {
+type AppIconProps = {
   width?: number;
   height?: number;
 } & SvgProps;
 
-function RivenIcon(props: RivenIconProps) {
+function AppIcon(props: AppIconProps) {
   const { width = 50, height = 50, ...rest } = props;
   const { theme } = useUnistyles();
 
@@ -24,4 +24,4 @@ function RivenIcon(props: RivenIconProps) {
   );
 }
 
-export default RivenIcon;
+export default AppIcon;

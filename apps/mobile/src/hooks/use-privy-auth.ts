@@ -10,7 +10,7 @@ import { privyStorage } from "@/services/privy-storage";
 import { setWalletFromPrivy, setOnboardingComplete, hasWallet, isOnboardingComplete } from "@/services/wallet";
 import { createOrUpdateLocalUser } from "./use-user";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.riven.cash";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.__DOMAIN__";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 

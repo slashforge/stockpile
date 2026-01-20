@@ -1,6 +1,6 @@
 # AI Agent Guidelines
 
-This document provides guidelines for AI agents working on the riven mobile app.
+This document provides guidelines for AI agents working on the __NAME__ mobile app.
 
 ## Key Points
 

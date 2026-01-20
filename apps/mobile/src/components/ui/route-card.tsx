@@ -45,7 +45,7 @@ export const RouteCard = ({
   routeInfo?: SwapRouteInfo;
 }) {
   const { styles } = useUnistyles(stylesheet);
-  const payUrl = process.env.EXPO_PUBLIC_PAY_URL || "https://riven.cash";
+  const payUrl = process.env.EXPO_PUBLIC_PAY_URL || "https://__DOMAIN__";
 
   const handleShare = () => {
     // Navigate to the route share route

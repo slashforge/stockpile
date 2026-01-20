@@ -58,7 +58,7 @@ mock.module("../lib/privy", () => ({
 }));
 
 // Mock database
-mock.module("@soljar/core/db", () => ({
+mock.module("__SCOPE__/core/db", () => ({
   db: {
     select: () => ({
       from: () => ({

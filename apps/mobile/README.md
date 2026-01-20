@@ -1,4 +1,4 @@
-# riven Mobile App
+# __NAME__ Mobile App
 
 A React Native mobile app built with Expo.
 

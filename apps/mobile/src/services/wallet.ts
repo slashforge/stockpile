@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import db from "@/db/index";
 import { wallets } from "@/db/schema/index";
 
-const WALLET_ADDRESS_KEY = "riven_wallet_address";
-const GRID_USER_ID_KEY = "riven_grid_user_id";
-const PRIVY_USER_ID_KEY = "riven_privy_user_id";
-const ONBOARDING_KEY = "riven_onboarding_complete";
+const WALLET_ADDRESS_KEY = "__NAME___wallet_address";
+const GRID_USER_ID_KEY = "__NAME___grid_user_id";
+const PRIVY_USER_ID_KEY = "__NAME___privy_user_id";
+const ONBOARDING_KEY = "__NAME___onboarding_complete";
 
 export type WalletAccount = {
   publicKey: string;
