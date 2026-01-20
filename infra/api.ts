@@ -4,15 +4,11 @@ import {
   databaseHost,
   databaseUsername,
   databasePassword,
-  heliusRpcUrl,
-  jupiterApiKey,
-  privyAppId,
-  privyAppSecret,
 } from "./secrets";
 import { DEPLOYED_STAGES } from "./utils";
 
-export const backend = !DEPLOYED_STAGES.includes($app.stage)
-  ? new sst.x.DevCommand("Backend", {
+export const api = !DEPLOYED_STAGES.includes($app.stage)
+  ? new sst.x.DevCommand("Api", {
     environment: {
       DATABASE_URL: databaseUrl.value,
       DATABASE_HOST: databaseHost.value,
@@ -26,16 +22,12 @@ export const backend = !DEPLOYED_STAGES.includes($app.stage)
       databaseHost,
       databaseUsername,
       databasePassword,
-      heliusRpcUrl,
-      jupiterApiKey,
-      privyAppId,
-      privyAppSecret,
     ],
-    dev: { command: "bun dev", directory: "apps/backend" },
+    dev: { command: "bun dev", directory: "apps/api" },
   })
-  : new sst.cloudflare.Worker("Backend", {
+  : new sst.cloudflare.Worker("Api", {
     url: true,
-    handler: "apps/backend/index.ts",
+    handler: "apps/api/index.ts",
     environment: {
       DATABASE_URL: databaseUrl.value,
       DATABASE_HOST: databaseHost.value,
@@ -49,12 +41,8 @@ export const backend = !DEPLOYED_STAGES.includes($app.stage)
       databaseHost,
       databaseUsername,
       databasePassword,
-      heliusRpcUrl,
-      jupiterApiKey,
-      privyAppId,
-      privyAppSecret,
     ],
-    domain: domains.backend,
+    domain: domains.api,
     transform: {
       worker: {
         observability: {
@@ -68,6 +56,6 @@ export const backend = !DEPLOYED_STAGES.includes($app.stage)
     },
   });
 
-export const backendUrl = DEPLOYED_STAGES.includes($app.stage)
-  ? (backend as sst.cloudflare.Worker).url
+export const apiUrl = DEPLOYED_STAGES.includes($app.stage)
+  ? (api as sst.cloudflare.Worker).url
   : "http://localhost:4040";

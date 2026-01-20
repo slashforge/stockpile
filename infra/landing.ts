@@ -9,7 +9,7 @@ export const landing = new sst.aws.Astro("SoljarLanding", {
     dns: sst.cloudflare.dns()
   },
   environment: {
-    PUBLIC_API_URL: DEPLOYED_STAGES.includes($app.stage) ? `https://${domains.backend}` : "http://localhost:4040"
+    PUBLIC_API_URL: DEPLOYED_STAGES.includes($app.stage) ? `https://${domains.api}` : "http://localhost:4040"
   },
   dev: {
     command: "bun run dev",

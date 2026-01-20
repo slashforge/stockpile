@@ -16,14 +16,14 @@ export default $config({
     };
   },
   async run() {
-    const { backendUrl } = await import("./infra/backend");
+    const { apiUrl } = await import("./infra/api");
 
     await import("./infra/orm");
 
     const { landing } = await import("./infra/landing");
 
     return {
-      backendUrl: backendUrl,
+      apiUrl: apiUrl,
       landingUrl: landing.url,
     };
   },

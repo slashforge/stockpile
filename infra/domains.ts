@@ -1,8 +1,8 @@
 const SUB = $app.stage === "prod" ? "" : `${$app.stage}.`;
 
-const HOST = "riven.cash";
+const HOST = "pager.chat";
 
 export const domains = {
-  backend: `${SUB}api.${HOST}`,
+  api: `${SUB}api.${HOST}`,
   landing: `${SUB}${HOST}`,
 };
