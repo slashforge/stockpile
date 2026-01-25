@@ -98,20 +98,20 @@ function replaceInFile(filePath: string, config: Config): boolean {
 }
 
 async function main() {
-  console.log("\n🚀 Project Setup Script\n");
-  console.log("This will replace all template placeholders with your project values.\n");
+ console.log("\n🚀 Project Setup Script\n");
+ console.log("This will replace all template placeholders with your project values.\n");
 
-  const name = await ask("Enter project name (lowercase, e.g., myapp): ");
-  if (!name) {
-    console.error("❌ Project name is required");
-    process.exit(1);
-  }
+ const name = await ask("Enter project name (lowercase, e.g., myapp): ");
+  if (!name || !/^[a-z][a-z0-9-]*$/.test(name)) {
+    console.error("❌ Project name is required and must be lowercase letters, numbers, and hyphens only (start with letter)");
+   process.exit(1);
+ }
 
-  const domain = await ask("Enter base domain (e.g., myapp.com): ");
-  if (!domain) {
-    console.error("❌ Domain is required");
-    process.exit(1);
-  }
+ const domain = await ask("Enter base domain (e.g., myapp.com): ");
+  if (!domain || !/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) {
+    console.error("❌ Valid domain is required (e.g., myapp.com)");
+   process.exit(1);
+ }
 
   const config: Config = {
     name: name.toLowerCase(),
