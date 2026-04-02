@@ -1,5 +1,4 @@
 ---
-import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
 import BaseHead from '../../components/BaseHead.astro';
 import Nav from '../../components/Nav.astro';
@@ -42,12 +41,13 @@ const posts = (await getCollection('blog')).sort(
 						>
 							{post.data.heroImage && (
 								<div class="relative overflow-hidden rounded-xl mb-4">
-									<Image 
-										width={index === 0 ? 1020 : 720} 
-										height={index === 0 ? 510 : 360} 
-										src={post.data.heroImage} 
+									<img
+										src={post.data.heroImage}
 										alt={post.data.title}
+										width={index === 0 ? 1020 : 720}
+										height={index === 0 ? 510 : 360}
 										class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
+										loading="lazy"
 									/>
 								</div>
 							)}

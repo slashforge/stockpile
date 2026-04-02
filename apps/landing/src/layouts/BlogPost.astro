@@ -1,5 +1,4 @@
 ---
-import { Image } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Nav from '../components/Nav.astro';
@@ -61,12 +60,13 @@ const hasTableOfContents = headings && headings.filter(h => h.depth <= 3).length
 				{heroImage && (
 					<div class="max-w-5xl mx-auto px-6 mb-16">
 						<div class="rounded-2xl overflow-hidden border border-border-subtle shadow-lg">
-							<Image 
-								width={1200} 
-								height={630} 
-								src={heroImage} 
+							<img
+								src={heroImage}
 								alt={title}
+								width="1200"
+								height="630"
 								class="w-full h-auto"
+								loading="eager"
 							/>
 						</div>
 					</div>
