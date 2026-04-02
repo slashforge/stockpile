@@ -19,15 +19,17 @@ function buildDatabaseUrlFromParts() {
   return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbName}`;
 }
 
-const DATABASE_URL = process.env.DATABASE_URL || buildDatabaseUrlFromParts();
+const DUMMY_DATABASE_URL = "postgresql://dummy:dummy@127.0.0.1:5432/postgres";
 
-if (!DATABASE_URL) {
-  throw new Error(
-    "Database connection not configured. Set DATABASE_URL or DATABASE_HOST/DATABASE_USERNAME/DATABASE_PASSWORD.",
+const DATABASE_URL = process.env.DATABASE_URL || buildDatabaseUrlFromParts() || DUMMY_DATABASE_URL;
+
+if (DATABASE_URL === DUMMY_DATABASE_URL) {
+  console.warn(
+    "Database connection not configured. Using a dummy DATABASE_URL so the worker can start.",
   );
 }
 
-const sql = neon(DATABASE_URL!);
+const sql = neon(DATABASE_URL);
 
 
 export const db = drizzle({ client: sql });
