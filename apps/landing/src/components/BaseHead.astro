@@ -1,20 +1,17 @@
 ---
+import { getImagePath } from 'astro-opengraph-images';
 import '../styles/global.css';
-import type { ImageMetadata } from 'astro';
 import { SITE_TITLE } from '../consts';
-
-const ogImage = '/logo.png';
 
 interface Props {
   title: string;
   description: string;
-  image?: ImageMetadata | string;
+  type?: 'website' | 'article';
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-
-const { title, description, image = ogImage } = Astro.props;
-const imageUrl = typeof image === 'string' ? image : image.src;
+const imageUrl = getImagePath({ url: Astro.url, site: Astro.site });
+const { title, description, type = 'website' } = Astro.props;
 ---
 
 <meta charset="utf-8" />
@@ -29,31 +26,26 @@ const imageUrl = typeof image === 'string' ? image : image.src;
 />
 <meta name="generator" content={Astro.generator} />
 
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
 <link rel="canonical" href={canonicalURL} />
 
-<!-- Primary Meta Tags -->
 <title>{title}</title>
 <meta name="title" content={title} />
 <meta name="description" content={description} />
-
-<!-- Theme -->
 <meta name="theme-color" content="#FFFFFC" />
 
-<!-- Open Graph / Facebook -->
-<meta property="og:type" content="website" />
-<meta property="og:url" content={Astro.url} />
+<meta property="og:type" content={type} />
+<meta property="og:url" content={Astro.url.toString()} />
+<meta property="og:site_name" content={SITE_TITLE} />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
-<meta property="og:image" content={new URL(imageUrl, Astro.url)} />
+<meta property="og:image" content={imageUrl} />
 
-<!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:url" content={Astro.url} />
+<meta property="twitter:url" content={Astro.url.toString()} />
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
-<meta property="twitter:image" content={new URL(imageUrl, Astro.url)} />
+<meta property="twitter:image" content={imageUrl} />
