@@ -32,7 +32,7 @@ if (DATABASE_URL === DUMMY_DATABASE_URL) {
 const sql = neon(DATABASE_URL);
 
 
-export const db = drizzle({ client: sql });
+export const db = drizzle({ client: sql, schema });
 
 
 // Export types

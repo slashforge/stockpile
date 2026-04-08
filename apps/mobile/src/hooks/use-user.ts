@@ -1,22 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import db from "@/db/index";
 import { users } from "@/db/schema";
 import type { User } from "@/db/types";
-import { privyStorage } from "@/services/privy-storage";
+import { authStorage } from "@/services/auth-storage";
 
 async function getLocalUser(): Promise<User | null> {
-  // Try Privy first, fall back to grid storage for backward compatibility
-  const privyUserId = await privyStorage.getPrivyUserId();
-  
-  if (!privyUserId) return null;
+  const authUserId = await authStorage.getAuthUserId();
+
+  if (!authUserId) return null;
 
   const result = await db
     .select()
     .from(users)
-    .where(eq(users.gridUserId, privyUserId)) // gridUserId column stores Privy ID now
+    .where(eq(users.gridUserId, authUserId))
     .limit(1);
 
   return result[0] ?? null;
@@ -25,13 +24,13 @@ async function getLocalUser(): Promise<User | null> {
 export async function createOrUpdateLocalUser(data: {
   email: string;
   username?: string;
-  privyUserId: string;
+  authUserId: string;
   walletAddress: string;
 }): Promise<User> {
   const existing = await db
     .select()
     .from(users)
-    .where(eq(users.gridUserId, data.privyUserId)) // gridUserId column stores Privy ID
+    .where(eq(users.gridUserId, data.authUserId))
     .limit(1);
 
   const now = new Date();
@@ -45,7 +44,7 @@ export async function createOrUpdateLocalUser(data: {
         smartAccountAddress: data.walletAddress,
         updatedAt: now,
       })
-      .where(eq(users.gridUserId, data.privyUserId));
+      .where(eq(users.gridUserId, data.authUserId));
 
     return {
       ...existing[0],
@@ -62,7 +61,7 @@ export async function createOrUpdateLocalUser(data: {
     id,
     email: data.email,
     username: data.username ?? emailPart ?? null,
-    gridUserId: data.privyUserId, // Store Privy ID in gridUserId column
+    gridUserId: data.authUserId,
     smartAccountAddress: data.walletAddress,
     avatarUrl: null,
     createdAt: now,
@@ -85,13 +84,13 @@ export function useUser() {
 
   useEffect(() => {
     async function init() {
-      const privyUserId = await privyStorage.getPrivyUserId();
-      const walletAddress = await privyStorage.getWalletAddress();
+      const authUserId = await authStorage.getAuthUserId();
+      const walletAddress = await authStorage.getWalletAddress();
 
-      if (privyUserId && walletAddress && !query.data) {
+      if (authUserId && walletAddress && !query.data) {
         await createOrUpdateLocalUser({
           email: "",
-          privyUserId,
+          authUserId,
           walletAddress,
         });
         queryClient.invalidateQueries({ queryKey: ["user", "local"] });

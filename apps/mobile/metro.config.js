@@ -59,8 +59,7 @@ const resolveRequestWithPackageExports = (context, moduleName, platform) => {
     return ctx.resolveRequest(ctx, moduleName, platform);
   }
 
-  // Note: @privy-io/ package exports block removed - only needed for RN 0.78 or older
-  // We're on RN 0.79+ where package exports are enabled by default
+  // RN 0.79+ enables package exports by default, so no extra auth package handling is needed here
 
   return context.resolveRequest(context, moduleName, platform);
 };

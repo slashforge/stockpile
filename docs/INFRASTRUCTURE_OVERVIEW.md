@@ -206,10 +206,15 @@ Secrets (passwords, API keys, etc.) are managed by SST with **environment isolat
 
 ---
 
-## Authentication *(TBD)*
+## Authentication
 
-> Currently evaluating **Better Auth** for secure user login.
-> Will integrate with the API once decided.
+- **Provider**: Better Auth
+- **Sign-in method**: Email OTP
+- **Email delivery**: Resend
+- **API mount path**: `/auth`
+- **Client auth mechanism**: Better Auth session cookies
+- **Secrets managed by SST**: `BetterAuthSecret`, `ResendApiKey`
+- **Wallets**: not part of the authentication flow
 
 ---
 

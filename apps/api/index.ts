@@ -6,11 +6,17 @@ import { authRoutes } from "./src/routes";
 const app = new Hono();
 
 app.use("*", logger());
-app.use("*", cors());
+app.use("*", cors({
+  origin: (origin) => origin || process.env.BETTER_AUTH_URL || "http://localhost:8081",
+  allowHeaders: ["Content-Type", "Authorization", "Cookie", "Set-Cookie"],
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  exposeHeaders: ["Set-Cookie", "Content-Length"],
+  credentials: true,
+}));
 
 app.onError((err, c) => {
   console.error("Global App Error:", err);
-  return c.json({ error: err.message, stack: err.stack }, 500);
+  return c.json({ error: err.message }, 500);
 });
 
 app.get("/health", (c) => c.json({ status: "ok" }));

@@ -1,63 +1,44 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 
-// Mock Privy user data
-const TEST_PRIVY_USER = {
-  id: "did:privy:abc123",
-  linked_accounts: [
-    { type: "email", address: "test@example.com", verified_at: 1234567890 },
-    { type: "wallet", address: "So1anaWa11etAddress123456789", chain_type: "solana" },
-  ],
+const TEST_SESSION = {
+  user: {
+    id: "user_123",
+    email: "test@example.com",
+    name: "Test User",
+  },
+  session: {
+    id: "session_123",
+    userId: "user_123",
+  },
 };
 
-// Mock database user
 const mockDbUser = {
-  id: "did:privy:abc123",
+  id: "user_123",
   email: "test@example.com",
-  gridUserId: "did:privy:abc123",
-  smartAccount: "So1anaWa11etAddress123456789",
+  wallet: "email:973dfe463ec85785f5f95af5ba3906eea9f54f2a",
   username: null,
   displayName: null,
-  avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
-// Track mock state
 let mockUserData: typeof mockDbUser | null = null;
 
-// Mock Privy client
-mock.module("../lib/privy", () => ({
-  getPrivyClient: () => ({
-    users: () => ({
-      get: async ({ id_token }: { id_token: string }) => {
-        if (id_token === "valid-token") {
-          return TEST_PRIVY_USER;
+mock.module("../lib/auth", () => ({
+  getAuth: () => ({
+    api: {
+      getSession: async ({ headers }: { headers: Headers }) => {
+        if (headers.get("cookie") === "better-auth.session=valid") {
+          return TEST_SESSION;
         }
-        throw new Error("Invalid token");
+        return null;
       },
-    }),
+    },
+    handler: async () => new Response("Not found", { status: 404 }),
   }),
-  getSolanaWallet: (user: typeof TEST_PRIVY_USER) => {
-    const wallet = user.linked_accounts.find(
-      (a) => a.type === "wallet" && a.chain_type === "solana"
-    );
-    return wallet?.address ?? null;
-  },
-  getUserSolanaWallet: async (userId: string) => {
-    return "So1anaWa11etAddress123456789";
-  },
-  getUserWallets: async (userId: string) => {
-    return [{ address: "So1anaWa11etAddress123456789", chain_type: "solana" }];
-  },
-  getEmail: (user: typeof TEST_PRIVY_USER) => {
-    const email = user.linked_accounts.find((a) => a.type === "email");
-    return email?.address ?? null;
-  },
-  PrivyUser: {},
 }));
 
-// Mock database
 mock.module("__SCOPE__/core/db", () => ({
   db: {
     select: () => ({
@@ -86,7 +67,6 @@ mock.module("__SCOPE__/core/db", () => ({
   },
 }));
 
-// Import after mocking
 const { default: authRoutes } = await import("./auth");
 
 describe("Auth Routes", () => {
@@ -99,91 +79,68 @@ describe("Auth Routes", () => {
   });
 
   describe("POST /auth/sync", () => {
-    it("should return 401 if no identity token provided", async () => {
+    it("should return 401 if no session cookie is provided", async () => {
       const res = await app.request("/auth/sync", {
         method: "POST",
       });
 
       expect(res.status).toBe(401);
       const json = (await res.json()) as { error: string };
-      expect(json.error).toBe("Missing privy-id-token header");
+      expect(json.error).toBe("Unauthorized");
     });
 
-    it("should return 401 for invalid token", async () => {
+    it("should create a new user on first sync", async () => {
       const res = await app.request("/auth/sync", {
         method: "POST",
-        headers: { "privy-id-token": "invalid-token" },
-      });
-
-      expect(res.status).toBe(401);
-      const json = (await res.json()) as { error: string };
-      expect(json.error).toContain("Invalid token");
-    });
-
-    it("should create new user on first sync", async () => {
-      const res = await app.request("/auth/sync", {
-        method: "POST",
-        headers: { "privy-id-token": "valid-token" },
+        headers: { cookie: "better-auth.session=valid" },
       });
 
       expect(res.status).toBe(200);
       const json = (await res.json()) as { success: boolean; user: any };
       expect(json.success).toBe(true);
-      expect(json.user).toBeDefined();
-      expect(json.user.id).toBe("did:privy:abc123");
-      expect(json.user.email).toBe("test@example.com");
-      expect(json.user.walletAddress).toBe("So1anaWa11etAddress123456789");
-      expect(json.user.privyUserId).toBe("did:privy:abc123");
+      expect(json.user.id).toBe(TEST_SESSION.user.id);
+      expect(json.user.email).toBe(TEST_SESSION.user.email);
+      expect(json.user.walletAddress).toContain("email:");
+      expect(json.user.authUserId).toBe(TEST_SESSION.user.id);
     });
 
-    it("should update existing user on sync", async () => {
-      // Simulate existing user
+    it("should update an existing user on sync", async () => {
       mockUserData = mockDbUser;
 
       const res = await app.request("/auth/sync", {
         method: "POST",
-        headers: { "privy-id-token": "valid-token" },
+        headers: { cookie: "better-auth.session=valid" },
       });
 
       expect(res.status).toBe(200);
       const json = (await res.json()) as { success: boolean; user: any };
       expect(json.success).toBe(true);
-      expect(json.user.id).toBe("did:privy:abc123");
+      expect(json.user.id).toBe(TEST_SESSION.user.id);
+      expect(json.user.walletAddress).toContain("email:");
     });
   });
 
   describe("GET /auth/me", () => {
-    it("should return 401 if no identity token provided", async () => {
+    it("should return 401 if no session cookie is provided", async () => {
       const res = await app.request("/auth/me");
 
       expect(res.status).toBe(401);
       const json = (await res.json()) as { error: string };
-      expect(json.error).toBe("Missing privy-id-token header");
+      expect(json.error).toBe("Unauthorized");
     });
 
-    it("should return 404 if user not found", async () => {
-      const res = await app.request("/auth/me", {
-        headers: { "privy-id-token": "valid-token" },
-      });
-
-      expect(res.status).toBe(404);
-      const json = (await res.json()) as { error: string };
-      expect(json.error).toContain("User not found");
-    });
-
-    it("should return user data when user exists", async () => {
+    it("should return the current user when authenticated", async () => {
       mockUserData = mockDbUser;
 
       const res = await app.request("/auth/me", {
-        headers: { "privy-id-token": "valid-token" },
+        headers: { cookie: "better-auth.session=valid" },
       });
 
       expect(res.status).toBe(200);
       const json = (await res.json()) as { user: any };
-      expect(json.user).toBeDefined();
-      expect(json.user.id).toBe("did:privy:abc123");
-      expect(json.user.email).toBe("test@example.com");
-      expect(json.user.walletAddress).toBe("So1anaWa11etAddress123456789");
+      expect(json.user.id).toBe(TEST_SESSION.user.id);
+      expect(json.user.email).toBe(TEST_SESSION.user.email);
+      expect(json.user.walletAddress).toContain("email:");
     });
   });
 });

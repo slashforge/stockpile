@@ -22,4 +22,4 @@ Uses React Native Unistyles. Check `src/utils/unistyles.ts` for theme configurat
 
 ## Authentication
 
-Uses Privy for authentication. See `src/hooks/use-privy-auth.ts`.
+Uses Better Auth for email OTP authentication. See `src/hooks/use-auth.ts` and `src/lib/auth-client.ts`.

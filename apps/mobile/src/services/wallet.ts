@@ -5,29 +5,29 @@ import { wallets } from "@/db/schema/index";
 
 const WALLET_ADDRESS_KEY = "__NAME___wallet_address";
 const GRID_USER_ID_KEY = "__NAME___grid_user_id";
-const PRIVY_USER_ID_KEY = "__NAME___privy_user_id";
+const AUTH_USER_ID_KEY = "__NAME___auth_user_id";
 const ONBOARDING_KEY = "__NAME___onboarding_complete";
 
 export type WalletAccount = {
   publicKey: string;
   gridUserId?: string;
-  privyUserId?: string;
+  authUserId?: string;
 };
 
-export async function setWalletFromPrivy(params: {
+export async function setWalletForUser(params: {
   address: string;
-  privyUserId: string;
+  authUserId: string;
   name?: string;
 }): Promise<WalletAccount> {
-  const { address, privyUserId, name } = params;
+  const { address, authUserId, name } = params;
 
   await SecureStore.setItemAsync(WALLET_ADDRESS_KEY, address);
-  await SecureStore.setItemAsync(PRIVY_USER_ID_KEY, privyUserId);
+  await SecureStore.setItemAsync(AUTH_USER_ID_KEY, authUserId);
 
   await db.insert(wallets).values({
     id: `wallet_${Date.now()}`,
     address,
-    gridUserId: privyUserId,
+    gridUserId: authUserId,
     name: name ?? null,
     isActive: true,
     createdAt: new Date(),
@@ -37,7 +37,7 @@ export async function setWalletFromPrivy(params: {
     .update(wallets)
     .set({
       isActive: true,
-      gridUserId: privyUserId,
+      gridUserId: authUserId,
       name: name ?? undefined,
       updatedAt: new Date(),
     })
@@ -45,7 +45,7 @@ export async function setWalletFromPrivy(params: {
 
   return {
     publicKey: address,
-    privyUserId,
+    authUserId,
   };
 }
 
@@ -54,12 +54,12 @@ export async function getWallet(): Promise<WalletAccount | null> {
   if (!address) return null;
 
   const gridUserId = await SecureStore.getItemAsync(GRID_USER_ID_KEY);
-  const privyUserId = await SecureStore.getItemAsync(PRIVY_USER_ID_KEY);
+  const authUserId = await SecureStore.getItemAsync(AUTH_USER_ID_KEY);
 
   return {
     publicKey: address,
     gridUserId: gridUserId ?? undefined,
-    privyUserId: privyUserId ?? undefined,
+    authUserId: authUserId ?? undefined,
   };
 }
 
@@ -84,7 +84,7 @@ export async function deleteWallet(): Promise<void> {
   }
   await SecureStore.deleteItemAsync(WALLET_ADDRESS_KEY);
   await SecureStore.deleteItemAsync(GRID_USER_ID_KEY);
-  await SecureStore.deleteItemAsync(PRIVY_USER_ID_KEY);
+  await SecureStore.deleteItemAsync(AUTH_USER_ID_KEY);
 }
 
 export async function isOnboardingComplete(): Promise<boolean> {

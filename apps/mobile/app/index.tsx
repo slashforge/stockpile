@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Redirect } from "expo-router";
 import { Pressable } from "react-native";
-import { usePrivy, useIdentityToken } from "@privy-io/expo";
+import { authClient, useSession } from "@/lib/auth-client";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,8 +14,8 @@ import Animated, {
 import { StyleSheet } from "react-native-unistyles";
 import { Box, Text, Button } from "@/components/ui/primitives";
 import { isOnboardingComplete, hasWallet, deleteWallet, resetOnboarding } from "@/services/wallet";
-import { syncUserWithBackend, checkSyncStatus } from "@/hooks/use-privy-auth";
-import { privyStorage } from "@/services/privy-storage";
+import { syncUserWithBackend } from "@/hooks/use-auth";
+import { authStorage } from "@/services/auth-storage";
 import AppIcon from "@/assets/icons/app-icon";
 
 type AppState = 
@@ -131,10 +131,9 @@ function DevResetButton({ onPress }: { onPress: () => void }) {
 
 export default function Index() {
   const [appState, setAppState] = useState<AppState>({ status: "loading" });
-  const { user, isReady: privyReady, logout } = usePrivy();
-  const { getIdentityToken } = useIdentityToken();
+  const { data: session, isPending: sessionPending } = useSession();
 
-  const isPrivyAuthenticated = !!user && privyReady;
+  const isAuthenticated = !!session?.session && !!session?.user;
 
   const checkAndSync = useCallback(async () => {
     try {
@@ -150,13 +149,11 @@ export default function Index() {
         return;
       }
 
-      // If Privy says user is authenticated but local state is incomplete,
-      // we need to resync
-      if (isPrivyAuthenticated) {
+      if (isAuthenticated) {
         setAppState({ status: "syncing" });
-        
-        const result = await syncUserWithBackend(getIdentityToken);
-        
+
+        const result = await syncUserWithBackend();
+
         if (result.success) {
           setAppState({ status: "ready", redirectPath: "/(app)/tabs/home" });
         } else {
@@ -175,13 +172,12 @@ export default function Index() {
       console.error("Check state error:", e);
       setAppState({ status: "sync_error", error: e.message || "Something went wrong" });
     }
-  }, [isPrivyAuthenticated, getIdentityToken]);
+  }, [isAuthenticated]);
 
-  // Wait for Privy to be ready before checking state
   useEffect(() => {
-    if (!privyReady) return;
+    if (sessionPending) return;
     checkAndSync();
-  }, [privyReady, checkAndSync]);
+  }, [sessionPending, checkAndSync]);
 
   const handleRetry = useCallback(() => {
     setAppState({ status: "loading" });
@@ -190,18 +186,17 @@ export default function Index() {
 
   const handleDevReset = useCallback(async () => {
     try {
-      await logout();
+      await authClient.signOut();
       await deleteWallet();
       await resetOnboarding();
-      await privyStorage.clearAll();
+      await authStorage.clearAll();
       setAppState({ status: "ready", redirectPath: "/welcome" });
     } catch (err) {
       console.error("Dev reset error:", err);
     }
-  }, [logout]);
+  }, []);
 
-  // Loading state - waiting for Privy SDK
-  if (appState.status === "loading" || !privyReady) {
+  if (appState.status === "loading" || sessionPending) {
     return (
       <Box flex center background="darkest">
         <SplashLoader />

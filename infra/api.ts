@@ -1,5 +1,7 @@
 import { domains } from "./domains";
 import {
+  betterAuthSecret,
+  resendApiKey,
   databaseUrl,
   databaseHost,
   databaseUsername,
@@ -16,8 +18,13 @@ export const api = new sst.cloudflare.Worker("Api", {
       DATABASE_PASSWORD: databasePassword.value,
       DATABASE_PORT: "5432",
       DATABASE_NAME: "postgres",
+      BETTER_AUTH_SECRET: betterAuthSecret.value,
+      BETTER_AUTH_URL: `https://${domains.api}`,
+      RESEND_API_KEY: resendApiKey.value,
     },
     link: [
+      betterAuthSecret,
+      resendApiKey,
       databaseUrl,
       databaseHost,
       databaseUsername,
