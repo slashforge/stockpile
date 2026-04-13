@@ -1,15 +1,15 @@
 const env = process.env.EXPO_PUBLIC_ENV;
 const bundleIdentifier = env
-  ? `__REVERSE_DOMAIN__.app.${env}`
-  : `__REVERSE_DOMAIN__.app`;
-const scheme = env ? `__NAME__${env}` : `__NAME__`;
+  ? `xyz.stackforge.app.${env}`
+  : `xyz.stackforge.app`;
+const scheme = env ? `stackforge${env}` : `stackforge`;
 
-const name = env ? `__NAME__ (${env.toUpperCase()})` : "__NAME__";
+const name = env ? `StackForge (${env.toUpperCase()})` : "StackForge";
 
 const config = {
   expo: {
     name: name,
-    slug: "__NAME__",
+    slug: "stackforge",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

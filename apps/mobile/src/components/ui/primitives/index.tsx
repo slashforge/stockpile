@@ -9,7 +9,6 @@ export * from "./input";
 export * from "./number-input";
 export * from "./progress-bar";
 export * from "./segmented-select";
-export * from "./state-picker";
 export * from "./step-input";
 export * from "./switch";
 export * from "./text";

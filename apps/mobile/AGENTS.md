@@ -1,6 +1,6 @@
 # AI Agent Guidelines
 
-This document provides guidelines for AI agents working on the __NAME__ mobile app.
+This document provides guidelines for AI agents working on the StackForge mobile app.
 
 ## Key Points
 

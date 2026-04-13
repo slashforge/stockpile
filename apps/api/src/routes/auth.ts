@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { db } from "__SCOPE__/core/db";
-import { users } from "__SCOPE__/core/db/schema";
+import { db } from "@stackforge/core/db";
+import { users } from "@stackforge/core/db/schema";
 import { getAuth } from "../lib/auth";
 
 const app = new Hono();

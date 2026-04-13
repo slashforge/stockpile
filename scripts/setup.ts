@@ -36,13 +36,26 @@ interface Config {
   reverseDomain: string;
 }
 
-const PLACEHOLDERS = {
-  "__NAME__": (c: Config) => c.name,
-  "__NAME_PASCAL__": (c: Config) => c.namePascal,
-  "__SCOPE__": (c: Config) => c.scope,
-  "__DOMAIN__": (c: Config) => c.domain,
-  "__REVERSE_DOMAIN__": (c: Config) => c.reverseDomain,
-};
+const TEMPLATE_DEFAULTS = {
+  name: "stackforge",
+  namePascal: "StackForge",
+  scope: "@stackforge",
+  domain: "stackforge.xyz",
+  reverseDomain: "xyz.stackforge",
+} as const;
+
+const REPLACEMENTS = Object.entries({
+  [TEMPLATE_DEFAULTS.reverseDomain]: (c: Config) => c.reverseDomain,
+  [TEMPLATE_DEFAULTS.domain]: (c: Config) => c.domain,
+  [TEMPLATE_DEFAULTS.scope]: (c: Config) => c.scope,
+  [TEMPLATE_DEFAULTS.namePascal]: (c: Config) => c.namePascal,
+  [TEMPLATE_DEFAULTS.name]: (c: Config) => c.name,
+  __REVERSE_DOMAIN__: (c: Config) => c.reverseDomain,
+  __DOMAIN__: (c: Config) => c.domain,
+  __SCOPE__: (c: Config) => c.scope,
+  __NAME_PASCAL__: (c: Config) => c.namePascal,
+  __NAME__: (c: Config) => c.name,
+}).sort(([a], [b]) => b.length - a.length);
 
 function getAllFiles(dir: string, files: string[] = []): string[] {
   const entries = readdirSync(dir);
@@ -64,7 +77,7 @@ function getAllFiles(dir: string, files: string[] = []): string[] {
       getAllFiles(fullPath, files);
     } else if (stat.isFile()) {
       const ext = entry.split(".").pop()?.toLowerCase();
-      if (["ts", "tsx", "js", "jsx", "json", "md", "mjs", "astro"].includes(ext || "")) {
+      if (entry === "bun.lock" || ["ts", "tsx", "js", "jsx", "json", "md", "mjs", "astro"].includes(ext || "")) {
         files.push(fullPath);
       }
     }
@@ -81,9 +94,9 @@ function replaceInFile(filePath: string, config: Config): boolean {
   let content = readFileSync(filePath, "utf-8");
   let modified = false;
 
-  for (const [placeholder, getValue] of Object.entries(PLACEHOLDERS)) {
-    if (content.includes(placeholder)) {
-      content = content.replaceAll(placeholder, getValue(config));
+  for (const [searchValue, getValue] of REPLACEMENTS) {
+    if (content.includes(searchValue)) {
+      content = content.replaceAll(searchValue, getValue(config));
       modified = true;
     }
   }
@@ -99,7 +112,8 @@ function replaceInFile(filePath: string, config: Config): boolean {
 
 async function main() {
  console.log("\n🚀 Project Setup Script\n");
- console.log("This will replace all template placeholders with your project values.\n");
+ console.log("This will replace the default template values with your project values.\n");
+ console.log("The template ships with working defaults so you can test it before setup.\n");
 
  const name = await ask("Enter project name (lowercase, e.g., myapp): ");
   if (!name || !/^[a-z][a-z0-9-]*$/.test(name)) {
@@ -122,11 +136,11 @@ async function main() {
   };
 
   console.log("\n📋 Configuration:");
-  console.log(`   __NAME__          → ${config.name}`);
-  console.log(`   __NAME_PASCAL__   → ${config.namePascal}`);
-  console.log(`   __SCOPE__         → ${config.scope}`);
-  console.log(`   __DOMAIN__        → ${config.domain}`);
-  console.log(`   __REVERSE_DOMAIN__ → ${config.reverseDomain}`);
+  console.log(`   ${TEMPLATE_DEFAULTS.name}       → ${config.name}`);
+  console.log(`   ${TEMPLATE_DEFAULTS.namePascal}       → ${config.namePascal}`);
+  console.log(`   ${TEMPLATE_DEFAULTS.scope}      → ${config.scope}`);
+  console.log(`   ${TEMPLATE_DEFAULTS.domain}   → ${config.domain}`);
+  console.log(`   ${TEMPLATE_DEFAULTS.reverseDomain}  → ${config.reverseDomain}`);
 
   const confirm = await ask("\nProceed? (y/n): ");
   if (confirm.toLowerCase() !== "y") {

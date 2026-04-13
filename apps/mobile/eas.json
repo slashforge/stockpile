@@ -9,7 +9,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENV": "dev",
-        "EXPO_PUBLIC_API_URL": "https://api.__DOMAIN__"
+        "EXPO_PUBLIC_API_URL": "https://api.stackforge.xyz"
       }
     },
     "preview": {
@@ -17,7 +17,7 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENV": "beta",
-        "EXPO_PUBLIC_API_URL": "https://beta.api.__DOMAIN__"
+        "EXPO_PUBLIC_API_URL": "https://beta.api.stackforge.xyz"
       }
     },
     "beta": {
@@ -25,7 +25,7 @@
       "channel": "beta",
       "env": {
         "EXPO_PUBLIC_ENV": "beta",
-        "EXPO_PUBLIC_API_URL": "https://beta.api.__DOMAIN__"
+        "EXPO_PUBLIC_API_URL": "https://beta.api.stackforge.xyz"
       }
     },
     "production": {
@@ -33,7 +33,7 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_ENV": "prod",
-        "EXPO_PUBLIC_API_URL": "https://api.__DOMAIN__"
+        "EXPO_PUBLIC_API_URL": "https://api.stackforge.xyz"
       }
     }
   },

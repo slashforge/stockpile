@@ -1,4 +1,4 @@
-# __NAME__ Mobile App
+# StackForge Mobile App
 
 A React Native mobile app built with Expo.
 

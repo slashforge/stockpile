@@ -1,5 +1,5 @@
 {
-  "name": "__SCOPE__/core",
+  "name": "@stackforge/core",
   "version": "0.0.0",
   "type": "module",
   "dependencies": {

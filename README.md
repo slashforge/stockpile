@@ -1,4 +1,4 @@
-# __NAME__
+# StackForge
 
 A template monorepo with mobile app, backend API, and landing page.
 

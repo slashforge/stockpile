@@ -4,7 +4,7 @@ import { expoClient } from "@better-auth/expo/client";
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.__DOMAIN__";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stackforge.xyz";
 const scheme = Constants.expoConfig?.scheme;
 
 export const authClient = createAuthClient({
@@ -13,7 +13,7 @@ export const authClient = createAuthClient({
     emailOTPClient(),
     expoClient({
       storage: SecureStore,
-      storagePrefix: "__NAME__",
+      storagePrefix: "stackforge",
       cookiePrefix: "better-auth",
       ...(scheme ? { scheme } : {}),
     }),

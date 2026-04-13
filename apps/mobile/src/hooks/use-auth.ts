@@ -10,7 +10,7 @@ import {
 } from "@/services/wallet";
 import { createOrUpdateLocalUser } from "./use-user";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.__DOMAIN__";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stackforge.xyz";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 

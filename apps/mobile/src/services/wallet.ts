@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import db from "@/db/index";
 import { wallets } from "@/db/schema/index";
 
-const WALLET_ADDRESS_KEY = "__NAME___wallet_address";
-const GRID_USER_ID_KEY = "__NAME___grid_user_id";
-const AUTH_USER_ID_KEY = "__NAME___auth_user_id";
-const ONBOARDING_KEY = "__NAME___onboarding_complete";
+const WALLET_ADDRESS_KEY = "stackforge_wallet_address";
+const GRID_USER_ID_KEY = "stackforge_grid_user_id";
+const AUTH_USER_ID_KEY = "stackforge_auth_user_id";
+const ONBOARDING_KEY = "stackforge_onboarding_complete";
 
 export type WalletAccount = {
   publicKey: string;

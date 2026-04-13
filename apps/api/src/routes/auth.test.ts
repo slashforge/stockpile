@@ -39,7 +39,7 @@ mock.module("../lib/auth", () => ({
   }),
 }));
 
-mock.module("__SCOPE__/core/db", () => ({
+mock.module("@stackforge/core/db", () => ({
   db: {
     select: () => ({
       from: () => ({

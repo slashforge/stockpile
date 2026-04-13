@@ -1,5 +1,5 @@
 {
-  "name": "__NAME__",
+  "name": "stackforge",
   "module": "index.ts",
   "type": "module",
   "private": true,

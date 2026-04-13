@@ -11,7 +11,7 @@ import { renderOpenGraphImage } from './og-image-renderer.mjs';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://__DOMAIN__',
+	site: 'https://stackforge.xyz',
 	adapter: aws(),
 	integrations: [
 		tailwind(),

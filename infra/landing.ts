@@ -2,7 +2,7 @@ import { domains } from "./domains";
 import { DEPLOYED_STAGES } from "./utils";
 
 
-export const landing = new sst.aws.Astro("__NAME_PASCAL__Landing", {
+export const landing = new sst.aws.Astro("StackForgeLanding", {
   path: "apps/landing",
   domain: {
     name: domains.landing,

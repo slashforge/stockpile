@@ -3,8 +3,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { Resend } from "resend";
-import { db } from "__SCOPE__/core/db";
-import * as schema from "__SCOPE__/core/db/schema";
+import { db } from "@stackforge/core/db";
+import * as schema from "@stackforge/core/db/schema";
 
 let authInstance: ReturnType<typeof createAuth> | null = null;
 let resendClient: Resend | null = null;
@@ -22,7 +22,7 @@ function getResendClient() {
 }
 
 function getTrustedOrigins() {
-  const appScheme = process.env.EXPO_PUBLIC_APP_SCHEME || "__NAME__";
+  const appScheme = process.env.EXPO_PUBLIC_APP_SCHEME || "stackforge";
 
   return Array.from(
     new Set(

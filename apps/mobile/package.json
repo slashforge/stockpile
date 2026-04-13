@@ -1,5 +1,5 @@
 {
-  "name": "__NAME__",
+  "name": "stackforge",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
