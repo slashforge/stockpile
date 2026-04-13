@@ -10,10 +10,10 @@ const monorepoRoot = path.resolve(projectRoot, "../..");
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
-// 1. Watch all files within the monorepo and the local package
+// 1. Watch the default Expo folders plus the monorepo
 config.watchFolders = [
-  path.resolve(monorepoRoot, "apps", "mobile"),
-  // Add other specific packages you import
+  ...config.watchFolders,
+  monorepoRoot,
 ];
 // 2. Let Metro know where to resolve packages and in what order
 config.resolver.nodeModulesPaths = [
