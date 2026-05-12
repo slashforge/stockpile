@@ -1,5 +1,4 @@
 ---
-import { getImagePath } from 'astro-opengraph-images';
 import { getDevOpenGraphImagePath } from '../lib/og-image';
 import '../styles/global.css';
 import { SITE_TITLE } from '../consts';
@@ -12,9 +11,7 @@ interface Props {
 
 const site = import.meta.env.DEV ? new URL(Astro.url.origin) : Astro.site ?? new URL(Astro.url.origin);
 const canonicalURL = new URL(Astro.url.pathname, site);
-const imageUrl = import.meta.env.DEV
-  ? new URL(getDevOpenGraphImagePath(Astro.url.pathname), Astro.url.origin).toString()
-  : getImagePath({ url: Astro.url, site });
+const imageUrl = new URL(getDevOpenGraphImagePath(Astro.url.pathname), site).toString();
 const { title, description, type = 'website' } = Astro.props;
 ---
 

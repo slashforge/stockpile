@@ -1,39 +1,53 @@
-import { drizzle } from "drizzle-orm/neon-http";
+import { Resource } from "sst";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Client } from "pg";
 import * as schema from "./schema/index";
 
-import { neon, neonConfig } from "@neondatabase/serverless";
-
-// This MUST be set for PlanetScale Postgres connections
-neonConfig.fetchEndpoint = (host) => `https://${host}/sql`;
-
-function buildDatabaseUrlFromParts() {
-  const host = process.env.DATABASE_HOST;
-  const username = process.env.DATABASE_USERNAME;
-  const password = process.env.DATABASE_PASSWORD;
-
-  if (!host || !username || !password) return undefined;
-
-  const port = process.env.DATABASE_PORT ?? "5432";
-  const dbName = process.env.DATABASE_NAME ?? "postgres";
-
-  return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbName}`;
+function hyperdriveConnectionString() {
+  try {
+    const resources = Resource as unknown as Record<string, { connectionString?: string }>;
+    return resources.Database?.connectionString;
+  } catch {
+    return undefined;
+  }
 }
 
-const DUMMY_DATABASE_URL = "postgresql://dummy:dummy@127.0.0.1:5432/postgres";
+function createDb() {
+  const DATABASE_URL = hyperdriveConnectionString() ?? process.env.DATABASE_URL;
 
-const DATABASE_URL = process.env.DATABASE_URL || buildDatabaseUrlFromParts() || DUMMY_DATABASE_URL;
+  if (!DATABASE_URL) {
+    throw new Error("DATABASE_URL or linked Hyperdrive resource is required");
+  }
 
-if (DATABASE_URL === DUMMY_DATABASE_URL) {
-  console.warn(
-    "Database connection not configured. Using a dummy DATABASE_URL so the worker can start.",
-  );
+  const client = {
+    async query(query: unknown, params?: unknown[]) {
+      const pg = new Client({ connectionString: DATABASE_URL });
+      await pg.connect();
+      try {
+        return await pg.query(query as never, params as never);
+      } finally {
+        await pg.end().catch(() => undefined);
+      }
+    },
+  };
+
+  return drizzle({ client: client as never, schema });
 }
 
-const sql = neon(DATABASE_URL);
+type Database = ReturnType<typeof createDb>;
 
+let database: Database | undefined;
 
-export const db = drizzle({ client: sql, schema });
+function getDb() {
+  database ??= createDb();
+  return database;
+}
 
+export const db = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDb(), prop, receiver);
+  },
+});
 
 // Export types
 export * from "./types";

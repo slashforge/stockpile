@@ -6,16 +6,12 @@ export default $config({
       name: "stackforge",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
-      home: "aws",
-      providers: {
-        aws: {
-          profile: "slashforge",
-          region: "us-east-1",
-        },
-      },
+      home: "cloudflare",
     };
   },
   async run() {
+    await import("./infra/database");
+
     const { apiUrl } = await import("./infra/api");
 
     await import("./infra/orm");

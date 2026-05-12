@@ -42,10 +42,8 @@ export const RouteCard = ({
   const cardWidth = screenWidth - horizontalPadding;
 
   // Route link using stage-specific pay URL
-  routeInfo?: SwapRouteInfo;
-}) {
-  const { styles } = useUnistyles(stylesheet);
   const payUrl = process.env.EXPO_PUBLIC_PAY_URL || "https://stackforge.xyz";
+  const routeLink = `${payUrl}/route/${id}`;
 
   const handleShare = () => {
     // Navigate to the route share route

@@ -11,26 +11,24 @@ A visual guide to our tech stack for non-technical stakeholders.
 │                              SST (Orchestrator)                              │
 │                     "The control center that manages everything"             │
 │                                                                              │
-│   ┌─────────────────────────────────┐   ┌─────────────────────────────────┐ │
-│   │            AWS                   │   │          CLOUDFLARE             │ │
-│   │    "Traditional hosting"         │   │      "Edge/fast hosting"        │ │
-│   │                                  │   │                                 │ │
-│   │  ┌────────────────────────────┐ │   │  ┌───────────────────────────┐  │ │
-│   │  │      Landing Page          │ │   │  │       Backend API         │  │ │
-│   │  │        (Astro)             │ │   │  │        (Hono)             │  │ │
-│   │  │                            │ │   │  │                           │  │ │
-│   │  │  • Marketing website       │ │   │  │  • Runs globally (fast!)  │  │ │
-│   │  │  • yoursite.com            │ │   │  │  • api.yoursite.com       │  │ │
-│   │  │  • Auto-scales             │ │   │  │  • Handles all data       │  │ │
-│   │  └────────────────────────────┘ │   │  └───────────────────────────┘  │ │
-│   │                                  │   │               │                 │ │
-│   │  ┌────────────────────────────┐ │   │               │                 │ │
-│   │  │      DNS Management        │ │   │               ▼                 │ │
-│   │  │   (Route 53 / Domains)     │ │   │  ┌───────────────────────────┐  │ │
-│   │  └────────────────────────────┘ │   │  │      DNS (Cloudflare)     │  │ │
-│   │                                  │   │  │   Fast global routing     │  │ │
-│   └─────────────────────────────────┘   │  └───────────────────────────┘  │ │
-│                                          └─────────────────────────────────┘ │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                           CLOUDFLARE                                │   │
+│   │                        "Edge/fast hosting"                          │   │
+│   │                                                                      │   │
+│   │  ┌────────────────────────────┐     ┌───────────────────────────┐   │   │
+│   │  │      Landing Page          │     │       Backend API         │   │   │
+│   │  │        (Astro)             │     │        (Hono)             │   │   │
+│   │  │                            │     │                           │   │   │
+│   │  │  • Marketing website       │     │  • Runs globally (fast!)  │   │   │
+│   │  │  • yoursite.com            │     │  • api.yoursite.com       │   │   │
+│   │  │  • Auto-scales             │     │  • Handles all data       │   │   │
+│   │  └────────────────────────────┘     └───────────────────────────┘   │   │
+│   │                                                                      │   │
+│   │  ┌────────────────────────────┐     ┌───────────────────────────┐   │   │
+│   │  │      DNS Management        │     │       Hyperdrive          │   │   │
+│   │  │      (Cloudflare)          │     │   Postgres connection     │   │   │
+│   │  └────────────────────────────┘     └───────────────────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
@@ -39,7 +37,7 @@ A visual guide to our tech stack for non-technical stakeholders.
                     │         (Database)              │
                     │                                 │
                     │  • Serverless (auto-scales)     │
-                    │  • Uses Neon driver for CF      │
+                    │  • Connected via Hyperdrive     │
                     │  • Separate DB per environment  │
                     └─────────────────────────────────┘
 ```
@@ -58,7 +56,7 @@ A visual guide to our tech stack for non-technical stakeholders.
 │      └── "I need an API, a landing page, and a database"      │
 │                                                               │
 │   2. PROVISIONS resources                                     │
-│      └── Creates them on AWS + Cloudflare automatically       │
+│      └── Creates them on Cloudflare automatically             │
 │                                                               │
 │   3. CONNECTS everything                                      │
 │      └── Sets up domains, links secrets, wires services       │
@@ -148,28 +146,29 @@ Secrets (passwords, API keys, etc.) are managed by SST with **environment isolat
 
 ---
 
-## Why This Split? (AWS vs Cloudflare)
+## Why Cloudflare?
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                                                              │
-│   AWS (Amazon Web Services)              CLOUDFLARE                          │
-│   ─────────────────────────              ──────────                          │
+│                                    CLOUDFLARE                                │
+│                                    ──────────                                │
 │                                                                              │
-│   BEST FOR:                              BEST FOR:                           │
-│   • Static websites                      • APIs that need speed              │
-│   • Complex infrastructure               • Global low-latency                │
-│   • Long-running processes               • Edge computing                    │
+│   BEST FOR:                                                                  │
+│   • Static and server-rendered websites                                      │
+│   • APIs that need speed                                                     │
+│   • Global low-latency                                                       │
+│   • Edge computing                                                           │
 │                                                                              │
-│   WE USE FOR:                            WE USE FOR:                         │
-│   ✓ Landing page (Astro)                 ✓ Backend API (Hono)                │
-│   ✓ DNS management                       ✓ DNS routing                       │
-│   ✓ SSL certificates                     ✓ DDoS protection                   │
+│   WE USE FOR:                                                                │
+│   ✓ Landing page (Astro)                                                     │
+│   ✓ Backend API (Hono)                                                       │
+│   ✓ DNS routing and SSL                                                      │
+│   ✓ Hyperdrive Postgres connections                                          │
 │                                                                              │
-│   WHY:                                   WHY:                                │
-│   Landing page doesn't need              API calls from mobile/web           │
-│   ultra-low latency, just                need to be FAST from                │
-│   reliability and caching                anywhere in the world               │
+│   WHY:                                                                       │
+│   One provider keeps the template simpler while serving the site, API,       │
+│   DNS, and database connectivity from Cloudflare's global edge.              │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -235,7 +234,7 @@ Secrets (passwords, API keys, etc.) are managed by SST with **environment isolat
 │                          │  SST automatically:             │                │
 │                          │                                 │                │
 │                          │  • Builds the code              │                │
-│                          │  • Updates AWS resources        │                │
+│                          │  • Updates Cloudflare resources │                │
 │                          │  • Updates Cloudflare workers   │                │
 │                          │  • Connects secrets             │                │
 │                          │  • Updates DNS if needed        │                │
@@ -252,9 +251,9 @@ Secrets (passwords, API keys, etc.) are managed by SST with **environment isolat
 |-------|------------|---------|
 | **Orchestration** | SST | Manages all infrastructure as code |
 | **API Hosting** | Cloudflare Workers | Fast, global API |
-| **Web Hosting** | AWS (Astro) | Landing page |
+| **Web Hosting** | Cloudflare Astro | Landing page |
 | **Database** | PlanetScale Postgres | Data storage |
-| **Database Driver** | Neon Serverless | Cloudflare-compatible DB client |
+| **Database Connectivity** | Cloudflare Hyperdrive + postgres.js | Worker-to-Postgres connection pooling |
 | **ORM** | Drizzle | Type-safe database queries |
 | **Mobile** | Expo / React Native | iOS + Android app |
 | **Web App** | Vite + React | Browser app (pre-built) |

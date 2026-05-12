@@ -37,9 +37,9 @@ function getDocumentTitle(html: string) {
 export function getDevOpenGraphImagePath(pathname: string) {
   const normalized = normalizePathname(pathname);
 
-  if (normalized === '/') return '/og/index.png';
-  if (normalized.endsWith('/')) return `/og${normalized}index.png`;
-  return `/og${normalized}.png`;
+  if (normalized === '/') return '/og/index.svg';
+  if (normalized.endsWith('/')) return `/og${normalized}index.svg`;
+  return `/og${normalized}.svg`;
 }
 
 export function getPagePathFromOgPath(path?: string) {

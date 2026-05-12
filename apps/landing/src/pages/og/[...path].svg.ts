@@ -1,9 +1,8 @@
-import { Resvg } from '@resvg/resvg-js';
 import type { APIContext } from 'astro';
-import satori from 'satori';
-import { openGraphImageOptions } from '../../../og-image-options.mjs';
+import satori, { type SatoriOptions } from 'satori';
+import { getOpenGraphImageOptions } from '../../../og-image-options.mjs';
 import { renderOpenGraphImage } from '../../../og-image-renderer.mjs';
-import { extractOpenGraphContent, getDevOpenGraphImagePath, getPagePathFromOgPath } from '../../lib/og-image';
+import { extractOpenGraphContent, getPagePathFromOgPath } from '../../lib/og-image';
 
 export const prerender = false;
 
@@ -23,24 +22,17 @@ export async function GET({ params, request }: APIContext) {
 
   const html = await pageResponse.text();
   const { title, description } = extractOpenGraphContent(html);
-  const imageUrl = new URL(getDevOpenGraphImagePath(pathname), request.url).toString();
   const reactNode = await renderOpenGraphImage({
     title,
     description,
     pathname,
-    url: pageUrl.toString(),
-    type: 'website',
-    image: imageUrl,
   });
-  const svg = await satori(reactNode, openGraphImageOptions);
-  const resvg = new Resvg(svg, {
-    font: { loadSystemFonts: false },
-    fitTo: { mode: 'width', value: openGraphImageOptions.width },
-  });
+  const options = await getOpenGraphImageOptions(request.url);
+  const svg = await satori(reactNode, options as SatoriOptions);
 
-  return new Response(resvg.render().asPng(), {
+  return new Response(svg, {
     headers: {
-      'Content-Type': 'image/png',
+      'Content-Type': 'image/svg+xml; charset=utf-8',
       'Cache-Control': 'no-store',
     },
   });

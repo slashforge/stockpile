@@ -52,7 +52,7 @@ Notes:
 - **Mobile**: Expo, React Native, Better Auth, TanStack Query
 - **API**: Hono, Drizzle ORM, Better Auth, Resend
 - **Landing**: Astro, Tailwind CSS
-- **Infrastructure**: SST (AWS + Cloudflare)
+- **Infrastructure**: SST on Cloudflare Workers, Astro, and Hyperdrive
 
 ---
 
