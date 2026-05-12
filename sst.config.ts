@@ -16,10 +16,13 @@ export default $config({
 
     await import("./infra/orm");
 
+    const { devMcpUrl } = await import("./infra/dev-mcp");
+
     const { landing } = await import("./infra/landing");
 
     return {
       apiUrl: apiUrl,
+      devMcpUrl,
       landingUrl: landing.url,
     };
   },

@@ -1,0 +1,25 @@
+{
+  "name": "dev-mcp",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pg": "^8.15.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.2.4",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "hono": "^4.10.6",
+    "pg": "^8.16.3",
+    "zod": "^3.24.4"
+  }
+}
