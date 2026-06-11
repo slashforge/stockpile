@@ -18,6 +18,8 @@ import * as Clipboard from "expo-clipboard";
 export type StepInputProps = Omit<TextInputProps, "style"> & {
   /** Label displayed at top left inside the input container */
   label: string;
+  /** Whether to show the paste button (default: true) */
+  showPaste?: boolean;
   /** Helper text or error message displayed below the input */
   helperText?: string;
   /** Validation state of the input */
@@ -34,6 +36,7 @@ export const StepInput = forwardRef<TextInput, StepInputProps>(
   (
     {
       label,
+      showPaste = true,
       helperText,
       state = "default",
       disabled = false,
@@ -162,7 +165,7 @@ export const StepInput = forwardRef<TextInput, StepInputProps>(
                 {...props}
               />
             )}
-            {!value && !disabled && (
+            {showPaste && !value && !disabled && (
               <Button
                 size="sm"
                 mode="subtle"

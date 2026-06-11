@@ -5,7 +5,8 @@ import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stackforge.xyz";
-const scheme = Constants.expoConfig?.scheme;
+const rawScheme = Constants.expoConfig?.scheme;
+const scheme = Array.isArray(rawScheme) ? rawScheme[0] : rawScheme;
 
 export const authClient = createAuthClient({
   baseURL: `${API_URL}/auth`,
