@@ -1,3 +1,4 @@
+import { Resource } from "sst";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
@@ -10,24 +11,27 @@ let authInstance: ReturnType<typeof createAuth> | null = null;
 let resendClient: Resend | null = null;
 
 function getResendClient() {
-  if (!process.env.RESEND_API_KEY) {
+  const apiKey = Resource.ResendApiKey.value;
+
+  if (!apiKey) {
     return null;
   }
 
   if (!resendClient) {
-    resendClient = new Resend(process.env.RESEND_API_KEY);
+    resendClient = new Resend(apiKey);
   }
 
   return resendClient;
 }
 
 function getTrustedOrigins() {
-  const appScheme = process.env.EXPO_PUBLIC_APP_SCHEME || "stackforge";
+  const appScheme = Resource.AppConfig.appScheme;
 
   return Array.from(
     new Set(
       [
-        process.env.BETTER_AUTH_URL,
+        Resource.AppConfig.apiUrl,
+        Resource.AppConfig.webUrl,
         "http://localhost:4040",
         "http://localhost:8081",
         "http://localhost:19006",
@@ -61,10 +65,8 @@ async function sendVerificationOTP({
     ? `Your sign-in code: ${otp}`
     : `Your verification code: ${otp}`;
 
-  const from = process.env.BETTER_AUTH_FROM_EMAIL || "onboarding@resend.dev";
-
   const { error } = await resend.emails.send({
-    from,
+    from: Resource.AppConfig.authFromEmail,
     to: [email],
     subject,
     text: `Your code is ${otp}. It expires in 5 minutes.`,
@@ -82,8 +84,8 @@ function createAuth() {
       schema,
     }),
     basePath: "/auth",
-    secret: process.env.BETTER_AUTH_SECRET || "dev-only-better-auth-secret",
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:4040",
+    secret: Resource.BetterAuthSecret.value,
+    baseURL: Resource.AppConfig.apiUrl,
     trustedOrigins: getTrustedOrigins(),
     plugins: [
       expo(),

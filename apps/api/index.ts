@@ -1,3 +1,4 @@
+import { Resource } from "sst";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
@@ -7,7 +8,7 @@ const app = new Hono();
 
 app.use("*", logger());
 app.use("*", cors({
-  origin: (origin) => origin || process.env.BETTER_AUTH_URL || "http://localhost:8081",
+  origin: (origin) => origin || Resource.AppConfig.apiUrl,
   allowHeaders: ["Content-Type", "Authorization", "Cookie", "Set-Cookie"],
   allowMethods: ["GET", "POST", "OPTIONS"],
   exposeHeaders: ["Set-Cookie", "Content-Length"],

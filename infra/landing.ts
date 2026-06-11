@@ -1,12 +1,11 @@
 import { domains } from "./domains";
-import { DEPLOYED_STAGES } from "./utils";
-
+import { isDeployed } from "./utils";
 
 export const landing = new sst.cloudflare.Astro("StackForgeLanding", {
   path: "apps/landing",
   domain: domains.landing,
   environment: {
-    PUBLIC_API_URL: DEPLOYED_STAGES.includes($app.stage) ? `https://${domains.api}` : "http://localhost:4040"
+    PUBLIC_API_URL: isDeployed() ? `https://${domains.api}` : "http://localhost:4040"
   },
   dev: {
     command: "bun run dev",

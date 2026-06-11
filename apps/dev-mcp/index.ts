@@ -1,3 +1,4 @@
+import { Resource } from "sst";
 import { StreamableHTTPTransport } from "@hono/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Hono } from "hono";
@@ -10,6 +11,16 @@ const PORT = Number(process.env.PORT ?? 4444);
 const WRITE_ACCESS_ENABLED = process.env.DEV_MCP_ALLOW_WRITES !== "false";
 const API_BASE_URL = process.env.DEV_MCP_API_URL ?? process.env.BACKEND_URL ?? "http://localhost:4040";
 
+type ResourceSecrets = Record<string, { value?: string }>;
+
+function secretValue(name: string) {
+  try {
+    return (Resource as unknown as ResourceSecrets)[name]?.value;
+  } catch {
+    return undefined;
+  }
+}
+
 const FIXTURES = {
   basic_user_flow: {
     userId: "usr_dev_seed",
@@ -21,11 +32,11 @@ const FIXTURES = {
 } as const;
 
 function buildDatabaseUrlFromParts() {
-  const host = process.env.DATABASE_HOST;
-  const username = process.env.DATABASE_USERNAME;
-  const password = process.env.DATABASE_PASSWORD;
-  const port = process.env.DATABASE_PORT ?? "5432";
-  const database = process.env.DATABASE_NAME ?? "postgres";
+  const host = secretValue("DatabaseHost");
+  const username = secretValue("DatabaseUsername");
+  const password = secretValue("DatabasePassword");
+  const port = "5432";
+  const database = "postgres";
 
   if (!host || !username || !password) {
     return null;
@@ -33,25 +44,54 @@ function buildDatabaseUrlFromParts() {
 
   const user = encodeURIComponent(username);
   const pass = encodeURIComponent(password);
-  return `postgresql://${user}:${pass}@${host}:${port}/${database}?sslmode=require`;
+  const sslmode = shouldUseSslForHost(host) ? "require" : "disable";
+  return `postgresql://${user}:${pass}@${host}:${port}/${database}?sslmode=${sslmode}`;
+}
+
+function shouldUseSslForHost(host: string) {
+  if (process.env.DEV_MCP_DATABASE_SSL === "true") return true;
+  if (process.env.DEV_MCP_DATABASE_SSL === "false") return false;
+
+  return !["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(host);
+}
+
+function databaseSsl(databaseUrl: string) {
+  if (process.env.DEV_MCP_DATABASE_SSL === "true") return { rejectUnauthorized: false };
+  if (process.env.DEV_MCP_DATABASE_SSL === "false") return false;
+
+  try {
+    const url = new URL(databaseUrl);
+    const sslmode = url.searchParams.get("sslmode");
+
+    if (sslmode === "disable") return false;
+    if (sslmode === "require" || sslmode === "verify-ca" || sslmode === "verify-full") {
+      return { rejectUnauthorized: false };
+    }
+
+    return shouldUseSslForHost(url.hostname) ? { rejectUnauthorized: false } : false;
+  } catch {
+    return { rejectUnauthorized: false };
+  }
 }
 
 function getDatabaseUrl() {
-  const databaseUrl = process.env.DATABASE_URL || buildDatabaseUrlFromParts();
+  const databaseUrl = secretValue("DatabaseUrl") || buildDatabaseUrlFromParts();
 
   if (!databaseUrl) {
     throw new Error(
-      "Database connection not configured. Set DATABASE_URL or DATABASE_HOST/DATABASE_USERNAME/DATABASE_PASSWORD.",
+      "Database connection not configured. Run via `sst dev` or `sst shell` so the DatabaseUrl/DatabaseHost secrets are linked.",
     );
   }
 
   return databaseUrl;
 }
 
+const databaseUrl = getDatabaseUrl();
+
 const pool = new Pool({
-  connectionString: getDatabaseUrl(),
+  connectionString: databaseUrl,
   max: Number(process.env.DEV_MCP_DB_POOL_SIZE ?? 3),
-  ssl: process.env.DEV_MCP_DATABASE_SSL === "false" ? false : { rejectUnauthorized: false },
+  ssl: databaseSsl(databaseUrl),
 });
 
 function json(value: unknown) {

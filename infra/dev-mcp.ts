@@ -4,17 +4,11 @@ import {
   databaseUrl,
   databaseUsername,
 } from "./secrets";
-import { DEPLOYED_STAGES } from "./utils";
+import { isDeployed } from "./utils";
 
-export const devMcp = !DEPLOYED_STAGES.includes($app.stage)
+export const devMcp = !isDeployed()
   ? new sst.x.DevCommand("DevMcp", {
       environment: {
-        DATABASE_URL: databaseUrl.value,
-        DATABASE_HOST: databaseHost.value,
-        DATABASE_USERNAME: databaseUsername.value,
-        DATABASE_PASSWORD: databasePassword.value,
-        DATABASE_PORT: "5432",
-        DATABASE_NAME: "postgres",
         PORT: "4444",
         DEV_MCP_API_URL: process.env.DEV_MCP_API_URL ?? "http://localhost:4040",
         DEV_MCP_ALLOW_WRITES: process.env.DEV_MCP_ALLOW_WRITES ?? "true",
@@ -24,6 +18,6 @@ export const devMcp = !DEPLOYED_STAGES.includes($app.stage)
     })
   : undefined;
 
-export const devMcpUrl = !DEPLOYED_STAGES.includes($app.stage)
+export const devMcpUrl = !isDeployed()
   ? "http://localhost:4444/mcp"
   : undefined;

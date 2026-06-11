@@ -1,14 +1,10 @@
-import { domains } from "./domains";
+import { appConfig } from "./config";
 import { database } from "./database";
+import { domains } from "./domains";
 import { betterAuthSecret, databaseUrl, resendApiKey } from "./secrets";
+import { isDeployed } from "./utils";
 
-const DEPLOYED_STAGES = ["prod", "dev"];
-
-const API_ENV = {
-  BETTER_AUTH_SECRET: betterAuthSecret.value,
-  BETTER_AUTH_URL: `https://${domains.api}`,
-  RESEND_API_KEY: resendApiKey.value,
-};
+const API_LINKS = [appConfig, betterAuthSecret, resendApiKey];
 
 const WORKER_TRANSFORM = {
   worker: {
@@ -22,14 +18,9 @@ const WORKER_TRANSFORM = {
   },
 };
 
-export const api = !DEPLOYED_STAGES.includes($app.stage)
+export const api = !isDeployed()
   ? new sst.x.DevCommand("Api", {
-      environment: {
-        ...API_ENV,
-        DATABASE_URL: databaseUrl.value,
-        BETTER_AUTH_URL: "http://localhost:4040",
-      },
-      link: [databaseUrl, betterAuthSecret, resendApiKey],
+      link: [...API_LINKS, databaseUrl],
       dev: { command: "bun dev", directory: "apps/api" },
     })
   : new sst.cloudflare.Worker("Api", {
@@ -43,8 +34,7 @@ export const api = !DEPLOYED_STAGES.includes($app.stage)
           },
         },
       },
-      environment: API_ENV,
-      link: [database, betterAuthSecret, resendApiKey],
+      link: [...API_LINKS, database!],
       domain: domains.api,
       placement: {
         mode: "smart",
@@ -52,6 +42,6 @@ export const api = !DEPLOYED_STAGES.includes($app.stage)
       transform: WORKER_TRANSFORM,
     });
 
-export const apiUrl = DEPLOYED_STAGES.includes($app.stage)
-  ? $interpolate`${(api as sst.cloudflare.Worker).url}`
+export const apiUrl = isDeployed()
+  ? $interpolate`https://${domains.api}`
   : "http://localhost:4040";
