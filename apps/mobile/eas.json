@@ -4,7 +4,7 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
+    "dev": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
@@ -21,7 +21,7 @@
       }
     },
     "beta": {
-      "autoIncrement": "buildNumber",
+      "autoIncrement": true,
       "channel": "beta",
       "env": {
         "EXPO_PUBLIC_ENV": "beta",
@@ -29,7 +29,7 @@
       }
     },
     "production": {
-      "autoIncrement": "buildNumber",
+      "autoIncrement": true,
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_ENV": "prod",

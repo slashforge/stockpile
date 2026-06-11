@@ -16,21 +16,18 @@ const config = {
     scheme: scheme,
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
-    updates: {
-      url: "https://u.expo.dev/bf6e3717-4eae-4804-b309-8f4563a5a040",
-    },
     runtimeVersion: {
       policy: "appVersion",
     },
-   ios: {
-     supportsTablet: false,
-     bundleIdentifier: bundleIdentifier,
-     infoPlist: {
-       ITSAppUsesNonExemptEncryption: false,
+    ios: {
+      supportsTablet: false,
+      bundleIdentifier: bundleIdentifier,
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
         NSLocationWhenInUseUsageDescription:
           "This app does not use your location.",
-     },
-   },
+      },
+    },
     android: {
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
@@ -105,9 +102,6 @@ const config = {
     },
     extra: {
       router: {},
-      eas: {
-        projectId: "bf6e3717-4eae-4804-b309-8f4563a5a040",
-      },
     },
     owner: "slashforge",
   },
