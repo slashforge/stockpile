@@ -25,7 +25,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
 
   // Reset copied state after delay
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
     if (copied) {
       timeout = setTimeout(() => {
         animateBack();

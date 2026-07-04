@@ -27,6 +27,13 @@ function getResendClient() {
 function getTrustedOrigins() {
   const appScheme = Resource.AppConfig.appScheme;
 
+  // app.config.ts derives the scheme per environment: `stackforge`,
+  // `stackforgedev`, `stackforgebeta`, `stackforgeprod` (see EXPO_PUBLIC_ENV
+  // in eas.json). All variants must be trusted or those builds are rejected.
+  const appSchemes = ["", "dev", "beta", "prod"].map(
+    (env) => `${appScheme}${env}`
+  );
+
   return Array.from(
     new Set(
       [
@@ -38,8 +45,7 @@ function getTrustedOrigins() {
         "http://localhost:8081/--/",
         "exp://",
         "exp://**",
-        `${appScheme}://`,
-        `${appScheme}://*`,
+        ...appSchemes.flatMap((scheme) => [`${scheme}://`, `${scheme}://*`]),
       ].filter((value): value is string => Boolean(value))
     )
   );

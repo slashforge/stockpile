@@ -15,9 +15,27 @@ export const openApiConfig = {
 
 export const app = new OpenAPIHono();
 
+let allowedOrigins: Set<string> | null = null;
+
+function getAllowedOrigins() {
+  allowedOrigins ??= new Set(
+    [
+      Resource.AppConfig.apiUrl,
+      Resource.AppConfig.webUrl,
+      "http://localhost:8081",
+      "http://localhost:19006",
+      "http://localhost:4321",
+    ].filter(Boolean)
+  );
+  return allowedOrigins;
+}
+
 app.use("*", logger());
 app.use("*", cors({
-  origin: (origin) => origin || Resource.AppConfig.apiUrl,
+  origin: (origin) => {
+    if (!origin) return Resource.AppConfig.apiUrl;
+    return getAllowedOrigins().has(origin) ? origin : null;
+  },
   allowHeaders: ["Content-Type", "Authorization", "Cookie", "Set-Cookie"],
   allowMethods: ["GET", "POST", "OPTIONS"],
   exposeHeaders: ["Set-Cookie", "Content-Length"],

@@ -20,6 +20,8 @@ export default $config({
 
     const { landing } = await import("./infra/landing");
 
+    await import("./infra/expo");
+
     return {
       apiUrl: apiUrl,
       devMcpUrl,

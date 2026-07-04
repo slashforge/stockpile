@@ -102,9 +102,9 @@ const config = {
     },
     extra: {
       router: {},
-      eas: {
-        projectId: "5d99751e-bbcc-4a79-8cec-6dd484f1c8b4",
-      },
+      ...(process.env.EAS_PROJECT_ID
+        ? { eas: { projectId: process.env.EAS_PROJECT_ID } }
+        : {}),
     },
     owner: "slashforge",
   },
