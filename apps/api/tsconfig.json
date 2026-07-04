@@ -18,5 +18,5 @@
     "noPropertyAccessFromIndexSignature": false,
     "types": ["bun-types"]
   },
-  "include": ["**/*.ts", "sst-env.d.ts"]
+  "include": ["**/*.ts", "../../sst-env.d.ts"]
 }

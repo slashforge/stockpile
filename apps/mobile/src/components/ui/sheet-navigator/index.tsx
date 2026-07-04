@@ -240,7 +240,7 @@ const SheetNavigator: React.FC<SheetNavigatorProps> = ({
           >
             {/* Header */}
             <Box direction="row" alignItems="center" style={styles.header}>
-              <CloseButton onPress={handleClose} hidden={true} />
+              <CloseButton hidden disabled />
               <Box center flex>
                 {currentStepTitle && (
                   <Text size="xl" mode="subtle" weight="bold">
@@ -248,10 +248,7 @@ const SheetNavigator: React.FC<SheetNavigatorProps> = ({
                   </Text>
                 )}
               </Box>
-              <CloseButton
-                onPress={handleClose}
-                disabled={navigation.isLoading}
-              />
+              <CloseButton hidden disabled />
             </Box>
 
             {/* Progress Indicator */}

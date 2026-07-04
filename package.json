@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "setup": "bun scripts/setup.ts"
+    "setup": "bun scripts/setup.ts",
+    "generate:sdk": "bun run --cwd apps/api generate:openapi && bun run --cwd packages/api-client generate"
   },
   "workspaces": [
     "apps/*",

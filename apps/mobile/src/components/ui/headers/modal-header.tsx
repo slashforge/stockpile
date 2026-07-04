@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, type ReactNode } from "react";
 import { Box, Button, Text } from "../primitives";
 import { router } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import BlurView from "../primitives/blur-view";
 import { StyleSheet } from "react-native-unistyles";
 import Avatar from "../avatar";
@@ -14,6 +15,8 @@ interface ModalHeaderProps {
   onBack?: () => void;
   avatar?: string | null;
   showAvatar?: boolean;
+  /** Right action button (e.g., Save) */
+  rightAction?: { label: string; onPress: () => void; disabled?: boolean; loading?: boolean };
 }
 
 export const ModalHeader = ({
@@ -22,6 +25,7 @@ export const ModalHeader = ({
   onBack,
   avatar,
   showAvatar = false,
+  rightAction,
 }: ModalHeaderProps) => {
   const handleBack = useCallback(() => {
     if (!backEnabled) return;
@@ -54,20 +58,37 @@ export const ModalHeader = ({
           </Animated.View>
         )}
         <Text size="xl" weight="bold">
-          {title}
-        </Text>
+        {title}
+      </Text>
       </Box>
 
-      <Button
-        variant="ghost"
-        size="md"
-        style={{
-          opacity: backEnabled ? 0 : 1,
-        }}
-        onPress={handleClose}
-      >
-        <Button.Text>close</Button.Text>
-      </Button>
+      {rightAction ? (
+        <Box style={{ marginRight: 8 }}>
+          <Button
+            size="sm"
+            rounded="full"
+            onPress={rightAction.onPress}
+            disabled={rightAction.disabled || rightAction.loading}
+            loading={rightAction.loading}
+            style={{ width: 32, height: 32, paddingHorizontal: 0 }}
+          >
+            <Button.Icon>
+              {({ color, size }) => <Feather name="check" size={size} color={color} />}
+            </Button.Icon>
+          </Button>
+        </Box>
+      ) : (
+        <Button
+          variant="ghost"
+          size="md"
+          style={{
+            opacity: backEnabled ? 0 : 1,
+          }}
+          onPress={handleClose}
+        >
+          <Button.Text>close</Button.Text>
+        </Button>
+      )}
     </BlurView>
   );
 };

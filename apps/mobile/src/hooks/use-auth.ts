@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { authClient } from "@/lib/auth-client";
+import { syncUser } from "@/services/api/client";
 import { authStorage } from "@/services/auth-storage";
 import {
   hasWallet,
@@ -9,8 +10,6 @@ import {
   setWalletForUser,
 } from "@/services/wallet";
 import { createOrUpdateLocalUser } from "./use-user";
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stackforge.xyz";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -59,25 +58,16 @@ export async function syncUserWithBackend(emailOverride?: string): Promise<SyncR
   }
 
   try {
-    const syncResponse = await fetch(`${API_URL}/auth/sync`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: cookie,
-      },
-      credentials: "omit",
-    });
+    const { data: syncData, error: syncError } = await syncUser();
 
-    if (!syncResponse.ok) {
-      const errorData = await syncResponse.json().catch(() => ({}));
+    if (syncError || !syncData) {
       return {
         success: false,
-        error: errorData.error || "Failed to sync user with backend",
+        error: syncError?.error || "Failed to sync user with backend",
         needsSync: true,
       };
     }
 
-    const syncData = await syncResponse.json();
     const authUserId = syncData.user.id;
     const walletAddr = syncData.user.walletAddress;
     const userEmail = syncData.user.email || emailOverride || "";

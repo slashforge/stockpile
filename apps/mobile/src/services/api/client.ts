@@ -1,57 +1,20 @@
+import { client } from "@stackforge/api-client";
 import { authClient, API_URL } from "@/lib/auth-client";
 
-/**
- * Make an authenticated API request using the Better Auth session cookie.
- */
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+client.setConfig({
+  baseUrl: API_URL,
+  credentials: "omit",
+});
+
+client.interceptors.request.use((request) => {
   const cookie = authClient.getCookie();
 
-  if (!cookie) {
-    throw new Error("Not authenticated. Please sign in again.");
+  if (cookie) {
+    request.headers.set("Cookie", cookie);
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: cookie,
-      ...options.headers,
-    },
-    credentials: "omit",
-  });
+  return request;
+});
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `Request failed: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Make an unauthenticated API request.
- */
-export async function publicApiRequest<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `Request failed: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
+export * from "@stackforge/api-client";
 export { API_URL };

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Pressable, ActivityIndicator } from "react-native";
+import { View, Pressable } from "react-native";
 import type { DimensionValue } from "react-native";
 import Animated, { useAnimatedStyle, withRepeat, withTiming } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Text } from "@/components/ui/primitives/text";
 import { Icon } from "@/components/ui/primitives/icon";
+import { Spinner } from "@/components/ui/primitives/spinner";
 import GorhomPopupSheet, { type GorhomPopupSheetRef } from "@/components/ui/gorhom-popup-sheet";
 
 export type TradeConfirmationType = "buy-yes" | "buy-no" | "sell" | "claim";
@@ -267,7 +268,7 @@ export function TradeConfirmationModal({
           ]}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color={config.color} />
+            <Spinner size="sm" color={config.color} />
           ) : (
             <Text weight="bold" style={{ color: config.color }}>
               {canRetry ? "Retry quote" : config.confirmText}

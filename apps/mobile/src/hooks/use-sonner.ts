@@ -1,6 +1,10 @@
 import { useSonner as useBaseSonner } from "@/providers/sonner-provider";
 import type { SonnerConfig } from "@/types/sonner";
 
+/**
+ * Sonner titles must be SHORT — 1–2 words max ("Sent", "Copied", "Sending").
+ * The sonner renders as a compact pill; anything longer truncates.
+ */
 export const useSonner = () => {
   const { showSonner, updateSonner, hideSonner, clearAll, sonners } =
     useBaseSonner();
@@ -103,4 +107,3 @@ export const useSonner = () => {
     transaction,
   };
 };
-

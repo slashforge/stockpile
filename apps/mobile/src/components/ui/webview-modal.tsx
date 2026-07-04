@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { Modal as RNModal, Pressable, ActivityIndicator } from "react-native";
+import { Modal as RNModal, Pressable } from "react-native";
 import { WebView } from "react-native-webview";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { BlurView } from "expo-blur";
@@ -13,6 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useEffect } from "react";
 import { Box, Text, Icon, Button } from "@/primitives";
+import { Spinner } from "@/components/ui/primitives/spinner";
 import { useTheme } from "@/providers/theme-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -164,7 +165,7 @@ const WebViewModal = ({
               zIndex: 10,
             }}
           >
-            <ActivityIndicator size="large" color={theme.colors.brand.base} />
+            <Spinner size="xl" color={theme.colors.brand.base} />
             <Text size="sm" mode="subtle" style={{ marginTop: 12 }}>
               Loading...
             </Text>

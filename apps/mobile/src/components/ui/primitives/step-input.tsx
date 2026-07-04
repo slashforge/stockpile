@@ -7,7 +7,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { forwardRef, useCallback } from "react";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Feather } from "@expo/vector-icons";
@@ -28,7 +27,10 @@ export type StepInputProps = Omit<TextInputProps, "style"> & {
   disabled?: boolean;
   /** Container style override */
   containerStyle?: StyleProp<ViewStyle>;
-  /** Use BottomSheetTextInput for proper keyboard handling in bottom sheets */
+  /**
+   * @deprecated No-op. Sheets now use the native Expo UI bottom sheet, which
+   * handles keyboard avoidance natively. Kept for API compatibility.
+   */
   bottomSheet?: boolean;
 };
 
@@ -123,48 +125,26 @@ export const StepInput = forwardRef<TextInput, StepInputProps>(
 
           {/* Input Row */}
           <View style={styles.inputRow}>
-            {bottomSheet ? (
-              <BottomSheetTextInput
-                ref={ref as any}
-                style={[
-                  styles.input,
-                  {
-                    color: disabled
-                      ? theme.colors.text.subtle
-                      : theme.colors.text.default,
-                    fontFamily: theme.typography.family.mono,
-                  },
-                ]}
-                placeholderTextColor={placeholderTextColor}
-                editable={!disabled}
-                onFocus={onFocus}
-                onBlur={onBlur}
-                onChangeText={onChangeText}
-                value={value}
-                {...props}
-              />
-            ) : (
-              <TextInput
-                ref={ref}
-                style={[
-                  styles.input,
-                  {
-                    color: disabled
-                      ? theme.colors.text.subtle
-                      : theme.colors.text.default,
-                    fontFamily: theme.typography.family.mono,
-                  },
-                ]}
-                placeholderTextColor={placeholderTextColor}
-                editable={!disabled}
-                onFocus={onFocus}
-                onBlur={onBlur}
-                onChangeText={onChangeText}
-                value={value}
-                inputAccessoryViewID="step-input-no-accessory"
-                {...props}
-              />
-            )}
+            <TextInput
+              ref={ref}
+              style={[
+                styles.input,
+                {
+                  color: disabled
+                    ? theme.colors.text.subtle
+                    : theme.colors.text.default,
+                  fontFamily: theme.typography.family.mono,
+                },
+              ]}
+              placeholderTextColor={placeholderTextColor}
+              editable={!disabled}
+              onFocus={onFocus}
+              onBlur={onBlur}
+              onChangeText={onChangeText}
+              value={value}
+              inputAccessoryViewID="step-input-no-accessory"
+              {...props}
+            />
             {showPaste && !value && !disabled && (
               <Button
                 size="sm"

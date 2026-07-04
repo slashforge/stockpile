@@ -6,10 +6,11 @@ import {
 import { getContrastColor, getIconSize } from "@/utils/theme";
 import { createContext, useContext, useMemo, useRef } from "react";
 import type { PressableProps, StyleProp, ViewStyle } from "react-native";
-import { ActivityIndicator, Animated, Pressable, View } from "react-native";
+import { Animated, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useTheme } from "@/providers/theme-context";
 import { ButtonText, type ButtonTextProps } from "./button-text";
+import { Spinner } from "@/components/ui/primitives/spinner";
 
 type ButtonContextType = {
   size: "sm" | "md" | "lg" | "auto";
@@ -167,8 +168,8 @@ const Button: React.FC<ButtonProps> & {
           {isDisabled && <View style={stylesheet.disabledOverlay} />}
          <View style={[stylesheet.content, contentStyle]}>
            {loading ? (
-              <ActivityIndicator
-                size="small"
+              <Spinner
+                size="sm"
                 color={
                   mode === "subtle" || variant === "outline" || variant === "ghost"
                     ? theme.colors.text.default

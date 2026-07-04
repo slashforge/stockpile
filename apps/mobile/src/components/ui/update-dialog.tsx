@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import * as Updates from "expo-updates";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { Box, Button } from "@/primitives";
 import { Feather } from "@expo/vector-icons";
 import { BodyLarge, Body } from "./typography";
 import Modal from "./modal";
+import { Spinner } from "@/components/ui/primitives/spinner";
 
 type UpdateDialogProps = {
   visible: boolean;
@@ -67,12 +68,12 @@ export const UpdateDialog = ({ visible, onClose }: UpdateDialogProps) => {
 
             {checking ? (
               <Box center gap="md" pb="md">
-                <ActivityIndicator size="large" />
+                <Spinner size="xl" />
                 <Body>Checking for updates...</Body>
               </Box>
             ) : updating ? (
               <Box center gap="md" pb="md">
-                <ActivityIndicator size="large" />
+                <Spinner size="xl" />
                 <Body>Installing update...</Body>
               </Box>
             ) : error ? (

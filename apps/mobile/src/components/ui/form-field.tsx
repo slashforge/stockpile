@@ -1,4 +1,5 @@
 import React from "react";
+import type { TextInputProps } from "react-native";
 import { Controller, Control, FieldValues, Path, FieldError } from "react-hook-form";
 import { Box, Text, Input } from "@/primitives";
 
@@ -22,6 +23,8 @@ type FormFieldProps<T extends FieldValues> = {
   minHeight?: number;
   /** Disable the input field */
   disabled?: boolean;
+  textContentType?: TextInputProps["textContentType"];
+  autoComplete?: TextInputProps["autoComplete"];
 };
 
 export function FormField<T extends FieldValues>({
@@ -42,6 +45,8 @@ export function FormField<T extends FieldValues>({
   helperText,
   minHeight = 100,
   disabled,
+  textContentType,
+  autoComplete,
 }: FormFieldProps<T>) {
   return (
     <Box mb="md">
@@ -77,6 +82,8 @@ export function FormField<T extends FieldValues>({
             secureTextEntry={secureTextEntry}
             maxLength={maxLength}
             minHeight={multiline ? minHeight : undefined}
+            textContentType={textContentType}
+            autoComplete={autoComplete}
           />
         )}
       />

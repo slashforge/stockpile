@@ -1,5 +1,9 @@
-import React, { useEffect } from "react";
-import { Pressable, ActivityIndicator } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Pressable,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,6 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "@/components/ui/primitives/text";
+import { Spinner } from "@/components/ui/primitives/spinner";
 import type { SonnerConfig } from "@/types/sonner";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import haptics from "@/components/utils/haptics";
@@ -64,6 +69,9 @@ export const SonnerItem: React.FC<SonnerItemProps> = ({
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.9);
   const contentScale = useSharedValue(1);
+  const animatedWidth = useSharedValue(-1);
+  const targetWidthRef = useRef(-1);
+  const [contentWidth, setContentWidth] = useState<number | null>(null);
   const { rt } = useUnistyles();
   const animatedTop = useSharedValue(rt.insets.top + index * 48);
 
@@ -181,6 +189,28 @@ export const SonnerItem: React.FC<SonnerItemProps> = ({
     });
   };
 
+  const handleMeasure = (event: LayoutChangeEvent) => {
+    const width = Math.ceil(event.nativeEvent.layout.width);
+    if (width <= 0 || Math.abs(width - targetWidthRef.current) < 1) {
+      return;
+    }
+    const isFirstMeasure = targetWidthRef.current < 0;
+    targetWidthRef.current = width;
+    setContentWidth(width);
+    if (isFirstMeasure) {
+      animatedWidth.value = width;
+    } else {
+      // Smooth but elastic spring for width changes — noticeable
+      // overshoot/bounce without feeling snappy or harsh.
+      animatedWidth.value = withSpring(width, {
+        damping: 13,
+        stiffness: 130,
+        mass: 1,
+        overshootClamping: false,
+      });
+    }
+  };
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
     opacity: opacity.value,
@@ -194,18 +224,49 @@ export const SonnerItem: React.FC<SonnerItemProps> = ({
     transform: [{ scale: contentScale.value }],
   }));
 
+  const widthAnimatedStyle = useAnimatedStyle(() => {
+    if (animatedWidth.value < 0) {
+      return {};
+    }
+    return { width: animatedWidth.value };
+  });
+
   const iconColor = getColorForType(sonner.type, theme);
   const iconData = sonner.icon || getDefaultIconForType(sonner.type);
   const IconComponent = iconData.component;
   const hasText = sonner.title && sonner.title.trim();
 
   return (
-    <Animated.View style={[styles.container, animatedStyle, positionStyle]}>
-      <Animated.View style={styles.centeredContainer}>
-        <Animated.View style={contentAnimatedStyle}>
-          <BlurView intensity={60} style={styles.blurView}>
+    <Animated.View
+      style={[styles.container, animatedStyle, positionStyle]}
+      pointerEvents="box-none"
+    >
+      <Animated.View style={styles.centeredContainer} pointerEvents="box-none">
+        {/* Hidden measurer mirrors the content to capture its natural width */}
+        <View pointerEvents="none" style={styles.measurer}>
+          <View
+            style={[styles.pressable, !hasText && styles.pressableNoText]}
+            onLayout={handleMeasure}
+          >
+            <View style={styles.iconContainer} />
+            {hasText && (
+              <Text style={styles.title} numberOfLines={1}>
+                {sonner.title}
+              </Text>
+            )}
+          </View>
+        </View>
+        <Animated.View style={[contentAnimatedStyle, widthAnimatedStyle]}>
+          <BlurView
+            intensity={60}
+            style={[styles.blurView, contentWidth != null && styles.blurViewFill]}
+          >
             <Pressable
-              style={[styles.pressable, !hasText && styles.pressableNoText]}
+              style={[
+                styles.pressable,
+                !hasText && styles.pressableNoText,
+                contentWidth != null && { width: contentWidth },
+              ]}
               onPress={() => {
                 if (sonner.onPress) {
                   sonner.onPress();
@@ -217,7 +278,7 @@ export const SonnerItem: React.FC<SonnerItemProps> = ({
             >
               <Animated.View style={styles.iconContainer}>
                 {sonner.type === "loading" ? (
-                  <ActivityIndicator size="small" color={iconColor} />
+                  <Spinner size="lg" color={theme.colors.brand[500]} />
                 ) : (
                   <IconComponent
                     name={iconData.name as any}
@@ -259,11 +320,21 @@ const styles = StyleSheet.create((theme) => ({
     alignSelf: "center",
     maxWidth: "85%",
   },
+  blurViewFill: {
+    maxWidth: "100%",
+    width: "100%",
+  },
+  measurer: {
+    position: "absolute",
+    opacity: 0,
+    maxWidth: "85%",
+    alignSelf: "center",
+  },
   pressable: {
     flexDirection: "row",
     alignItems: "center",
     paddingRight: theme.spacing.md,
-    paddingVertical: 2,
+    paddingVertical: 0,
   },
   pressableNoText: {
     paddingRight: 0,

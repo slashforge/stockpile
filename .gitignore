@@ -84,6 +84,5 @@ android
 *.env
 .keep
 .agi
-.otto
 .claude
 reference

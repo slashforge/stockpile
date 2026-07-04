@@ -201,7 +201,7 @@ const GorhomPopupSheet = forwardRef<GorhomPopupSheetRef, GorhomPopupSheetProps>(
           footer ? <Box style={styles.footer}>{footer}</Box> : undefined
         }
       >
-        <Box gap="xs" style={styles.content}>
+        <Box style={styles.content}>
           {children}
         </Box>
       </MeasuredBottomSheet>
@@ -221,15 +221,15 @@ export default GorhomPopupSheetWithComponents;
 
 const styles = UnistyleStyleSheet.create((theme, rt) => ({
   headerContainer: {
-    paddingTop: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
   },
   content: {
     paddingTop: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
   },
   footer: {
     paddingTop: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
   },
   header: {
     minHeight: 28,
@@ -251,15 +251,14 @@ const styles = UnistyleStyleSheet.create((theme, rt) => ({
     paddingHorizontal: 0,
   },
   itemContent: {
-    minHeight: 44,
+    minHeight: 52,
     paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.sm + 2,
-    backgroundColor: theme.colors.background.dim,
+    paddingHorizontal: theme.spacing.sm,
   },
   iconContainer: {
     width: 36,
     height: 36,
-    marginRight: 10,
+    marginRight: 12,
   },
   description: {
     opacity: 0.7,

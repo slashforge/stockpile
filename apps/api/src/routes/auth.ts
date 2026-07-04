@@ -1,11 +1,12 @@
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { db } from "@stackforge/core/db";
 import { users } from "@stackforge/core/db/schema";
 import { getAuth } from "../lib/auth";
+import { ErrorSchema, MeResponseSchema, SyncResponseSchema } from "../schemas";
 
-const app = new Hono();
+const app = new OpenAPIHono();
 
 function buildWalletAddress(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
@@ -65,11 +66,30 @@ function formatUser(user: typeof users.$inferSelect) {
     email: user.email,
     walletAddress: user.wallet,
     authUserId: user.id,
-    createdAt: user.createdAt,
+    createdAt: user.createdAt instanceof Date
+      ? user.createdAt.toISOString()
+      : String(user.createdAt),
   };
 }
 
-app.post("/sync", async (c) => {
+const syncRoute = createRoute({
+  method: "post",
+  path: "/sync",
+  operationId: "syncUser",
+  tags: ["auth"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: SyncResponseSchema } },
+      description: "User synced with the backend",
+    },
+    401: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: "Not authenticated",
+    },
+  },
+});
+
+app.openapi(syncRoute, async (c) => {
   const session = await getSession(c.req.raw.headers);
 
   if (!session?.user?.email) {
@@ -84,10 +104,27 @@ app.post("/sync", async (c) => {
   return c.json({
     success: true,
     user: formatUser(user),
-  });
+  }, 200);
 });
 
-app.get("/me", async (c) => {
+const meRoute = createRoute({
+  method: "get",
+  path: "/me",
+  operationId: "getMe",
+  tags: ["auth"],
+  responses: {
+    200: {
+      content: { "application/json": { schema: MeResponseSchema } },
+      description: "Current authenticated user",
+    },
+    401: {
+      content: { "application/json": { schema: ErrorSchema } },
+      description: "Not authenticated",
+    },
+  },
+});
+
+app.openapi(meRoute, async (c) => {
   const session = await getSession(c.req.raw.headers);
 
   if (!session?.user?.email) {
@@ -101,7 +138,7 @@ app.get("/me", async (c) => {
 
   return c.json({
     user: formatUser(user),
-  });
+  }, 200);
 });
 
 app.on(["GET", "POST"], "/*", (c) => {
