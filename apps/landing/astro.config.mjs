@@ -8,7 +8,7 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://stackforge.xyz',
+	site: 'https://stockpile.nitish.sh',
 	adapter: cloudflare({
 		configPath: process.env.SST_WRANGLER_PATH,
 	}),

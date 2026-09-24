@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
-import { db } from "@stackforge/core/db";
-import { users } from "@stackforge/core/db/schema";
+import { db } from "@stockpile/core/db";
+import { users } from "@stockpile/core/db/schema";
 import { getAuth, type BetterAuthUser, type AuthSession } from "../lib/auth";
 
 export type AuthVariables = {

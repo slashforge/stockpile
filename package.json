@@ -1,5 +1,5 @@
 {
-  "name": "stackforge",
+  "name": "stockpile",
   "module": "index.ts",
   "type": "module",
   "private": true,

@@ -4,7 +4,7 @@ import { expoClient } from "@better-auth/expo/client";
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stackforge.xyz";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://api.stockpile.nitish.sh";
 const rawScheme = Constants.expoConfig?.scheme;
 const scheme = Array.isArray(rawScheme) ? rawScheme[0] : rawScheme;
 
@@ -14,7 +14,7 @@ export const authClient = createAuthClient({
     emailOTPClient(),
     expoClient({
       storage: SecureStore,
-      storagePrefix: "stackforge",
+      storagePrefix: "stockpile",
       cookiePrefix: "better-auth",
       ...(scheme ? { scheme } : {}),
     }),

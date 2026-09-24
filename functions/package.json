@@ -1,9 +1,9 @@
 {
-  "name": "@stackforge/functions",
+  "name": "@stockpile/functions",
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
     "sst": "*",
-    "@stackforge/core": "*"
+    "@stockpile/core": "*"
   }
 }

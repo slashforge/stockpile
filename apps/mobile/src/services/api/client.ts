@@ -1,4 +1,4 @@
-import { client } from "@stackforge/api-client";
+import { client } from "@stockpile/api-client";
 import { authClient, API_URL } from "@/lib/auth-client";
 
 client.setConfig({
@@ -16,5 +16,5 @@ client.interceptors.request.use((request) => {
   return request;
 });
 
-export * from "@stackforge/api-client";
+export * from "@stockpile/api-client";
 export { API_URL };

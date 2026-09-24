@@ -35,7 +35,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
   const background = '#fffffc';
   const path = normalize(pathname);
   const label = getPageLabel(path);
-  const url = path === '/' ? 'stackforge.xyz' : `stackforge.xyz${path}`;
+  const url = path === '/' ? 'stockpile.nitish.sh' : `stockpile.nitish.sh${path}`;
 
   return Promise.resolve(
     h(
@@ -102,7 +102,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
                   letterSpacing: '-0.03em',
                 },
               },
-              'StackForge',
+              'Stockpile',
             ),
           ),
           h(

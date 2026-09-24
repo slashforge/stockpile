@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { eq } from "drizzle-orm";
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { db } from "@stackforge/core/db";
-import { users } from "@stackforge/core/db/schema";
+import { db } from "@stockpile/core/db";
+import { users } from "@stockpile/core/db/schema";
 import { getAuth } from "../lib/auth";
 import { ErrorSchema, MeResponseSchema, SyncResponseSchema } from "../schemas";
 

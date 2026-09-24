@@ -1,4 +1,4 @@
-# StackForge — Agent Guide
+# Stockpile — Agent Guide
 
 Bun workspace monorepo (template) deployed with SST on Cloudflare. Package manager and runtime: **bun** (never npm/yarn/pnpm).
 
@@ -18,11 +18,11 @@ Read the doc(s) matching your task before editing. Multi-layer tasks (e.g. new A
 
 ```
 apps/api            Hono + @hono/zod-openapi API (Bun locally, Cloudflare Worker deployed)
-apps/mobile         Expo React Native app (@stackforge/mobile), Expo Router
+apps/mobile         Expo React Native app (@stockpile/mobile), Expo Router
 apps/landing        Astro landing/blog site (Cloudflare)
 apps/dev-mcp        Local-only MCP server for dev tooling (port 4444)
-packages/core       @stackforge/core — shared Drizzle Postgres schema + db client
-packages/api-client @stackforge/api-client — SDK generated from the API's OpenAPI spec
+packages/core       @stockpile/core — shared Drizzle Postgres schema + db client
+packages/api-client @stockpile/api-client — SDK generated from the API's OpenAPI spec
 functions           Placeholder workspace (package.json only)
 infra/              SST components (api, database, config, secrets, domains, expo, landing, dev-mcp, orm)
 sst.config.ts       SST entrypoint; imports infra/* modules

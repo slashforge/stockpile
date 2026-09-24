@@ -22,7 +22,7 @@ export function WelcomePage() {
             weight="bold"
             style={{ textAlign: "center", marginBottom: 16 }}
           >
-            Welcome to StackForge
+            Welcome to Stockpile
           </Text>
 
           <Text

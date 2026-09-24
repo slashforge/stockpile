@@ -1,5 +1,5 @@
 {
-  "name": "@stackforge/core",
+  "name": "@stockpile/core",
   "version": "0.0.0",
   "type": "module",
   "exports": {

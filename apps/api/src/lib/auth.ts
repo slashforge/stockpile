@@ -4,8 +4,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { Resend } from "resend";
-import { db } from "@stackforge/core/db";
-import * as schema from "@stackforge/core/db/schema";
+import { db } from "@stockpile/core/db";
+import * as schema from "@stockpile/core/db/schema";
 
 let authInstance: ReturnType<typeof createAuth> | null = null;
 let resendClient: Resend | null = null;
@@ -27,8 +27,8 @@ function getResendClient() {
 function getTrustedOrigins() {
   const appScheme = Resource.AppConfig.appScheme;
 
-  // app.config.ts derives the scheme per environment: `stackforge`,
-  // `stackforgedev`, `stackforgebeta`, `stackforgeprod` (see EXPO_PUBLIC_ENV
+  // app.config.ts derives the scheme per environment: `stockpile`,
+  // `stockpiledev`, `stockpilebeta`, `stockpileprod` (see EXPO_PUBLIC_ENV
   // in eas.json). All variants must be trusted or those builds are rejected.
   const appSchemes = ["", "dev", "beta", "prod"].map(
     (env) => `${appScheme}${env}`

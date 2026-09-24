@@ -1,7 +1,7 @@
 import { domains } from "./domains";
 import { isDeployed } from "./utils";
 
-export const landing = new sst.cloudflare.Astro("StackForgeLanding", {
+export const landing = new sst.cloudflare.Astro("StockpileLanding", {
   path: "apps/landing",
   domain: domains.landing,
   environment: {

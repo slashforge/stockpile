@@ -37,11 +37,11 @@ interface Config {
 }
 
 const TEMPLATE_DEFAULTS = {
-  name: "stackforge",
-  namePascal: "StackForge",
-  scope: "@stackforge",
-  domain: "stackforge.xyz",
-  reverseDomain: "xyz.stackforge",
+  name: "stockpile",
+  namePascal: "Stockpile",
+  scope: "@stockpile",
+  domain: "stockpile.nitish.sh",
+  reverseDomain: "sh.nitish.stockpile",
 } as const;
 
 const REPLACEMENTS = Object.entries({
@@ -50,11 +50,11 @@ const REPLACEMENTS = Object.entries({
   [TEMPLATE_DEFAULTS.scope]: (c: Config) => c.scope,
   [TEMPLATE_DEFAULTS.namePascal]: (c: Config) => c.namePascal,
   [TEMPLATE_DEFAULTS.name]: (c: Config) => c.name,
-  __REVERSE_DOMAIN__: (c: Config) => c.reverseDomain,
-  __DOMAIN__: (c: Config) => c.domain,
-  __SCOPE__: (c: Config) => c.scope,
-  __NAME_PASCAL__: (c: Config) => c.namePascal,
-  __NAME__: (c: Config) => c.name,
+  sh.nitish.stockpile: (c: Config) => c.reverseDomain,
+  stockpile.nitish.sh: (c: Config) => c.domain,
+  @stockpile: (c: Config) => c.scope,
+  Stockpile: (c: Config) => c.namePascal,
+  stockpile: (c: Config) => c.name,
 }).sort(([a], [b]) => b.length - a.length);
 
 function getAllFiles(dir: string, files: string[] = []): string[] {

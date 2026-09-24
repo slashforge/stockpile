@@ -1,4 +1,4 @@
-# StackForge
+# Stockpile
 
 A template monorepo with mobile app, backend API, and landing page.
 

@@ -16,7 +16,7 @@
   "dependencies": {
     "@better-auth/expo": "^1.5.6",
     "@hono/zod-openapi": "^1.1.5",
-    "@stackforge/core": "workspace:*",
+    "@stockpile/core": "workspace:*",
     "better-auth": "^1.5.6",
     "drizzle-orm": "^0.44.7",
     "hono": "^4.10.6",

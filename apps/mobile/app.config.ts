@@ -1,15 +1,15 @@
 const env = process.env.EXPO_PUBLIC_ENV;
 const bundleIdentifier = env
-  ? `xyz.stackforge.app.${env}`
-  : `xyz.stackforge.app`;
-const scheme = env ? `stackforge${env}` : `stackforge`;
+  ? `sh.nitish.stockpile.app.${env}`
+  : `sh.nitish.stockpile.app`;
+const scheme = env ? `stockpile${env}` : `stockpile`;
 
-const name = env ? `StackForge (${env.toUpperCase()})` : "StackForge";
+const name = env ? `Stockpile (${env.toUpperCase()})` : "Stockpile";
 
 const config = {
   expo: {
     name: name,
-    slug: "stackforge",
+    slug: "stockpile",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

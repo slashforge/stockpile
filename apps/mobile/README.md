@@ -1,4 +1,4 @@
-# StackForge Mobile App
+# Stockpile Mobile App
 
 A React Native mobile app built with Expo.
 
