@@ -419,7 +419,7 @@ export function BagReturnsLine({
   const primaryWord = primary.label === "1M" ? "past month" : primary.label;
   return (
     <View
-      style={styles.returns}
+      style={[styles.returns, compact && styles.returnsCompact]}
       accessible
       accessibilityLabel={`${formatSignedPct(primary.pct)} ${primaryWord}${secondaryText ? `, ${secondaryText}` : ""}`}
     >
@@ -437,11 +437,11 @@ export function BagReturnsLine({
           variant="caption"
           tone={onArt ? undefined : "tertiary"}
           numberOfLines={1}
-          style={[styles.returnSecondary, onArt && styles.onArtMuted]}
+          style={[styles.returnSecondary, compact && styles.returnSecondaryCompact, onArt && styles.onArtMuted]}
         >
           {secondaryText}
         </T>
-      ) : (
+      ) : compact ? null : (
         <View style={styles.flexSpacer} />
       )}
       {entry && primary.label === "1M" && !compact ? (
@@ -536,6 +536,9 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: "600",
     fontVariant: ["tabular-nums"],
   },
+  // Story footer: too narrow for pill + since-line side by side, so stack them.
+  returnsCompact: { flexDirection: "column", alignItems: "flex-start", gap: 2 },
+  returnSecondaryCompact: { flex: 0 },
   flexSpacer: { flex: 1 },
   onArtMuted: { color: "rgba(255,255,255,0.85)" },
   stripWrap: { gap: 6 },

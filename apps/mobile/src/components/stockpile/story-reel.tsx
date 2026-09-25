@@ -105,7 +105,7 @@ function ReelBackdrop({ story, bag }: { story: Story; bag: Bag | undefined }) {
       />
       {bag ? (
         <View style={styles.fallbackLogos}>
-          <LogoCluster assets={bag.assets} size={84} limit={3} />
+          <LogoCluster assets={bag.assets} size={84} limit={4} />
         </View>
       ) : null}
     </View>
