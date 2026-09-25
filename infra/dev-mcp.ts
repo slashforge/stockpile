@@ -1,9 +1,4 @@
-import {
-  databaseHost,
-  databasePassword,
-  databaseUrl,
-  databaseUsername,
-} from "./secrets";
+import { databaseUrl } from "./secrets";
 import { isDeployed } from "./utils";
 
 export const devMcp = !isDeployed()
@@ -13,7 +8,7 @@ export const devMcp = !isDeployed()
         DEV_MCP_API_URL: process.env.DEV_MCP_API_URL ?? "http://localhost:4040",
         DEV_MCP_ALLOW_WRITES: process.env.DEV_MCP_ALLOW_WRITES ?? "true",
       },
-      link: [databaseUrl, databaseHost, databaseUsername, databasePassword],
+      link: [databaseUrl],
       dev: { command: "bun dev", directory: "apps/dev-mcp" },
     })
   : undefined;

@@ -9,13 +9,13 @@ SST v4 on Cloudflare (`home: "cloudflare"`). Entry: `sst.config.ts`, which impor
 ## infra/ modules
 
 ```
-config.ts    AppConfig Linkable: apiUrl/webUrl/authFromEmail/appScheme, switches on isDeployed()
-secrets.ts   SST secrets: BetterAuthSecret, ResendApiKey, DatabaseUrl, DatabaseHost/Username/Password
-domains.ts   stackforge.xyz; stage-prefixed subdomains except prod (api.<host>, <host>)
-database.ts  Cloudflare Hyperdrive (deployed only); local dev uses DatabaseUrl secret directly
-api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version). Local: DevCommand `bun dev` in apps/api on :4040
+config.ts    AppConfig Linkable: apiUrl/webUrl/corsOrigins/authFromEmail/appScheme, switches on isDeployed()
+secrets.ts   SST secrets: DatabaseUrl, Privy*, JupiterApiKey, HeliusApiKey, SolanaPaymasterKey, TokensApiKey, PythApiKey, CongressApiKey, OpenaiApiKey, BlockedMints (`apiSecrets` = those linked to the API)
+domains.ts   stockpile.cash; stage-prefixed subdomains except prod (api.<host>, <host>)
+database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
+api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version). Local: DevCommand `bun dev` in apps/api on :4040. No env vars, links only
 landing.ts   Astro site deployment
-expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL
+expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL and the Privy ids from secrets
 dev-mcp.ts   Local-only DevCommand for apps/dev-mcp on :4444 (/mcp)
 orm.ts       Local DevCommand: drizzle-kit studio
 ```

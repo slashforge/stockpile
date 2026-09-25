@@ -3,6 +3,7 @@
 // jsonParsed) -- the client only supplies { bagId, signature }; side (buy/sell) is inferred from which leg is USDC. Positions are
 // the running sum of lots per (bag, mint), reconciled against the wallet's live balances (same Helius batch as the portfolio) and
 // priced with the same Jupiter token batch. Nothing here submits transactions.
+import { secret } from "./config";
 import { createId } from "@stockpile/core/db/schema";
 import { feePayerOf, rawTokenDelta, signersOf, transactionMeta, walletChanges, type Activity, type ActivityPage } from "./activity";
 import { bagAssets, bags, knownSymbol, findBag, resolveAsset, type Bag } from "./bags";
@@ -82,7 +83,7 @@ export async function recordLeg(identity: { id: string; walletAddress: string | 
     if (existing.userId !== identity.id) return { status: 400, error: "The transaction was not paid by your wallet", code: "NOT_YOUR_TRANSACTION" };
     return existing.bagId === bagId ? { status: 200, lot: toBagLot(existing) } : { status: 409, error: `Signature is already linked to ${existing.bagId}`, code: "SIGNATURE_ALREADY_LINKED", bagId: existing.bagId };
   }
-  const key = process.env.HELIUS_API_KEY;
+  const key = secret("HeliusApiKey");
   if (!key) return { status: 503, error: "Helius is not configured", code: "PROVIDER_NOT_CONFIGURED" };
   let tx: Json | null;
   try { tx = await fetchTransaction(signature, key); } catch { return { status: 503, error: "Transaction provider unavailable", code: "PROVIDER_UNAVAILABLE" }; }

@@ -1,6 +1,7 @@
 // xStocks issuer directory: https://api.xstocks.fi/api/v2/public/assets/{symbol}. The Solana deployment address listed there
 // is the tradable mint; it is still verified on Jupiter (mint-registry.ts) before a bag can trade it. Cached per symbol
 // (stale-while-revalidate, stale-on-failure); an explicit 404 drops the listing so a delisted token stops trading.
+import { feature } from "./config";
 import { base58Mint } from "./constants";
 import { boundedJson } from "./prestocks";
 
@@ -41,7 +42,7 @@ async function fetchListing(symbol: string): Promise<XStockListing | null> {
 
 /** Current xStocks listing for `symbol`, or null when unlisted, malformed, disabled, or never reachable. */
 export async function xStockListing(symbol: string): Promise<XStockListing | null> {
-  if (process.env.STOCKPILE_XSTOCKS === "0" || !/^[A-Z][A-Za-z0-9.]{0,11}x$/.test(symbol)) return null;
+  if (!feature("xstocks") || !/^[A-Z][A-Za-z0-9.]{0,11}x$/.test(symbol)) return null;
   let entry = listings.get(symbol);
   if (!entry) { entry = { value: null, expiresAt: 0 }; listings.set(symbol, entry); }
   if (entry.expiresAt <= Date.now() && !entry.pending) {

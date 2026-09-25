@@ -1,3 +1,4 @@
+import { secret } from "./config";
 import { brandColorFor } from "./brand-color";
 
 // These are explicitly mapped underlying-company logos, not xStock token logos.
@@ -45,7 +46,7 @@ export async function assetIcon(symbol: string, verifiedMint: string | null, iss
     const iconUrl = brandIcon[symbol] ? `${brandBase}${brandIcon[symbol]}.svg` : alternateBrandIcon[symbol];
     return iconUrl ? { iconUrl, iconSource: "underlying-brand", brandColor: null } : { iconUrl: null, iconSource: null, brandColor: null };
   };
-  const key = process.env.JUPITER_API_KEY;
+  const key = secret("JupiterApiKey");
   if (!verifiedMint || !key) return fallback();
 
   let entry = cache.get(verifiedMint);

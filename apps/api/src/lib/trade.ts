@@ -1,3 +1,4 @@
+import { secret } from "./config";
 import { bagAssets, findBag, knownSymbol, resolveAsset, trackerBlocked, type Bag } from "./bags";
 import { scaledUiMultiplier } from "./market";
 import { bagPosition, looseBalances } from "./positions";
@@ -30,7 +31,7 @@ type Result<T> = { ok: true; value: T } | { ok: false; error: TradeError };
 
 const fail = (code: TradeErrorCode, message: string, leg?: { index: number; symbol: string }): Result<never> => ({ ok: false, error: { code, message, legIndex: leg?.index ?? null, symbol: leg?.symbol ?? null } });
 const at = (leg: Leg) => ({ index: leg.index, symbol: leg.asset.symbol });
-const jupiterHeaders = () => ({ "x-api-key": process.env.JUPITER_API_KEY!, "Content-Type": "application/json" });
+const jupiterHeaders = () => ({ "x-api-key": secret("JupiterApiKey") ?? "", "Content-Type": "application/json" });
 export const tradeSide = (request: TradeRequest): TradeSide => request.side ?? "buy";
 /** Slippage used for indicative quotes when the user leaves protection on automatic. */
 const INDICATIVE_SLIPPAGE_BPS = 50;
@@ -112,7 +113,7 @@ async function tradeLegs(request: TradeRequest, context: TradeContext | null): P
   if (side === "buy" && !(request.amount && /^[1-9][0-9]*$/.test(request.amount))) return fail("AMOUNT_TOO_SMALL", "A buy needs a positive USDC amount in base units");
   if (side === "sell" && !(request.portionBps && Number.isInteger(request.portionBps) && request.portionBps >= 1 && request.portionBps <= 10000)) return fail("AMOUNT_TOO_SMALL", "A sell needs portionBps between 1 and 10000");
   if (side === "sell" && !context) return fail("NO_WALLET", "Sign in to sell a bag position");
-  if (!process.env.JUPITER_API_KEY) return fail("PROVIDER_NOT_CONFIGURED", "Jupiter is not configured");
+  if (!secret("JupiterApiKey")) return fail("PROVIDER_NOT_CONFIGURED", "Jupiter is not configured");
   return side === "buy" ? splitLegs(bag, BigInt(request.amount!)) : sellLegs(bag, context!, request.portionBps!);
 }
 
@@ -145,7 +146,7 @@ export async function tokenSellLegs(request: TokenSellRequest, context: TradeCon
   const mints = [...new Set(request.mints)];
   if (!mints.length) return fail("NO_POSITION", "Pick at least one token to sell");
   if (mints.includes(USDC)) return fail("UNSUPPORTED_INPUT_MINT", "USDC is what you sell into, so it can't be sold here");
-  if (!process.env.JUPITER_API_KEY) return fail("PROVIDER_NOT_CONFIGURED", "Jupiter is not configured");
+  if (!secret("JupiterApiKey")) return fail("PROVIDER_NOT_CONFIGURED", "Jupiter is not configured");
   const loose = await looseBalances({ id: context.userId, walletAddress: context.walletAddress });
   if (!loose.ok) return fail("PROVIDER_ERROR", `${loose.message}; try again`);
   const meta = await tokenMetadata(mints).catch(() => new Map<string, { symbol: string | null }>());

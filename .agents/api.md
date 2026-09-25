@@ -19,7 +19,7 @@ apps/api/scripts/generate-openapi.ts  Writes packages/api-client/openapi.json
 - Define routes with `createRoute({ method, path, operationId, tags, responses })` and register via `app.openapi(route, handler)`. Every response body needs a zod schema — this feeds the OpenAPI spec and SDK.
 - Always set a stable `operationId`; it becomes the SDK function name.
 - Mount new route modules in `apps/api/src/app.ts` via `app.route("/prefix", routes)` and export them from `src/routes/index.ts`.
-- Runtime config comes from `Resource.AppConfig` (see `infra/config.ts`) and secrets from `Resource.BetterAuthSecret` / `Resource.ResendApiKey`.
+- Runtime config and secrets are SST links only — never `process.env`. Read secrets via `secret("<Name>")` / feature toggles via `feature()` / CORS via `corsOrigins()` from `apps/api/src/lib/config.ts`. Tests override with `setSecrets` / `setFeatures` and clear with `resetConfig()`. New secret: declare in `infra/secrets.ts`, add to `apiSecrets`, add the name to `SecretName`.
 - Keep expensive initializations lazy (module-level singletons initialized on first use) — the Worker environment resolves `Resource` at request time. See `getAuth()` and `getAllowedOrigins()` for the pattern.
 
 ## Auth (Better Auth)

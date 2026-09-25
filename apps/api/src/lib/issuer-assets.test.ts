@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { issuerAsset, pinnedMint } from "./issuer-assets";
 import { bags, isTradable, knownSymbol, resolveAsset } from "./bags";
 import { knownMint, resetMintRegistry, seedMints } from "./mint-registry";
@@ -9,17 +10,15 @@ const xstockBags = bags.filter((bag) => bag.issuer === "xstocks");
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const AAPLX = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
 const ROGUE = "XsRogue1111111111111111111111111111111111111";
-const keys = ["JUPITER_API_KEY", "STOCKPILE_XSTOCKS", "STOCKPILE_BLOCKED_MINTS", "STOCKPILE_MARKET"] as const;
-const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
   resetMintRegistry(); resetXStocksCache(); resetPreStocksCache();
-  process.env.STOCKPILE_XSTOCKS = "0"; process.env.STOCKPILE_MARKET = "0"; delete process.env.STOCKPILE_BLOCKED_MINTS; delete process.env.JUPITER_API_KEY;
+  setFeatures({ xstocks: false, market: false }); setSecrets({ BlockedMints: undefined, JupiterApiKey: undefined });
 });
 afterEach(() => {
   globalThis.fetch = originalFetch; resetMintRegistry(); resetXStocksCache(); resetPreStocksCache();
-  for (const key of keys) { const value = original[key]; if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 const listing = (symbol: string, mint: string) => ({ symbol, name: "Apple xStock", logo: `https://xstocks-metadata.backed.fi/logos/tokens/${symbol}.png`,
@@ -85,7 +84,7 @@ it("parses only a single, well-formed Solana deployment for the requested symbol
 });
 
 it("resolves xStocks mints live from the issuer and Jupiter with no per-token configuration", async () => {
-  process.env.STOCKPILE_XSTOCKS = "1"; process.env.JUPITER_API_KEY = "test";
+  setFeatures({ xstocks: true }); setSecrets({ JupiterApiKey: "test" });
   const bag = bags[0]!;
   const apple = bag.assets.find((asset) => asset.symbol === "AAPLx")!;
   const calls = providers({ AAPLx: AAPLX });
@@ -104,7 +103,7 @@ it("resolves xStocks mints live from the issuer and Jupiter with no per-token co
 });
 
 it("refuses a directory that swaps a pinned mint, mints Jupiter does not tag as xStocks, and operator-blocked mints", async () => {
-  process.env.STOCKPILE_XSTOCKS = "1"; process.env.JUPITER_API_KEY = "test";
+  setFeatures({ xstocks: true }); setSecrets({ JupiterApiKey: "test" });
   const bag = bags[0]!;
   const apple = bag.assets.find((asset) => asset.symbol === "AAPLx")!;
   providers({ AAPLx: ROGUE });
@@ -114,12 +113,12 @@ it("refuses a directory that swaps a pinned mint, mints Jupiter does not tag as 
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
   resetXStocksCache(); resetPreStocksCache();
   providers({ AAPLx: AAPLX });
-  process.env.STOCKPILE_BLOCKED_MINTS = `  ${AAPLX} `;
+  setSecrets({ BlockedMints: `  ${AAPLX} ` });
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
   expect(knownMint("AAPLx")).toBeNull();
-  process.env.STOCKPILE_BLOCKED_MINTS = "AAPLx";
+  setSecrets({ BlockedMints: "AAPLx" });
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
-  delete process.env.STOCKPILE_BLOCKED_MINTS;
+  setSecrets({ BlockedMints: undefined });
   expect((await resolveAsset(bag, apple)).mint).toBe(AAPLX);
 });
 
@@ -136,8 +135,8 @@ it("is research-only when the directory is disabled or unreachable, and every as
   expect(await isTradable(bags[0]!)).toBe(false);
 });
 
-it("documents no per-token mint list in the env example", async () => {
-  const example = await Bun.file(new URL("../../../../.env.example", import.meta.url)).text();
-  expect(example).not.toContain("STOCKPILE_ALLOWED_MINTS=");
-  expect(example).toContain("STOCKPILE_BLOCKED_MINTS=");
+it("declares a blocklist secret and no per-token mint list", async () => {
+  const secrets = await Bun.file(new URL("../../../../infra/secrets.ts", import.meta.url)).text();
+  expect(secrets).not.toMatch(/AllowedMints/);
+  expect(secrets).toContain('new sst.Secret("BlockedMints", "")');
 });

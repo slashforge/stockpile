@@ -2,6 +2,7 @@
 // weighted bag index over the timestamps where every asset has a candle (base 100 at the first common timestamp, using close).
 // Fallback when tokens.xyz is unconfigured, cannot resolve every mint, or fails: the hourly price_snapshots table, presented in the
 // same candle shape (o=h=l=c=snapshot price, v=null) and labelled `source:"snapshot"` so the client can say so.
+import { secret } from "./config";
 import { and, asc, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@stockpile/core/db";
 import { priceSnapshots } from "@stockpile/core/db/schema";
@@ -85,7 +86,7 @@ const windowFor = (range: Range, now: Date): Window => { const to = Math.floor(n
 
 /** Candles per mint from tokens.xyz, or null when any mint is unconfigured/unresolved/unavailable (then the caller falls back as a whole). */
 async function tokensCandles(mints: string[], window: Window): Promise<Map<string, Candle[]> | null> {
-  if (!mints.length || !process.env.TOKENS_API_KEY) return null;
+  if (!mints.length || !secret("TokensApiKey")) return null;
   const results = await Promise.all(mints.map((mint) => candlesFor(mint, window.interval, window.from, window.to)));
   const map = new Map<string, Candle[]>();
   for (const [i, result] of results.entries()) { if (!result.ok || !result.candles.length) return null; map.set(mints[i]!, result.candles); }

@@ -6,25 +6,20 @@
 
 declare module "sst" {
   export interface Resource {
-    "Api": import("@cloudflare/workers-types").Service
     "AppConfig": {
       "apiUrl": string
       "appScheme": string
       "authFromEmail": string
+      "corsOrigins": any
       "dev": boolean
       "type": "sst.sst.Linkable"
       "webUrl": string
     }
-    "BetterAuthSecret": {
+    "BlockedMints": {
       "type": "sst.sst.Secret"
       "value": string
     }
-    "Database": import("@cloudflare/workers-types").Hyperdrive
-    "DatabaseHost": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "DatabasePassword": {
+    "CongressApiKey": {
       "type": "sst.sst.Secret"
       "value": string
     }
@@ -32,11 +27,43 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
-    "DatabaseUsername": {
+    "HeliusApiKey": {
       "type": "sst.sst.Secret"
       "value": string
     }
-    "ResendApiKey": {
+    "JupiterApiKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "OpenaiApiKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PrivyAppId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PrivyAppSecret": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PrivyClientId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PythApiKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "SolanaPaymasterKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "StockpileLanding": {
+      "type": "sst.cloudflare.Astro"
+      "url": string
+    }
+    "TokensApiKey": {
       "type": "sst.sst.Secret"
       "value": string
     }

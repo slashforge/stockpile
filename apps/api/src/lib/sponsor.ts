@@ -1,3 +1,4 @@
+import { secret } from "./config";
 import {
   AddressLookupTableAccount,
   ComputeBudgetProgram,
@@ -51,9 +52,9 @@ const DEFAULT_CU_PRICE_MICRO_LAMPORTS = 10_000;
 
 let cachedKey: { raw: string; keypair: Keypair } | null = null;
 
-/** The paymaster keypair from `SOLANA_PAYMASTER_KEY` (base58 secret key or solana-keygen JSON array). */
+/** The paymaster keypair from the `SolanaPaymasterKey` secret (base58 secret key or solana-keygen JSON array). */
 export function paymaster(): Keypair | null {
-  const raw = process.env.SOLANA_PAYMASTER_KEY?.trim();
+  const raw = secret("SolanaPaymasterKey");
   if (!raw) return null;
   if (cachedKey?.raw === raw) return cachedKey.keypair;
   try {
@@ -67,7 +68,7 @@ export function paymaster(): Keypair | null {
 }
 
 export function rpcUrl(): string | null {
-  const key = process.env.HELIUS_API_KEY;
+  const key = secret("HeliusApiKey");
   return key ? `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(key)}` : null;
 }
 

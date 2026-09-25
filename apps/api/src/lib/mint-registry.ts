@@ -4,7 +4,8 @@
 // xStocks whose live mint equals the pinned (previously Jupiter-verified) mint skip the per-mint Jupiter calls; only new
 // listings are verified at runtime, which keeps warm-up within Jupiter's rate limit.
 // - pins (issuer-assets.ts): a directory that suddenly reports a different mint for an already-verified symbol is refused;
-// - STOCKPILE_BLOCKED_MINTS: comma-separated mints or symbols switched off immediately, without a deploy.
+// - BlockedMints SST secret: comma-separated mints or symbols switched off (set the secret, then redeploy).
+import { secret } from "./config";
 import { pinnedMint } from "./issuer-assets";
 import { issuerAsset } from "./issuer-assets";
 import { verifyIssuerMint, type IssuerTag } from "./prestocks";
@@ -16,7 +17,7 @@ const resolved = new Map<string, string>();
 const seeded = new Map<string, string>();
 
 function blockedSet(): Set<string> {
-  return new Set((process.env.STOCKPILE_BLOCKED_MINTS ?? "").split(",").map((item) => item.trim()).filter(Boolean));
+  return new Set((secret("BlockedMints") ?? "").split(",").map((item) => item.trim()).filter(Boolean));
 }
 
 /** True when the operator has switched this symbol or mint off. */

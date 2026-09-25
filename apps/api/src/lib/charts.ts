@@ -1,7 +1,7 @@
 // Chart series for the mobile app, built from tokens.xyz candles (the same source riven-cash charts use). Ranges follow riven's
 // period mapping: 1D -> 15m candles over 24h, 1W -> 1H over 7d, 1M -> 4H over 30d, 1Y -> 1D over 365d, ALL -> 1D candles. Riven sends ALL without a window,
 // but tokens.xyz then returns only the last few days (verified live), so ALL asks for two years explicitly. Every endpoint
-// fails soft: without TOKENS_API_KEY (or when the provider is down / a mint is unknown) the response is 200 with empty points and a
+// fails soft: without the TokensApiKey secret (or when the provider is down / a mint is unknown) the response is 200 with empty points and a
 // typed `reason`, never a 500, so the client can simply hide the chart. `/bags/{id}/history` (snapshot fallback) stays as-is.
 // Long horizons (1Y, ALL) start the bag index at the first day every charted leg has a close, so a newly listed token shortens the
 // window rather than being counted flat; short horizons tolerate one late leg as before.
@@ -9,6 +9,7 @@
 // first -> last index point). `/bags/returns` reuses bagChart for 1M / 1Y / ALL, so a card figure always equals the detail-screen figure.
 // Daily-interval ranges (1Y, ALL) share one two-year daily fetch per mint and are clipped locally, so returns cost two upstream calls
 // per mint (4H/30d and 1D/2y), not three.
+import { secret } from "./config";
 import { bagAssets, bags, resolveAsset, type Bag } from "./bags";
 import { candlesFor, type Candle, type TokensFailure, type TokensInterval } from "./tokens-api";
 
@@ -134,7 +135,7 @@ export function bagIndex(legs: LegSeries[], interval: TokensInterval, options: {
 
 /** Bag chart: every tradable leg fetched in parallel; legs that fail are reported (`ok:false`) and excluded from the index. */
 export async function bagChart(bag: Bag, range: ChartRange, now = new Date()): Promise<BagChart> {
-  return memo(`bag:${bag.id}:${range}:${process.env.TOKENS_API_KEY ? "k" : "-"}`, bagChartTtl, () => computeBagChart(bag, range, now));
+  return memo(`bag:${bag.id}:${range}:${secret("TokensApiKey") ? "k" : "-"}`, bagChartTtl, () => computeBagChart(bag, range, now));
 }
 
 async function computeBagChart(bag: Bag, range: ChartRange, now: Date): Promise<BagChart> {
@@ -151,7 +152,7 @@ async function computeBagChart(bag: Bag, range: ChartRange, now: Date): Promise<
   });
   const points = bagIndex(series.map((item, i) => ({ weightBps: item.reason === null ? resolved[i]!.asset.weightBps : 0, candles: item.candles })), interval, { requireAllLegs: rangeConfig[range].requireAllLegs });
   const okLegs = legs.filter((leg) => leg.ok).length;
-  const reason: ChartReason | null = !definitions.length ? "not_tradable" : !process.env.TOKENS_API_KEY ? "unconfigured" : okLegs === 0 ? (legs.every((leg) => leg.reason === "not_tradable") ? "not_tradable" : legs.some((leg) => leg.reason === "unavailable") ? "unavailable" : legs.some((leg) => leg.reason === "unresolved") ? "unresolved" : "insufficient_data") : points.length < 2 ? "insufficient_data" : null;
+  const reason: ChartReason | null = !definitions.length ? "not_tradable" : !secret("TokensApiKey") ? "unconfigured" : okLegs === 0 ? (legs.every((leg) => leg.reason === "not_tradable") ? "not_tradable" : legs.some((leg) => leg.reason === "unavailable") ? "unavailable" : legs.some((leg) => leg.reason === "unresolved") ? "unresolved" : "insufficient_data") : points.length < 2 ? "insufficient_data" : null;
   const usable = reason === null ? points : [];
   const lastT = Math.max(0, ...series.flatMap((item) => item.candles.map((candle) => candle.t)));
   return { bagId: bag.id, range, interval, points: usable, change: usable.length >= 2 ? { pct: pct(usable[0]!.value, usable[usable.length - 1]!.value) } : null, legs, source: CHART_SOURCE, reason, asOf: lastT ? new Date(lastT * 1000).toISOString() : null };
@@ -159,7 +160,7 @@ async function computeBagChart(bag: Bag, range: ChartRange, now: Date): Promise<
 
 /** Mini series for the bag list: last 24h of hourly closes per bag (index base 100), all bags at once, cached 5 minutes. */
 export async function sparklines(now = new Date()): Promise<Sparklines> {
-  return memo(`sparklines:${process.env.TOKENS_API_KEY ? "k" : "-"}`, sparklineTtl, async () => {
+  return memo(`sparklines:${secret("TokensApiKey") ? "k" : "-"}`, sparklineTtl, async () => {
     const to = Math.floor(now.getTime() / 1000), window = { from: to - 86400, to };
     const entries = await Promise.all(bags.map(async (bag) => {
       const definitions = await bagAssets(bag);
@@ -170,7 +171,7 @@ export async function sparklines(now = new Date()): Promise<Sparklines> {
       return [bag.id, points.length >= 2 ? points : []] as const;
     }));
     const any = entries.some(([, points]) => points.length);
-    return { range: "1D", interval: "1H", source: CHART_SOURCE, reason: !process.env.TOKENS_API_KEY ? "unconfigured" : any ? null : "unavailable", sparklines: Object.fromEntries(entries) };
+    return { range: "1D", interval: "1H", source: CHART_SOURCE, reason: !secret("TokensApiKey") ? "unconfigured" : any ? null : "unavailable", sparklines: Object.fromEntries(entries) };
   });
 }
 
@@ -192,7 +193,7 @@ function daily(points: IndexPoint[]): IndexPoint[] {
  * A range whose chart has a reason (unconfigured, research-only, provider down) is null, like the chart's change.
  */
 export async function bagReturns(now = new Date()): Promise<BagReturnsResponse> {
-  return staleWhileRevalidate(`returns:${process.env.TOKENS_API_KEY ? "k" : "-"}`, returnsTtl, async () => {
+  return staleWhileRevalidate(`returns:${secret("TokensApiKey") ? "k" : "-"}`, returnsTtl, async () => {
     let asOf: string | null = null;
     const entries = await mapLimited(bags, 4, async (bag) => {
       const [month, year, all] = await Promise.all([bagChart(bag, "1M", now), bagChart(bag, "1Y", now), bagChart(bag, "ALL", now)]);
@@ -201,6 +202,6 @@ export async function bagReturns(now = new Date()): Promise<BagReturnsResponse> 
       return [bag.id, { "1M": month.change?.pct ?? null, "1Y": year.change?.pct ?? null, ALL: all.change?.pct ?? null, since: first ? new Date(first.t * 1000).toISOString() : null, sparkline1M: daily(month.points) }] as const;
     });
     const any = entries.some(([, value]) => value["1M"] !== null || value["1Y"] !== null || value.ALL !== null);
-    return { source: CHART_SOURCE, interval: "1D", asOf, reason: !process.env.TOKENS_API_KEY ? "unconfigured" : any ? null : "unavailable", returns: Object.fromEntries(entries) };
+    return { source: CHART_SOURCE, interval: "1D", asOf, reason: !secret("TokensApiKey") ? "unconfigured" : any ? null : "unavailable", returns: Object.fromEntries(entries) };
   });
 }

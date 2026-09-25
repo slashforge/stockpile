@@ -18,7 +18,7 @@ setTimeout(snapshot, 15_000).unref();
 setInterval(snapshot, 60 * 60_000).unref();
 
 export default {
-  port: Number(process.env.PORT ?? 4040),
+  port: 4040,
   fetch: app.fetch,
   idleTimeout: 30,
 };

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { assetMarket, bagMarket, configureReferencePrices, liquidityTier, marketSnapshot, premiumPct, pythEquityFeeds, resetMarketCache, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
 
 const A = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
 const B = "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF";
 const originalFetch = globalThis.fetch;
-const original = { jup: process.env.JUPITER_API_KEY, pyth: process.env.PYTH_API_KEY, flag: process.env.STOCKPILE_MARKET };
 
 function provider(options: { price?: () => Response; tokens?: () => Response; pyth?: () => Response; quote?: (mint: string) => Response } = {}) {
   const calls = { price: 0, tokens: 0, pyth: 0, quote: 0 };
@@ -32,10 +32,10 @@ function provider(options: { price?: () => Response; tokens?: () => Response; py
   return calls;
 }
 
-beforeEach(() => { resetMarketCache(); trackMints([A, B]); process.env.JUPITER_API_KEY = "test"; delete process.env.PYTH_API_KEY; delete process.env.STOCKPILE_MARKET; });
+beforeEach(() => { resetMarketCache(); trackMints([A, B]); setSecrets({ JupiterApiKey: "test", PythApiKey: undefined }); setFeatures({ market: true }); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["JUPITER_API_KEY", original.jup], ["PYTH_API_KEY", original.pyth], ["STOCKPILE_MARKET", original.flag]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("market snapshot", () => {
@@ -51,11 +51,11 @@ describe("market snapshot", () => {
     expect(await scaledUiMultiplier("So11111111111111111111111111111111111111112")).toBe(1);
   });
   it("returns null without a key or when disabled, and null (not throw) when the first refresh fails", async () => {
-    delete process.env.JUPITER_API_KEY;
+    setSecrets({ JupiterApiKey: undefined });
     expect(await marketSnapshot()).toBeNull();
-    process.env.JUPITER_API_KEY = "test"; process.env.STOCKPILE_MARKET = "0";
+    setSecrets({ JupiterApiKey: "test" }); setFeatures({ market: false });
     expect(await marketSnapshot()).toBeNull();
-    delete process.env.STOCKPILE_MARKET;
+    setFeatures({ market: true });
     resetMarketCache(); trackMints([A, B]);
     provider({ price: () => new Response("down", { status: 503 }) });
     expect(await marketSnapshot()).toBeNull();
@@ -73,7 +73,7 @@ describe("market snapshot", () => {
     let market = await assetMarket(A, { underlyingTicker: "AAPL" });
     expect(market?.underlying).toEqual({ source: "jupiter-stock", price: 335.6, asOf: "2026-09-25T06:35:11Z" });
     expect(market?.premiumPct).toBeCloseTo((335.87 / 335.6 - 1) * 100, 6);
-    resetMarketCache(); trackMints([A, B]); process.env.PYTH_API_KEY = "pyth-test";
+    resetMarketCache(); trackMints([A, B]); setSecrets({ PythApiKey: "pyth-test" });
     const calls = provider();
     market = await assetMarket(A, { underlyingTicker: "AAPL" });
     expect(calls.pyth).toBe(1);

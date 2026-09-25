@@ -1,6 +1,8 @@
 // Dominant brand colour extraction for token icons. Pure TypeScript PNG decoding (no native
 // image dependency; `sharp` is only a dependency of apps/landing and is not Workers-compatible).
 // Only PNGs from the issuer / Jupiter icon hosts are fetched; any failure yields null.
+import { feature } from "./config";
+
 const allowedHost = (hostname: string) => hostname === "xstocks-metadata.backed.fi" || hostname === "www.prestocks.com" || hostname === "prestocks.com" || hostname === "jup.ag" || hostname.endsWith(".jup.ag");
 const maxBytes = 512 * 1024;
 const maxPixels = 4_000_000;
@@ -180,7 +182,7 @@ async function fetchBrandColor(iconUrl: string): Promise<string | null> {
 
 /** Cached (24h / 5m negative, stale-on-failure, bounded) brand colour for an already-validated icon URL. */
 export async function brandColorFor(iconUrl: string | null): Promise<string | null> {
-  if (!iconUrl || process.env.STOCKPILE_BRAND_COLORS === "0") return null;
+  if (!iconUrl || !feature("brandColors")) return null;
   let entry = cache.get(iconUrl);
   if (!entry) {
     if (cache.size >= maxEntries) cache.delete(cache.keys().next().value!);

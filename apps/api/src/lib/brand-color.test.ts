@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, mock } from "bun:test";
+import { setFeatures } from "./config";
 import { brandColorFor, decodePng, expireBrandColor, pickBrandColor, resetBrandColorCache } from "./brand-color";
 import { encodePng, type Pixel } from "./png.fixture";
 
@@ -15,7 +16,7 @@ const logo: Pixel = (x, y) => {
 };
 const pngResponse = (bytes: Uint8Array, init: ResponseInit = {}) => new Response(bytes, { headers: { "content-type": "image/png", ...(init.headers as Record<string, string>) }, ...init });
 
-beforeEach(() => { resetBrandColorCache(); delete process.env.STOCKPILE_BRAND_COLORS; });
+beforeEach(() => { resetBrandColorCache(); setFeatures({ brandColors: true }); });
 afterEach(() => { globalThis.fetch = originalFetch; });
 
 it("decodes RGBA PNGs with each supported filter into exact pixels", async () => {
@@ -59,9 +60,9 @@ it("fetches only allowlisted https icon hosts, caches the colour, and never thro
   expect(first).toBe("#c81e1e"); expect(second).toBe("#c81e1e");
   expect(await brandColorFor(icon)).toBe("#c81e1e");
   expect(calls).toHaveBeenCalledTimes(1);
-  process.env.STOCKPILE_BRAND_COLORS = "0";
+  setFeatures({ brandColors: false });
   expect(await brandColorFor(icon)).toBeNull();
-  delete process.env.STOCKPILE_BRAND_COLORS;
+  setFeatures({ brandColors: true });
 
   const failures: (() => Response | Promise<Response>)[] = [
     () => new Response("missing", { status: 404, headers: { "content-type": "image/png" } }),

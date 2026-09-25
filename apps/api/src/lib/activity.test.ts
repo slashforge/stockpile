@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { decimalToAtomic, formatAmount, normaliseActivity, normalisePage, readActivity, resetActivityCache, walletChanges } from "./activity";
 import { kalshiBuy, KALSHI_MINT, polymarketBuy, POLYMARKET_MINT, solDeposit, TEST_WALLET as WALLET, usdcDeposit } from "./activity.fixture";
 import { resetTokenMetaCache, WSOL_MINT } from "./token-meta";
@@ -10,7 +11,6 @@ const NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 const UNKNOWN = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
 const sig = (n: number) => `${n.toString().replace(/0/g, "z")}${"5".repeat(87 - String(n).length)}`; // 88-char base58 signature
 const originalFetch = globalThis.fetch;
-const original = { helius: process.env.HELIUS_API_KEY, jupiter: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET };
 const none = new Map();
 
 type Key = { pubkey: string; signer?: boolean; writable?: boolean };
@@ -26,10 +26,10 @@ function tx(n: number, options: { keys: Key[]; pre: number[]; post: number[]; pr
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0"; resetActivityCache(); resetTokenMetaCache(); seedMints(`NVDAx:${NVDAX},KALSHI:${KALSHI_MINT},POLYMARKET:${POLYMARKET_MINT}`); process.env.STOCKPILE_MARKET = "0"; delete process.env.JUPITER_API_KEY; process.env.HELIUS_API_KEY = "test"; });
+  setFeatures({ xstocks: false }); resetActivityCache(); resetTokenMetaCache(); seedMints(`NVDAx:${NVDAX},KALSHI:${KALSHI_MINT},POLYMARKET:${POLYMARKET_MINT}`); setFeatures({ market: false }); setSecrets({ JupiterApiKey: undefined, HeliusApiKey: "test" }); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["HELIUS_API_KEY", original.helius], ["JUPITER_API_KEY", original.jupiter], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("real getTransactionsForAddress payloads (test wallet)", () => {
@@ -92,11 +92,11 @@ describe("readActivity", () => {
   it("returns typed errors when the wallet, Helius or cursor is invalid", async () => {
     expect(await readActivity(null, undefined, 20)).toEqual({ ok: false, error: { code: "NO_WALLET", message: "No verified Solana wallet linked to this Privy identity" } });
     expect(await readActivity(WALLET, "abc", 20)).toEqual({ ok: false, error: { code: "INVALID_CURSOR", message: "Invalid activity cursor" } });
-    delete process.env.HELIUS_API_KEY;
+    setSecrets({ HeliusApiKey: undefined });
     expect(await readActivity(WALLET, undefined, 20)).toEqual({ ok: false, error: { code: "PROVIDER_NOT_CONFIGURED", message: "Helius is not configured" } });
   });
   it("calls getTransactionsForAddress with Helius' pagination token as cursor, resolves unknown symbols once per page, and caches 30s", async () => {
-    process.env.JUPITER_API_KEY = "jup";
+    setSecrets({ JupiterApiKey: "jup" });
     const calls: { method: string; params?: unknown }[] = [];
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));

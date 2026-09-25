@@ -5,8 +5,8 @@ Two independent Drizzle setups. Agents may generate and run migrations using the
 ## 1. Server Postgres (`packages/core`)
 
 - Schema: `packages/core/db/schema/` — `users.ts`, `auth.ts` (Better Auth tables: user/session/account/verification), `id.ts` (nanoid id helper), re-exported by `index.ts`.
-- Client: `packages/core/db/index.ts` exports `db` — a lazy Proxy around `drizzle(node-postgres)`. Connection resolution order: linked Hyperdrive binding (`Resource.Database`, deployed Workers) → `DatabaseUrl` secret (local/`sst shell`) → assembled from `DatabaseHost`/`DatabaseUsername`/`DatabasePassword` secrets. Each query opens/closes a fresh `pg.Client` (Workers-safe). Preserve this pattern; do not introduce long-lived pools.
-- Root `drizzle.config.ts`: dialect `postgresql`, schema `./packages/core/db/schema`. Use the configured local database and repository scripts for local migrations; SST is not required.
+- Client: `packages/core/db/index.ts` exports `db` — a lazy Proxy around `drizzle(node-postgres)`. Connection resolution order: linked Hyperdrive binding (`Resource.Database`, deployed Workers) → `DatabaseUrl` secret (local/`sst shell`). Hyperdrive's origin is parsed from `DatabaseUrl` in `infra/database.ts`. Each query opens/closes a fresh `pg.Client` (Workers-safe). Preserve this pattern; do not introduce long-lived pools.
+- Root `drizzle.config.ts`: dialect `postgresql`, schema `./packages/core/db/schema`. Reads `Resource.DatabaseUrl`, so run drizzle-kit via the root `db:generate` / `db:migrate` scripts (wrapped in `sst shell`).
 - Package exports: `@stackforge/core/db` (client) and `@stackforge/core/db/schema` (tables). Import schema tables from the schema export, not deep paths.
 - Drizzle Studio is registered as an SST DevCommand (`infra/orm.ts`).
 

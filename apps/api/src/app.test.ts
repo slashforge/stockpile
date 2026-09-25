@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./lib/config";
 import { app } from "./app";
 import { resetMintRegistry, seedMints } from "./lib/mint-registry";
 
-const keys = ["STOCKPILE_XSTOCKS", "STOCKPILE_PRESTOCKS", "STOCKPILE_BRAND_COLORS", "STOCKPILE_MARKET", "JUPITER_API_KEY", "TOKENS_API_KEY"] as const;
-const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const verified = { MSFTx: "22222222222222222222222222222222", GOOGLx: "33333333333333333333333333333333", AMZNx: "44444444444444444444444444444444", PLTRx: "55555555555555555555555555555555", ORCLx: "66666666666666666666666666666666" };
-// Bun loads the root .env: without these overrides the suite would call Jupiter / issuer CDNs for fake mints and time out offline.
+// Without these overrides the suite would call Jupiter / issuer CDNs for fake mints and time out offline.
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0"; resetMintRegistry(); delete process.env.JUPITER_API_KEY; delete process.env.TOKENS_API_KEY; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.STOCKPILE_BRAND_COLORS = "0"; process.env.STOCKPILE_MARKET = "0"; });
-afterEach(() => { for (const key of keys) { if (original[key] === undefined) delete process.env[key]; else process.env[key] = original[key]; } });
+  setFeatures({ xstocks: false }); resetMintRegistry(); setSecrets({ JupiterApiKey: undefined, TokensApiKey: undefined }); setFeatures({ prestocks: false, brandColors: false, market: false }); });
+afterEach(() => { resetConfig(); });
 
 type Bag = { id: string; sourceType: string; issuer: string; assetClass: string; risks: string[]; disclosure: string; tradable: boolean; tradableReason: string | null; curator: { kind: string; name: string }; market: unknown; assets: { symbol: string; weightBps: number; mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: string; assetClass: string; reference: unknown; iconUrl: string | null; iconSource: string | null }[]; sources: { url: string }[] };
 
@@ -98,16 +97,8 @@ describe("public bags and auth boundaries", () => {
     for (const route of ["/trade/prepare", "/positions/legs"]) expect((await app.request(route, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status).toBe(401);
   });
   it("refuses unconfigured Privy rather than accepting an unverified token", async () => {
-    const previousApp = process.env.PRIVY_APP_ID;
-    const previousSecret = process.env.PRIVY_APP_SECRET;
-    delete process.env.PRIVY_APP_ID;
-    delete process.env.PRIVY_APP_SECRET;
-    try {
-      const response = await app.request("/me", { headers: { "privy-id-token": "arbitrary" } });
-      expect(response.status).toBe(503);
-    } finally {
-      if (previousApp !== undefined) process.env.PRIVY_APP_ID = previousApp;
-      if (previousSecret !== undefined) process.env.PRIVY_APP_SECRET = previousSecret;
-    }
+    setSecrets({ PrivyAppId: undefined, PrivyAppSecret: undefined });
+    const response = await app.request("/me", { headers: { "privy-id-token": "arbitrary" } });
+    expect(response.status).toBe(503);
   });
 });

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { assetChart, bagChart, bagIndex, bagReturns, rangeConfig, resetChartCache, sparklines } from "./charts";
 import { bags } from "./bags";
 import { resetTokensApiCache, type Candle } from "./tokens-api";
@@ -8,7 +9,6 @@ const AAPLX = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", MSFTX = "XspzcW1PRt
 const now = new Date("2026-09-25T12:00:00Z");
 const nowSec = Math.floor(now.getTime() / 1000);
 const originalFetch = globalThis.fetch;
-const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
 // Three-leg fixture with the classic 35/35/30 weights; bagChart takes the bag object, so index maths below stays exact.
 const real = bags.find((bag) => bag.id === "megacap-builders")!;
 const megacap = { ...real, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
@@ -37,13 +37,13 @@ function tokens(prices: Record<string, (i: number) => number>, options: { fail?:
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0";
+  setFeatures({ xstocks: false });
   resetTokensApiCache(); resetChartCache();
-  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
+  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); setFeatures({ market: false, prestocks: false }); setSecrets({ TokensApiKey: "tk-test" });
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("asset chart", () => {
@@ -63,9 +63,9 @@ describe("asset chart", () => {
     expect(requests[requests.length - 1]!.params).toEqual({ mint: NVDAX, interval: "1D", from: String(nowSec - 730 * 86400), to: String(nowSec) });
   });
   it("fails soft: unconfigured key, unresolved mint, provider outage and single-point series all give 200-shaped empty charts with a reason", async () => {
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     expect(await assetChart(NVDAX, "NVDAx", "1W", now)).toMatchObject({ points: [], candles: [], change: null, reason: "unconfigured", asOf: null });
-    process.env.TOKENS_API_KEY = "tk-test";
+    setSecrets({ TokensApiKey: "tk-test" });
     tokens({}, { unresolved: [NVDAX] });
     expect((await assetChart(NVDAX, "NVDAx", "1W", now)).reason).toBe("unresolved");
     resetTokensApiCache(); tokens({}, { fail: [NVDAX] });
@@ -131,11 +131,11 @@ describe("bag chart", () => {
     expect(chart.points[1]!.value).toBeCloseTo(0.5 * 101 + 0.5 * 100, 3);
   });
   it("responds with empty points and a typed reason when the key is missing, every leg fails, or the bag is research-only", async () => {
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     let chart = await bagChart(megacap, "1D", now);
     expect(chart).toMatchObject({ points: [], change: null, reason: "unconfigured" });
     expect(chart.legs.every((leg) => !leg.ok && leg.reason === "unconfigured")).toBe(true);
-    process.env.TOKENS_API_KEY = "tk-test"; resetChartCache();
+    setSecrets({ TokensApiKey: "tk-test" }); resetChartCache();
     tokens({}, { fail: [AAPLX, MSFTX, NVDAX] });
     expect(await bagChart(megacap, "1D", now)).toMatchObject({ points: [], reason: "unavailable" });
     resetChartCache(); resetTokensApiCache();
@@ -165,7 +165,7 @@ describe("sparklines", () => {
     const before = requests.length;
     await sparklines(now);
     expect(requests.length).toBe(before);
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     expect(await sparklines(now)).toMatchObject({ reason: "unconfigured", sparklines: { "megacap-builders": [] } });
   });
 });
@@ -219,7 +219,7 @@ describe("bag returns", () => {
     resetChartCache(); resetTokensApiCache();
     tokens({}, { fail: [SPYX, QQQX, GLDX] });
     expect(await bagReturns(now)).toMatchObject({ reason: "unavailable", returns: { "index-basics": { "1M": null, "1Y": null, ALL: null, since: null, sparkline1M: [] } } });
-    delete process.env.TOKENS_API_KEY; resetChartCache();
+    setSecrets({ TokensApiKey: undefined }); resetChartCache();
     expect(await bagReturns(now)).toMatchObject({ reason: "unconfigured", asOf: null, returns: { "index-basics": { "1M": null, "1Y": null, ALL: null } } });
   });
   it("serves the last value instantly once it has one and refreshes in the background after the TTL", async () => {

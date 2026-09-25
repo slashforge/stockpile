@@ -1,9 +1,11 @@
 import { defineConfig } from "drizzle-kit";
+import { Resource } from "sst";
 
+// Run drizzle-kit through `sst shell` (see root package.json db:* scripts) so the DatabaseUrl secret is linked.
 export default defineConfig({
   dialect: "postgresql",
   schema: ["./packages/core/db/schema"],
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? (() => { throw new Error("DATABASE_URL is required in root .env"); })(),
+    url: Resource.DatabaseUrl.value,
   },
 });

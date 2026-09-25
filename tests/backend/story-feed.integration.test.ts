@@ -1,8 +1,10 @@
 import { expect, it } from "bun:test";
+import { Resource } from "sst";
 import { app } from "../../apps/api/src/app";
 
 it("serves persisted, paginated, source-attributed story and podcast feeds", async () => {
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL required");
+  // Run with `sst shell -- bun test tests/backend` so the DatabaseUrl secret is linked.
+  if (!Resource.DatabaseUrl.value) throw new Error("DatabaseUrl secret required");
   const first = await app.request("/stories?limit=4");
   expect(first.status).toBe(200);
   const feed = await first.json() as { stories: { id: string; sourceUrl: string; publishedAt: string; imageUrl: null; provenance: string; bagIds: string[] }[]; nextCursor: string | null };

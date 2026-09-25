@@ -31,23 +31,6 @@ const FIXTURES = {
   },
 } as const;
 
-function buildDatabaseUrlFromParts() {
-  const host = secretValue("DatabaseHost");
-  const username = secretValue("DatabaseUsername");
-  const password = secretValue("DatabasePassword");
-  const port = "5432";
-  const database = "postgres";
-
-  if (!host || !username || !password) {
-    return null;
-  }
-
-  const user = encodeURIComponent(username);
-  const pass = encodeURIComponent(password);
-  const sslmode = shouldUseSslForHost(host) ? "require" : "disable";
-  return `postgresql://${user}:${pass}@${host}:${port}/${database}?sslmode=${sslmode}`;
-}
-
 function shouldUseSslForHost(host: string) {
   if (process.env.DEV_MCP_DATABASE_SSL === "true") return true;
   if (process.env.DEV_MCP_DATABASE_SSL === "false") return false;
@@ -75,11 +58,11 @@ function databaseSsl(databaseUrl: string) {
 }
 
 function getDatabaseUrl() {
-  const databaseUrl = secretValue("DatabaseUrl") || buildDatabaseUrlFromParts();
+  const databaseUrl = secretValue("DatabaseUrl");
 
   if (!databaseUrl) {
     throw new Error(
-      "Database connection not configured. Run via `sst dev` or `sst shell` so the DatabaseUrl/DatabaseHost secrets are linked.",
+      "Database connection not configured. Run via `sst dev` or `sst shell` so the DatabaseUrl secret is linked.",
     );
   }
 

@@ -1,3 +1,4 @@
+import { secret } from "./config";
 import { PrivyClient } from "@privy-io/node";
 import { db } from "@stockpile/core/db";
 import { users } from "@stockpile/core/db/schema";
@@ -6,8 +7,10 @@ export type Identity = { id: string; email: string | null; walletAddress: string
 let client: PrivyClient | undefined;
 
 export async function verifyIdentity(token: string): Promise<Identity | null> {
-  if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_APP_SECRET) throw new Error("Privy is not configured");
-  client ??= new PrivyClient({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET });
+  const appId = secret("PrivyAppId");
+  const appSecret = secret("PrivyAppSecret");
+  if (!appId || !appSecret) throw new Error("Privy is not configured");
+  client ??= new PrivyClient({ appId, appSecret });
   try {
     // Privy verifies the identity token before returning the linked accounts.
     const user = await client.users().get({ id_token: token });

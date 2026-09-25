@@ -1,7 +1,8 @@
 // tokens.xyz client (https://api.tokens.xyz/v1, `x-api-key` header), mirroring riven-cash's `lib/tokens-api.ts`:
 // `/assets/resolve?ref=<mint>` gives the canonical assetId (+ variant mint), `/assets/{assetId}/price-chart?mint&interval&from&to`
 // gives candles. Candle keys vary (`time|timestamp|t`, `close|value|price`), so they are normalised here to {t,o,h,l,c,v}.
-// Without TOKENS_API_KEY every call reports "unconfigured" so callers fall back to the snapshot table.
+// Without the TokensApiKey secret every call reports "unconfigured" so callers fall back to the snapshot table.
+import { secret } from "./config";
 import { base58Mint } from "./constants";
 
 export const TOKENS_API_BASE_URL = "https://api.tokens.xyz/v1";
@@ -44,7 +45,7 @@ async function getJson(path: string, params: Record<string, string | number | un
 
 /** Canonical tokens.xyz asset for a mint (cached 24h; unresolved 10 min). */
 export async function resolveAsset(mint: string): Promise<Resolved | null | "unconfigured"> {
-  const key = process.env.TOKENS_API_KEY;
+  const key = secret("TokensApiKey");
   if (!key) return "unconfigured";
   if (!base58Mint.test(mint)) return null;
   const cached = resolveCache.get(mint);
@@ -78,7 +79,7 @@ async function fetchCandles(mint: string, interval: TokensInterval, from: number
  * "ALL" period does). Cached 60s per (mint, interval, window bucket); stale candles are served on failure; concurrent calls share one fetch.
  */
 export async function candlesFor(mint: string, interval: TokensInterval, from?: number, to?: number): Promise<CandlesResult> {
-  const key = process.env.TOKENS_API_KEY;
+  const key = secret("TokensApiKey");
   if (!key) return { ok: false, reason: "unconfigured" };
   const bucket = Math.floor((to ?? Date.now() / 1000) / 60);
   const cacheKey = `${mint}:${interval}:${from ?? "all"}:${bucket}`;

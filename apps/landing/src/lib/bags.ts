@@ -302,7 +302,7 @@ function normalise(bag: ApiBag): LandingBag {
 }
 
 export async function loadBagCatalogue(): Promise<BagCatalogue> {
-  const base = (import.meta.env.LANDING_API_URL ?? 'http://localhost:4040').replace(/\/$/, '');
+  const base = (import.meta.env.PUBLIC_API_URL ?? 'http://localhost:4040').replace(/\/$/, '');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
 

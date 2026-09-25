@@ -1,12 +1,11 @@
 import { appConfig } from "./config";
 import { database } from "./database";
 import { domains } from "./domains";
-import { betterAuthSecret, databaseUrl, resendApiKey, solanaPaymasterKey, tokensApiKey } from "./secrets";
+import { apiSecrets, databaseUrl } from "./secrets";
 import { isDeployed } from "./utils";
 
-const API_LINKS = [appConfig, betterAuthSecret, resendApiKey, tokensApiKey, solanaPaymasterKey];
-// The API reads provider keys from process.env (see apps/api/src/lib/tokens-api.ts), so the secret is also exposed as an env var.
-const API_ENVIRONMENT = { TOKENS_API_KEY: tokensApiKey.value, SOLANA_PAYMASTER_KEY: solanaPaymasterKey.value };
+// The API reads everything through `Resource.*` (apps/api/src/lib/config.ts); nothing is passed as env vars.
+const API_LINKS = [appConfig, ...apiSecrets];
 
 const WORKER_TRANSFORM = {
   worker: {
@@ -23,7 +22,6 @@ const WORKER_TRANSFORM = {
 export const api = !isDeployed()
   ? new sst.x.DevCommand("Api", {
       link: [...API_LINKS, databaseUrl],
-      environment: API_ENVIRONMENT,
       dev: { command: "bun dev", directory: "apps/api" },
     })
   : new sst.cloudflare.Worker("Api", {
@@ -38,7 +36,6 @@ export const api = !isDeployed()
         },
       },
       link: [...API_LINKS, database!],
-      environment: API_ENVIRONMENT,
       domain: domains.api,
       placement: {
         mode: "smart",

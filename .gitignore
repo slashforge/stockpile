@@ -86,3 +86,4 @@ android
 .agi
 .claude
 reference
+.env.secrets

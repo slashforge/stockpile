@@ -2,6 +2,7 @@
 // batch-by-mint lookup riven-cash uses for wallet assets. Balances never come from here: Helius is the source of truth
 // for amounts; Jupiter only supplies symbol / name / icon / decimals / usdPrice. Unknown mints resolve to no entry,
 // so callers render nulls rather than invented values. Cached 60s per mint, negative 60s, stale-on-failure.
+import { secret } from "./config";
 import { base58Mint } from "./constants";
 
 export const WSOL_MINT = "So11111111111111111111111111111111111111112";
@@ -43,9 +44,9 @@ async function fetchBatch(mints: string[], key: string): Promise<Map<string, Tok
   return found;
 }
 
-/** Metadata for the given mints (only those Jupiter knows). Without `JUPITER_API_KEY` returns whatever is cached. */
+/** Metadata for the given mints (only those Jupiter knows). Without the `JupiterApiKey` secret returns whatever is cached. */
 export async function tokenMetadata(mints: Iterable<string>): Promise<Map<string, TokenMeta>> {
-  const key = process.env.JUPITER_API_KEY;
+  const key = secret("JupiterApiKey");
   const wanted = [...new Set(mints)].filter((mint) => base58Mint.test(mint));
   const result = new Map<string, TokenMeta>();
   const missing: string[] = [];

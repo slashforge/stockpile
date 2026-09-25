@@ -31,21 +31,20 @@ bun start --clear
 
 > **Note**: Do not run `apps/api` or `apps/landing` individually - they depend on SST for secrets and configuration.
 
-### Auth setup
+### Secrets
 
-Email sign-in uses Better Auth with email OTPs delivered by Resend.
+All runtime configuration is SST secrets (`infra/secrets.ts`) plus the `AppConfig` linkable (`infra/config.ts`); there are no `.env` files for the backend. Set them per stage before `sst dev` / deploy:
 
-Required SST secrets:
+```bash
+bunx sst secret set DatabaseUrl postgres://...          # add --stage <stage> for deployed stages
+bunx sst secret set PrivyAppId ...
+bunx sst secret set PrivyAppSecret ...
+bunx sst secret set JupiterApiKey ...
+bunx sst secret set HeliusApiKey ...
+# optional: PrivyClientId SolanaPaymasterKey TokensApiKey PythApiKey CongressApiKey OpenaiApiKey BlockedMints
+```
 
-- `BetterAuthSecret`
-- `ResendApiKey`
-
-Notes:
-
-- Better Auth is mounted on the API under `/auth`
-- Mobile sign-in uses Better Auth session cookies, not bearer tokens
-- There is currently no wallet provider/signing flow in auth
-- The OTP sender address is configured in `infra/config.ts` (`authFromEmail`)
+See `docs/backend-setup.md` for what each secret does. One-off scripts (`bun run stories:ingest`, `db:migrate`, ...) run under `sst shell` so the same secrets are linked.
 
 ### API SDK generation
 

@@ -1,7 +1,8 @@
 // STOCK Act periodic transaction reports via CongressInvests (https://congressinvests.com, free tier: no key,
-// 100 req/day per IP; optional STOCKPILE_CONGRESS_API_KEY sent as X-Api-Key). Data is sourced from official House
+// 100 req/day per IP; optional CongressApiKey secret sent as X-Api-Key). Data is sourced from official House
 // Clerk / Senate eFD records and is informational only; redistribution for commercial solicitation is prohibited by
 // House Clerk usage terms. Only the tickers behind our tradable xStocks are ingested (8 requests per run).
+import { secret } from "./config";
 import { and, desc, gte, inArray, lte } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { db } from "@stockpile/core/db";
@@ -48,7 +49,8 @@ export function parseDisclosure(row: unknown): Disclosure | null {
 
 async function fetchTicker(ticker: string): Promise<Disclosure[]> {
   const headers: Record<string, string> = { Accept: "application/json", "User-Agent": "Stockpile/1.0 (+https://stockpile.app)" };
-  if (process.env.STOCKPILE_CONGRESS_API_KEY) headers["X-Api-Key"] = process.env.STOCKPILE_CONGRESS_API_KEY;
+  const apiKey = secret("CongressApiKey");
+  if (apiKey) headers["X-Api-Key"] = apiKey;
   const response = await fetch(`${base}/trades/${encodeURIComponent(ticker)}?limit=500`, { redirect: "error", headers, signal: AbortSignal.timeout(15000) });
   if (!response.ok || Number(response.headers.get("content-length") || 0) > maxBytes) throw new Error(`CongressInvests ${response.status} for ${ticker}`);
   const text = await response.text();

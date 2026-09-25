@@ -1,6 +1,6 @@
 // Market data for bag assets: Jupiter Price v3 (usdPrice, 24h change, scaled-UI multiplier, issuer reference price),
 // Jupiter Tokens v2 (liquidity, organic score, holders, 24h volume) and an underlying reference price
-// (Pyth Hermes Equity.US.<TICKER>/USD when PYTH_API_KEY is set, else Jupiter's xStocks stock reference; PreStocks mark
+// (Pyth Hermes Equity.US.<TICKER>/USD when the PythApiKey secret is set, else Jupiter's xStocks stock reference; PreStocks mark
 // price for pre-IPO). One batched refresh for every mint, cached ~60s, stale-while-revalidate and stale-on-failure.
 // Request handlers only read the cache; the first fill happens at startup (index.ts) or on the first read.
 // 24h change: Jupiter's `priceChange24h` is a rolling last-trade window that re-anchors on every trade and every trade ageing out,
@@ -8,6 +8,7 @@
 // ~24h old (loader wired in index.ts), the change is computed against that fixed reference instead (`change24hSource:"snapshot"`).
 // Quote probe: Jupiter `liquidity` is pool TVL, not route depth, so every 5 minutes each mint is quoted for a fixed 10 USDC buy and
 // the route's priceImpactPct is exposed as `probe`; tiers and the bag's worst-impact leg use it.
+import { secret, feature } from "./config";
 import { base58Mint, USDC } from "./constants";
 
 export type UnderlyingSource = "pyth" | "prestocks" | "jupiter-stock";
@@ -137,13 +138,14 @@ async function fetchProbes(mints: string[], key: string, previous: Map<string, Q
 }
 
 async function refresh(): Promise<Snapshot> {
-  const key = process.env.JUPITER_API_KEY;
+  const key = secret("JupiterApiKey");
   if (!key) throw new Error("Jupiter is not configured");
+  const pythKey = secret("PythApiKey");
   const mints = [...trackedMints];
   const probesDue = probeExpiresAt <= Date.now();
   const [jupiter, pyth, probes, reference24h] = await Promise.all([
     fetchJupiter(mints, key),
-    process.env.PYTH_API_KEY ? fetchPyth(process.env.PYTH_API_KEY).catch(() => snapshot?.pyth ?? new Map()) : Promise.resolve(snapshot?.pyth ?? new Map<string, { price: number; asOf: string }>()),
+    pythKey ? fetchPyth(pythKey).catch(() => snapshot?.pyth ?? new Map()) : Promise.resolve(snapshot?.pyth ?? new Map<string, { price: number; asOf: string }>()),
     probesDue ? fetchProbes(mints, key, snapshot?.probes ?? new Map()) : Promise.resolve(snapshot?.probes ?? new Map<string, QuoteProbe>()),
     referenceLoader ? referenceLoader(mints).catch(() => snapshot?.reference24h ?? new Map<string, number>()) : Promise.resolve(new Map<string, number>()),
   ]);
@@ -153,7 +155,7 @@ async function refresh(): Promise<Snapshot> {
 
 /** Current snapshot (stale-while-revalidate). Awaits only when nothing has been cached yet. */
 export async function marketSnapshot(): Promise<Snapshot | null> {
-  if (process.env.STOCKPILE_MARKET === "0" || trackedMints.size === 0) return null;
+  if (!feature("market") || trackedMints.size === 0) return null;
   if (expiresAt <= Date.now() && !pending) {
     pending = refresh().then((next) => { snapshot = next; expiresAt = Date.now() + ttl; return next; })
       .catch(() => { expiresAt = Date.now() + failureTtl; return snapshot; })

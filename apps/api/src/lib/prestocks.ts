@@ -2,6 +2,7 @@
 // Only PreStocks-issued tokens are used (Stocklana PreStocks bounty rule). The directory is cached in-process
 // (stale-while-revalidate, stale-on-failure) and every contract address is independently verified on Jupiter
 // (exact mint id, symbol, decimals, tags, live USDC route) before it can back a tradable bag asset.
+import { secret, feature } from "./config";
 import { USDC } from "./constants";
 
 export const PRESTOCKS_DIRECTORY_URL = "https://prestocks.com/api/prestocks";
@@ -78,7 +79,7 @@ async function fetchDirectory(): Promise<Directory> {
 
 /** Cached issuer directory; serves stale data while refreshing and after failures, null only when never fetched. */
 export async function preStocksDirectory(): Promise<Directory | null> {
-  if (process.env.STOCKPILE_PRESTOCKS === "0") return null;
+  if (!feature("prestocks")) return null;
   const now = Date.now();
   if (directory.expiresAt <= now && !directory.pending) {
     directory.pending = fetchDirectory().then((value) => {
@@ -126,7 +127,7 @@ async function jupiterGet(url: string | URL, headers: Record<string, string>, ti
 }
 
 async function verifyOnJupiter(asset: { symbol: string; mint: string }, tag: IssuerTag): Promise<PreStockVerification> {
-  const key = process.env.JUPITER_API_KEY;
+  const key = secret("JupiterApiKey");
   if (!key) return fail("Jupiter is not configured");
   const headers = { "x-api-key": key };
   const search = await jupiterGet(`https://api.jup.ag/tokens/v2/search?query=${encodeURIComponent(asset.mint)}`, headers, 5000);

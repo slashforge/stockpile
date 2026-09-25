@@ -3,6 +3,7 @@
 // per-mint token deltas over balances owned by the wallet (Token + Token-2022, via `uiAmountString`, which the RPC has already
 // scaled for Token-2022 scaled-UI mints) and the wallet's lamport delta with the fee it paid and rent for token accounts it
 // opened/closed added back. Helius labels (`type`, `description`) are never used. Pages are cached 30s per wallet+cursor+limit.
+import { secret } from "./config";
 import { bagIdsForMint, knownSymbol } from "./bags";
 import { base58Mint, USDC } from "./constants";
 import { atomicToUi } from "./portfolio";
@@ -244,7 +245,7 @@ async function fetchPage(wallet: string, cursor: string | undefined, limit: numb
 /** One page of wallet activity, newest first. Cached 30s per wallet+cursor+limit (in-flight requests are shared, failures not cached). */
 export async function readActivity(wallet: string | null, cursor: string | undefined, limit: number): Promise<ActivityResult> {
   if (!wallet) return { ok: false, error: { code: "NO_WALLET", message: "No verified Solana wallet linked to this Privy identity" } };
-  const key = process.env.HELIUS_API_KEY;
+  const key = secret("HeliusApiKey");
   if (!key) return { ok: false, error: { code: "PROVIDER_NOT_CONFIGURED", message: "Helius is not configured" } };
   if (cursor !== undefined && !cursorPattern.test(cursor)) return { ok: false, error: { code: "INVALID_CURSOR", message: "Invalid activity cursor" } };
   const size = Math.min(Math.max(limit, 1), HELIUS_MAX_LIMIT);

@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "../lib/config";
 import { Hono } from "hono";
 import { Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -67,7 +68,6 @@ afterAll(() => { megacap.assets = catalogueAssets; });
 const app = new Hono();
 app.route("/", account);
 const originalFetch = globalThis.fetch;
-const original = Object.fromEntries(["PRIVY_APP_ID", "PRIVY_APP_SECRET", "JUPITER_API_KEY", "HELIUS_API_KEY", "STOCKPILE_XSTOCKS", "STOCKPILE_PRESTOCKS", "SOLANA_PAYMASTER_KEY"].map((key) => [key, process.env[key]]));
 
 function auth(token = "valid") { currentUser = token === "other" ? "user-b" : "user-a"; return { "privy-id-token": token }; }
 function post(path: string, body: unknown, token = "valid") { return app.request(path, { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
@@ -105,7 +105,7 @@ function jupiter(build: (call: number, url: URL) => Response = (_call, url) => b
   }) as unknown as typeof fetch;
   return { quoteCalls: () => quoteCalls, buildCalls: () => buildCalls };
 }
-function sponsored() { process.env.HELIUS_API_KEY = "test"; process.env.SOLANA_PAYMASTER_KEY = bs58.encode(PAYMASTER.secretKey); }
+function sponsored() { setSecrets({ HeliusApiKey: "test", SolanaPaymasterKey: bs58.encode(PAYMASTER.secretKey) }); }
 function decoded(base64: string) {
   const tx = VersionedTransaction.deserialize(Buffer.from(base64, "base64"));
   const keys = tx.message.staticAccountKeys.map((key) => key.toBase58());
@@ -113,15 +113,15 @@ function decoded(base64: string) {
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0";
+  setFeatures({ xstocks: false });
   saved.clear(); lots.length = 0; insertedUser = undefined; deleted = false;
-  process.env.PRIVY_APP_ID = "test-app"; process.env.PRIVY_APP_SECRET = "test-secret";
-  delete process.env.JUPITER_API_KEY; delete process.env.HELIUS_API_KEY; resetMintRegistry(); delete process.env.SOLANA_PAYMASTER_KEY; process.env.STOCKPILE_PRESTOCKS = "0";
+  setSecrets({ PrivyAppId: "test-app", PrivyAppSecret: "test-secret" });
+  setSecrets({ JupiterApiKey: undefined, HeliusApiKey: undefined }); resetMintRegistry(); setSecrets({ SolanaPaymasterKey: undefined }); setFeatures({ prestocks: false });
   globalThis.fetch = originalFetch;
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of Object.entries(original)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("authenticated account flows (mocked identity, DB, HTTP)", () => {
@@ -151,14 +151,14 @@ describe("portfolio (mocked Helius)", () => {
   it("does not claim balances when wallet or Helius is absent, or provider fails", async () => {
     expect(await json(app.request("/portfolio", { headers: auth("no-wallet") }))).toMatchObject({ walletAddress: null, status: "unavailable", holdings: [], sol: null, usdc: null });
     expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", holdings: [], sol: null, usdc: null, message: "Helius is not configured" });
-    process.env.HELIUS_API_KEY = "test";
+    setSecrets({ HeliusApiKey: "test" });
     globalThis.fetch = mock(async () => new Response("error", { status: 503 })) as unknown as typeof fetch;
     expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", holdings: [], sol: null, usdc: null });
     globalThis.fetch = mock(async () => Response.json([{ id: 1, result: { value: 5 } }, { id: 2, error: { code: -32000 } }, { id: 3, result: { value: [] } }])) as unknown as typeof fetch;
     expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", sol: null });
   });
   it("reads SOL, USDC and Token-2022 holdings from one batched Helius RPC call", async () => {
-    process.env.HELIUS_API_KEY = "test";
+    setSecrets({ HeliusApiKey: "test" });
     seedMints(`NVDAx:${mints.NVDAx}`);
     const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
     const calls = mock(async (url: string | URL | Request, options?: RequestInit) => {
@@ -176,13 +176,13 @@ describe("portfolio (mocked Helius)", () => {
     expect(calls).toHaveBeenCalledTimes(1);
   });
   it("reports zero USDC honestly when the wallet holds none", async () => {
-    process.env.HELIUS_API_KEY = "test";
+    setSecrets({ HeliusApiKey: "test" });
     globalThis.fetch = mock(async () => Response.json([{ id: 1, result: { value: 0 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [] } }])) as unknown as typeof fetch;
     expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", sol: { amount: "0", decimals: 9, uiAmount: "0", usdPrice: null, usdValue: 0 }, usdc: { amount: "0", decimals: 6, usdValue: 0 }, holdings: [], totalUsd: 0, unpricedCount: 0 });
   });
   it("enriches holdings with Jupiter metadata, prices, bag membership and honest totals (Helius stays the balance source)", async () => {
     resetTokenMetaCache();
-    process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "jup";
+    setSecrets({ HeliusApiKey: "test", JupiterApiKey: "jup" });
     seedMints(`NVDAx:${mints.NVDAx}`);
     const unknown = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
     const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
@@ -225,7 +225,7 @@ describe("activity (mocked Helius RPC)", () => {
   });
   it("serves normalised getTransactionsForAddress pages with limit/cursor passthrough, a 400 for a rejected token, and a typed provider error", async () => {
     resetActivityCache();
-    process.env.HELIUS_API_KEY = "test";
+    setSecrets({ HeliusApiKey: "test" });
     const transfer = { slot: 1, blockTime: 1790388000, transaction: { signatures: [signature], message: { accountKeys: [{ pubkey: WALLET, signer: true, writable: true }, { pubkey: OTHER_WALLET, signer: false, writable: true }], instructions: [{ program: "system", programId: "11111111111111111111111111111111" }] } },
       meta: { err: null, fee: 5000, preBalances: [1_000_000_000, 0], postBalances: [749_995_000, 250_000_000], preTokenBalances: [], postTokenBalances: [] } };
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
@@ -263,7 +263,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(await json(post("/trade/prepare", requestBody, "no-wallet"))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "NO_WALLET", legIndex: null, symbol: null } });
     expect(await json(post("/trade/quote", { ...requestBody, inputMint: WALLET }))).toMatchObject({ status: "unavailable", legs: [], error: { code: "UNSUPPORTED_INPUT_MINT" } });
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", legs: [], error: { code: "PROVIDER_NOT_CONFIGURED" } });
-    process.env.JUPITER_API_KEY = "test";
+    setSecrets({ JupiterApiKey: "test" });
     seedMints(`AAPLx:${mints.AAPLx},MSFTx:${mints.MSFTx}`);
     const calls = mock(async () => { throw new Error("must not fetch"); });
     globalThis.fetch = calls as unknown as typeof fetch;
@@ -273,7 +273,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(calls).not.toHaveBeenCalled();
   });
   it("returns labelled legs whose USDC allocations follow weights and sum to the amount", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
+    allMints(); setSecrets({ JupiterApiKey: "test" });
     const { quoteCalls } = jupiter(() => new Response("unused", { status: 500 }));
     const quote = await json(post("/trade/quote", { ...requestBody, amount: "1000001", slippageBps: 75 }));
     expect(quote).toMatchObject({ status: "available", bagId: "megacap-builders", amount: "1000001", slippageBps: 75, error: null });
@@ -285,7 +285,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(quoteCalls()).toBe(3);
   });
   it("maps Jupiter quote errors to typed codes with the failing leg", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
+    allMints(); setSecrets({ JupiterApiKey: "test" });
     const cases: [Response, string][] = [
       [Response.json({ error: "No routes found", errorCode: "NO_ROUTES_FOUND" }, { status: 400 }), "NO_ROUTE"],
       [Response.json({ error: "The token is not tradable", errorCode: "TOKEN_NOT_TRADABLE" }, { status: 400 }), "TOKEN_NOT_TRADABLE"],
@@ -299,27 +299,27 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_TIMEOUT", legIndex: 0 } });
   });
   it("does not accept mismatched Jupiter response mints", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
+    allMints(); setSecrets({ JupiterApiKey: "test" });
     globalThis.fetch = mock(async (input: string | URL | Request) => Response.json({ inputMint: USDC, outputMint: WALLET, inAmount: new URL(String(input)).searchParams.get("amount"), outAmount: "42" })) as unknown as typeof fetch;
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", legs: [], error: { code: "QUOTE_MISMATCH", legIndex: 0 } });
   });
   it("returns no partial preparation after a leg error", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     const { quoteCalls, buildCalls } = jupiter((call, url) => call === 2 ? new Response("fail", { status: 503 }) : buildFor(url));
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "PROVIDER_ERROR", legIndex: 1, symbol: "MSFTx" } });
     expect(quoteCalls()).toBe(0);
     expect(buildCalls()).toBe(2);
   });
   it("fails closed when sponsored fees are not configured", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
+    allMints(); setSecrets({ JupiterApiKey: "test" });
     const { buildCalls } = jupiter();
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_NOT_CONFIGURED" } });
-    process.env.HELIUS_API_KEY = "test"; process.env.SOLANA_PAYMASTER_KEY = "not a key";
+    setSecrets({ HeliusApiKey: "test", SolanaPaymasterKey: "not a key" });
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_NOT_CONFIGURED" } });
     expect(buildCalls()).toBe(0);
   });
   it("prepares one sponsored transaction per leg: paymaster pays and pre-signs, the wallet only signs the swap, RTSE by default", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     const requests: URL[] = [];
     jupiter(undefined, requests);
     const result = await json(post("/trade/prepare", requestBody));
@@ -349,7 +349,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(requests.every((url) => url.searchParams.get("slippageBps") === "100")).toBe(true);
   });
   it("sets the CU limit from simulation and clamps Jupiter's CU price", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     jupiter(undefined, [], { unitsConsumed: 200_000 });
     const result = await json(post("/trade/prepare", requestBody));
     const { tx } = decoded(result.transactions[0].transaction);
@@ -358,7 +358,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(price![0]).toBe(3); expect(price!.readBigUInt64LE(1)).toBe(1_000_000n);
   });
   it("refuses builds that misuse the paymaster, overspend it, or would fail on chain", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     const token = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
     const drains: Record<string, unknown>[] = [
       { swapInstruction: undefined },
@@ -403,7 +403,7 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     return quotes;
   }
   it("records a leg from chain data (202 until visible, 200 idempotent, 409 when linked elsewhere), then reports and sells the position", async () => {
-    allMints(); resetTokenMetaCache(); process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test";
+    allMints(); resetTokenMetaCache(); setSecrets({ HeliusApiKey: "test", JupiterApiKey: "test" });
     expect((await post("/positions/legs", { bagId: "megacap-builders", signature: "nope" })).status).toBe(400);
     expect((await post("/positions/legs", { bagId: "unknown", signature })).status).toBe(404);
     providers({ found: false });
@@ -467,7 +467,7 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     expect(lots).toEqual([expect.objectContaining({ userId: "user-a", bagId: "megacap-builders", mint: mints.NVDAx, side: "buy", signature })]);
   }, 12_000);
   it("prepares sponsored sell legs, echoing side and totalOutAmount", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
     const builds: URL[] = [];
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
@@ -492,7 +492,7 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     expect(await json(app.request("/activity?limit=1", { headers: auth() }))).toMatchObject({ items: [{ signature, bagId: "megacap-builders", bagLinked: false }] });
   });
   it("sells only token balances held outside every bag position", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     const loose = "55555555555555555555555555555555";
     // 660000 NVDAx tracked by Megacap Builders; the wallet holds 1000000 -> 340000 is loose. `loose` isn't in any bag.
     lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
@@ -593,7 +593,7 @@ describe("trade relay (mocked Helius)", () => {
   it("batches signature statuses into one getSignatureStatuses call", async () => {
     const sigs = ["5".repeat(88), "6".repeat(88), "7".repeat(88)];
     expect((await post("/trade/status", { signatures: sigs })).status).toBe(503);
-    process.env.HELIUS_API_KEY = "test";
+    setSecrets({ HeliusApiKey: "test" });
     const calls = helius(() => Response.json({ jsonrpc: "2.0", id: 1, result: { value: [{ err: null, confirmationStatus: "confirmed" }, { err: { InstructionError: [1, { Custom: 6001 }] }, confirmationStatus: "confirmed" }, null] } }));
     expect(await json(post("/trade/status", { signatures: sigs }))).toEqual({ statuses: [
       { signature: sigs[0], status: "confirmed", error: null },

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const AAPLX = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", MSFTX = "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX", NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
@@ -12,7 +13,6 @@ const { assetChart, bagHistory, bagIndex, changePct, rangeInterval } = await imp
 const { bags } = await import("./bags");
 const { resetTokensApiCache } = await import("./tokens-api");
 const originalFetch = globalThis.fetch;
-const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
 // Three-leg fixture with the classic 35/35/30 weights; bagHistory takes the bag object, so index maths below stays exact.
 const megacap = { ...bags.find((bag) => bag.id === "megacap-builders")!, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
 const hour = 3600;
@@ -36,13 +36,13 @@ function tokens(prices: Record<string, (i: number) => number>, options: { fail?:
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0";
+  setFeatures({ xstocks: false });
   resetTokensApiCache(); snapshotRows = [];
-  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
+  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); setFeatures({ market: false, prestocks: false }); setSecrets({ TokensApiKey: "tk-test" });
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("bag history from tokens.xyz candles", () => {
@@ -75,14 +75,14 @@ describe("bag history from tokens.xyz candles", () => {
   it("falls back to hourly snapshots (flat candles, thinned to the range step, source labelled) when tokens.xyz is unconfigured, fails, or cannot resolve a mint", async () => {
     snapshotRows = [];
     for (let i = 0; i < 48; i++) for (const [mint, price] of [[AAPLX, 100 + i], [MSFTX, 200], [NVDAX, 50]] as const) snapshotRows.push({ mint, usdPrice: String(price), ts: new Date((nowSec - 48 * hour + i * hour) * 1000) });
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     let history = await bagHistory(megacap, "30d", now);
     expect(history).toMatchObject({ source: "snapshot", interval: "4H" });
     expect(history.assets[0]!.candles).toHaveLength(12); // 48 hourly rows thinned to 4H buckets
     expect(history.assets[0]!.candles[0]).toEqual({ t: nowSec - 48 * hour, o: 100, h: 100, l: 100, c: 100, v: null });
     expect(history.bag).toHaveLength(12);
     expect(history.changePct).toBeGreaterThan(0);
-    process.env.TOKENS_API_KEY = "tk-test";
+    setSecrets({ TokensApiKey: "tk-test" });
     tokens({ [AAPLX]: () => 1, [MSFTX]: () => 1, [NVDAX]: () => 1 }, { fail: [NVDAX] });
     history = await bagHistory(megacap, "7d", now);
     expect(history.source).toBe("snapshot"); expect(history.assets[2]!.candles).toHaveLength(48);
@@ -101,7 +101,7 @@ describe("bag history from tokens.xyz candles", () => {
     const chart = await assetChart(NVDAX, "NVDAx", "24h", now);
     expect(chart).toMatchObject({ mint: NVDAX, symbol: "NVDAx", source: "tokens", range: "24h", interval: "15m" });
     expect(chart.candles).toHaveLength(97); expect(chart.changePct).toBeCloseTo((106 / 10 - 1) * 100, 6);
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     snapshotRows = [{ mint: NVDAX, usdPrice: "12", ts: new Date((nowSec - 2 * hour) * 1000) }];
     expect(await assetChart(NVDAX, "NVDAx", "24h", now)).toMatchObject({ source: "snapshot", candles: [{ c: 12, v: null }], changePct: null, asOf: new Date((nowSec - 2 * hour) * 1000).toISOString() });
   });

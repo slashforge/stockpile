@@ -5,11 +5,12 @@
 // A ticker passes only when the quote routes, priceImpactPct is at or below the gate, pool TVL is at least --min-liquidity
 // (default $500) and the quote's implied price is within --max-deviation (default 10%) of Jupiter's usdPrice: tiny stale pools
 // can quote "0% impact" at absurd prices, so impact alone is not a liquidity signal. Read-only; never prints the key.
+import { secret } from "../src/lib/config";
 import { USDC } from "../src/lib/constants";
 import { probeSizeUsdc } from "../src/lib/market";
 
-const key = process.env.JUPITER_API_KEY;
-if (!key) { console.log("JUPITER_API_KEY is not set; nothing to probe."); process.exit(1); }
+const key = secret("JupiterApiKey");
+if (!key) { console.log("JupiterApiKey secret is not set; nothing to probe."); process.exit(1); }
 const headers = { "x-api-key": key };
 const TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 

@@ -1,4 +1,5 @@
 import { afterEach, expect, it, mock } from "bun:test";
+import { setSecrets, resetConfig } from "./config";
 import { canonicalUrl, curate, editorial, stance, storyId, validateAi, type Draft } from "./story-curator";
 
 const draft: Draft = {
@@ -8,11 +9,9 @@ const draft: Draft = {
   company: "NVIDIA", bagIds: ["megacap-builders", "ai-infrastructure"],
 };
 const originalFetch = globalThis.fetch;
-const originalKey = process.env.OPENAI_API_KEY;
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalKey === undefined) delete process.env.OPENAI_API_KEY;
-  else process.env.OPENAI_API_KEY = originalKey;
+  resetConfig();
 });
 
 it("normalizes tracking URLs and rejects unapproved hosts", () => {
@@ -56,7 +55,7 @@ it("rejects invented bags, unsupported direct claims and missing evidence", () =
 });
 
 it("calls structured AI once with server-only key and validates grounded output", async () => {
-  process.env.OPENAI_API_KEY = "test-secret";
+  setSecrets({ OpenaiApiKey: "test-secret" });
   const calls = mock(async (_url: string | URL | Request, options?: RequestInit) => {
     const body = JSON.parse(String(options?.body));
     expect(body.store).toBe(false);
@@ -70,7 +69,7 @@ it("calls structured AI once with server-only key and validates grounded output"
 });
 
 it("provider failure and untrusted injected excerpt do not claim AI curation", async () => {
-  process.env.OPENAI_API_KEY = "test-secret";
+  setSecrets({ OpenaiApiKey: "test-secret" });
   const calls = mock(async () => new Response("failure", { status: 503 }));
   globalThis.fetch = calls as unknown as typeof fetch;
   expect((await curate(draft)).provenance).toBe("editorial");

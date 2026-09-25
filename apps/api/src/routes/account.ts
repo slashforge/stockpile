@@ -1,3 +1,4 @@
+import { secret } from "../lib/config";
 import { and, eq } from "drizzle-orm";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { createMiddleware } from "hono/factory";
@@ -19,7 +20,7 @@ const response = <T extends z.ZodType>(schema: T, description: string) => ({ des
 const requireIdentity = createMiddleware<{ Variables: Variables }>(async (c, next) => {
   const token = c.req.header("privy-id-token");
   if (!token) return c.json({ error: "Missing privy-id-token header" }, 401);
-  if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_APP_SECRET) return c.json({ error: "Privy is not configured" }, 503);
+  if (!secret("PrivyAppId") || !secret("PrivyAppSecret")) return c.json({ error: "Privy is not configured" }, 503);
   const identity = await verifyIdentity(token);
   if (!identity) return c.json({ error: "Invalid or expired credentials" }, 401);
   c.set("identity", identity);

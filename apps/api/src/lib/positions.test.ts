@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -42,7 +43,6 @@ const sellTx = (n: number, mint: string, tokenOut: string, usdcIn: string, decim
 });
 const identity = { id: "user-a", walletAddress: WALLET };
 const originalFetch = globalThis.fetch;
-const original = Object.fromEntries(["HELIUS_API_KEY", "JUPITER_API_KEY", "STOCKPILE_XSTOCKS", "STOCKPILE_MARKET", "STOCKPILE_PRESTOCKS"].map((key) => [key, process.env[key]]));
 const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
 
 /** Mocks Helius (getTransaction by signature, getTokenAccountsByOwner balances) and Jupiter (token metadata, quotes). */
@@ -73,12 +73,12 @@ function providers(options: { txs?: Record<string, unknown>; balances?: Record<s
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0";
+  setFeatures({ xstocks: false });
   rows = []; resetTokenMetaCache(); resetMarketCache();
-  process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test"; process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0";
+  setSecrets({ HeliusApiKey: "test", JupiterApiKey: "test" }); setFeatures({ market: false, prestocks: false });
   seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`);
 });
-afterEach(() => { globalThis.fetch = originalFetch; for (const [key, value] of Object.entries(original)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
+afterEach(() => { globalThis.fetch = originalFetch; resetConfig(); });
 
 describe("parseSwap", () => {
   it("infers side and raw amounts from the wallet's own balance deltas, using the scaled UI amount for display", () => {
@@ -130,9 +130,9 @@ describe("recordLeg", () => {
     expect(await recordLeg(identity, "crypto-fintech-rails", sig(2))).toMatchObject({ status: 400, code: "MINT_NOT_IN_BAG" }); // AAPLx is not in that bag
     expect(await recordLeg(identity, "megacap-builders", sig(3))).toMatchObject({ status: 400, code: "TRANSACTION_FAILED" });
     expect(rows).toHaveLength(0);
-    delete process.env.HELIUS_API_KEY;
+    setSecrets({ HeliusApiKey: undefined });
     expect(await recordLeg(identity, "megacap-builders", sig(2))).toMatchObject({ status: 503, code: "PROVIDER_NOT_CONFIGURED" });
-    process.env.HELIUS_API_KEY = "test"; providers({ heliusDown: true });
+    setSecrets({ HeliusApiKey: "test" }); providers({ heliusDown: true });
     expect(await recordLeg(identity, "megacap-builders", sig(2))).toMatchObject({ status: 503, code: "PROVIDER_UNAVAILABLE" });
   });
   it("accepts a sell of a mint that left the bag when the user bought it into this bag earlier", async () => {

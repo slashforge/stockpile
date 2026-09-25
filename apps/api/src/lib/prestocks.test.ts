@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, setFeatures, resetConfig } from "./config";
 import { PRESTOCKS_DIRECTORY_URL, parsePreStock, preStock, preStocksDirectory, resetPreStocksCache, verifyPreStock } from "./prestocks";
 import { bags, isTradable, resolveAsset } from "./bags";
 import { resetMintRegistry, seedMints } from "./mint-registry";
@@ -10,7 +11,6 @@ const row = (extra: Record<string, unknown> = {}) => ({ name: "OpenAI PreStocks"
 const directoryResponse = (rows: unknown[]) => Response.json(rows);
 const jupiterToken = (extra: Record<string, unknown> = {}) => ({ id: MINT, symbol: "OPENAI", name: "OpenAI PreStocks", decimals: 9, tags: ["prestocks", "token-2022", "verified", "stocks"], ...extra });
 const originalFetch = globalThis.fetch;
-const original = { key: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, flag: process.env.STOCKPILE_PRESTOCKS };
 
 /** Mocks directory + Jupiter search/quote/price with overridable pieces. */
 function provider(options: { directory?: () => Response; token?: Record<string, unknown> | null; quote?: () => Response; price?: () => Response } = {}) {
@@ -28,10 +28,10 @@ function provider(options: { directory?: () => Response; token?: Record<string, 
 }
 
 beforeEach(() => {
-  process.env.STOCKPILE_XSTOCKS = "0"; resetPreStocksCache(); process.env.JUPITER_API_KEY = "test"; delete process.env.STOCKPILE_PRESTOCKS; seedMints(`OPENAI:${MINT}`); });
+  setFeatures({ xstocks: false }); resetPreStocksCache(); setSecrets({ JupiterApiKey: "test" }); setFeatures({ prestocks: true }); seedMints(`OPENAI:${MINT}`); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["JUPITER_API_KEY", original.key], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_PRESTOCKS", original.flag]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  resetConfig();
 });
 
 describe("PreStocks directory", () => {
@@ -63,7 +63,7 @@ describe("PreStocks directory", () => {
     resetPreStocksCache();
     globalThis.fetch = mock(async () => { throw Object.assign(new Error("timeout"), { name: "TimeoutError" }); }) as unknown as typeof fetch;
     expect(await preStocksDirectory()).toBeNull();
-    process.env.STOCKPILE_PRESTOCKS = "0";
+    setFeatures({ prestocks: false });
     const calls = provider();
     expect(await preStocksDirectory()).toBeNull();
     expect(calls.directory).toBe(0);
@@ -104,7 +104,7 @@ describe("PreStocks Jupiter verification and tradability gating", () => {
       expect(result.verified).toBe(false);
       expect(result.reason).toMatch(reason);
     }
-    resetPreStocksCache(); delete process.env.JUPITER_API_KEY;
+    resetPreStocksCache(); setSecrets({ JupiterApiKey: undefined });
     expect(await verifyPreStock(asset)).toMatchObject({ verified: false, reason: "Jupiter is not configured" });
   });
   it("resolves a PreStocks asset only when allowlist, issuer directory and Jupiter agree", async () => {

@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { corsOrigins } from "./lib/config";
 import { HealthResponseSchema } from "./schemas";
 import accountRoutes from "./routes/account";
 import bagRoutes, { assetRoutes } from "./routes/bags";
@@ -10,8 +11,7 @@ export const openApiConfig = { openapi: "3.1.0", info: { title: "Stockpile API",
 export const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", cors({ origin: (origin) => {
-  const allowed = (process.env.CORS_ORIGINS ?? "http://localhost:8081,http://localhost:19006,http://localhost:4321").split(",").map((item) => item.trim());
-  return origin && allowed.includes(origin) ? origin : null;
+  return origin && corsOrigins().includes(origin) ? origin : null;
 }, allowHeaders: ["Content-Type", "privy-id-token"], allowMethods: ["GET", "POST", "DELETE", "OPTIONS"] }));
 app.onError((error, c) => {
   console.error("API request failed", error);

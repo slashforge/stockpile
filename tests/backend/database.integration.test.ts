@@ -1,5 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
+import { resetConfig, setSecrets } from "../../apps/api/src/lib/config";
 import { Client } from "pg";
+import { Resource } from "sst";
 import { randomUUID } from "node:crypto";
 
 const id = `stockpile-test-${randomUUID()}`;
@@ -17,13 +19,10 @@ const headers = { "privy-id-token": "local-test-token" };
 
 describe("local Postgres persistence through Hono (mocked Privy identity only)", () => {
   it("writes profile and saves scoped to verified identity, then removes its own test rows", async () => {
-    if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL required for local persistence test");
-    const db = new Client({ connectionString: process.env.DATABASE_URL });
+    // Run with `sst shell -- bun test tests/backend` so the DatabaseUrl secret is linked.
+    const db = new Client({ connectionString: Resource.DatabaseUrl.value });
     await db.connect();
-    const previousApp = process.env.PRIVY_APP_ID;
-    const previousSecret = process.env.PRIVY_APP_SECRET;
-    process.env.PRIVY_APP_ID = "local-test";
-    process.env.PRIVY_APP_SECRET = "local-test";
+    setSecrets({ PrivyAppId: "local-test", PrivyAppSecret: "local-test" });
     try {
       const me = await app.request("/me", { headers });
       expect(me.status).toBe(200);
@@ -38,8 +37,7 @@ describe("local Postgres persistence through Hono (mocked Privy identity only)",
     } finally {
       await db.query("DELETE FROM users WHERE id=$1", [id]);
       await db.end();
-      if (previousApp === undefined) delete process.env.PRIVY_APP_ID; else process.env.PRIVY_APP_ID = previousApp;
-      if (previousSecret === undefined) delete process.env.PRIVY_APP_SECRET; else process.env.PRIVY_APP_SECRET = previousSecret;
+      resetConfig();
     }
   });
 });

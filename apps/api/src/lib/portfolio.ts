@@ -1,3 +1,4 @@
+import { secret } from "./config";
 import { bagIdsForMint, catalogueName, knownSymbol } from "./bags";
 import { USDC } from "./constants";
 import { tokenMetadata, WSOL_MINT, type TokenMeta } from "./token-meta";
@@ -39,7 +40,7 @@ const balance = (amount: bigint, decimals: number, meta: TokenMeta | undefined):
 
 /** One batched Helius RPC call: SOL balance plus every SPL / Token-2022 token account of the wallet (balance source of truth). */
 export async function readRawHoldings(walletAddress: string): Promise<RawHoldings> {
-  const key = process.env.HELIUS_API_KEY;
+  const key = secret("HeliusApiKey");
   if (!key) return { ok: false, message: "Helius is not configured" };
   try {
     const owner = (id: number, programId: string) => ({ jsonrpc: "2.0", id, method: "getTokenAccountsByOwner", params: [walletAddress, { programId }, { encoding: "jsonParsed", commitment: "confirmed" }] });

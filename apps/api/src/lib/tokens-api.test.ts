@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { setSecrets, resetConfig } from "./config";
 import { candlesFor, normaliseCandle, resetTokensApiCache, resolveAsset } from "./tokens-api";
 
 const NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 const originalFetch = globalThis.fetch;
-const originalKey = process.env.TOKENS_API_KEY;
 const from = 1790200000, to = 1790300000;
 
 /** tokens.xyz response shapes as riven-cash's client types them (`TokensResolveResponse`, `TokensPriceChartResponse`). */
@@ -32,8 +32,8 @@ function tokens(options: { resolve?: () => Response; chart?: () => Response } = 
   return calls;
 }
 
-beforeEach(() => { resetTokensApiCache(); process.env.TOKENS_API_KEY = "tk-test"; });
-afterEach(() => { globalThis.fetch = originalFetch; if (originalKey === undefined) delete process.env.TOKENS_API_KEY; else process.env.TOKENS_API_KEY = originalKey; });
+beforeEach(() => { resetTokensApiCache(); setSecrets({ TokensApiKey: "tk-test" }); });
+afterEach(() => { globalThis.fetch = originalFetch; resetConfig(); });
 
 describe("tokens.xyz client", () => {
   it("normalises provider candles across key variants and fills missing OHLC from close", () => {
@@ -43,7 +43,7 @@ describe("tokens.xyz client", () => {
     expect(normaliseCandle({ time: 1, close: 0 })).toBeNull(); expect(normaliseCandle({ close: 1 })).toBeNull(); expect(normaliseCandle(null)).toBeNull();
   });
   it("reports unconfigured without a key and never calls the provider", async () => {
-    delete process.env.TOKENS_API_KEY;
+    setSecrets({ TokensApiKey: undefined });
     const calls = tokens();
     expect(await resolveAsset(NVDAX)).toBe("unconfigured");
     expect(await candlesFor(NVDAX, "1H", from, to)).toEqual({ ok: false, reason: "unconfigured" });
