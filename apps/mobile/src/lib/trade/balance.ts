@@ -31,6 +31,24 @@ export function solBalance(portfolio: Portfolio | undefined): SpendableBalance {
   return readBalance(portfolio.sol, 9);
 }
 
+export const DEFAULT_BUY_USD = 25n;
+
+/**
+ * Starting amount for the buy numpad: min($25, whole dollars of the balance). Balances under $1 start
+ * empty ($0) so the sheet leads with "Add USDC". Unknown balances fall back to $25.
+ */
+export function defaultBuyAmount(balance: SpendableBalance): string {
+  if (balance.status !== "known") return DEFAULT_BUY_USD.toString();
+  const whole = balance.raw / 10n ** BigInt(balance.decimals);
+  const amount = whole < DEFAULT_BUY_USD ? whole : DEFAULT_BUY_USD;
+  return amount > 0n ? amount.toString() : "";
+}
+
+/** True when a known balance is below one whole unit (less than $1 of USDC). */
+export function belowOneUnit(balance: SpendableBalance): boolean {
+  return balance.status === "known" && balance.raw < 10n ** BigInt(balance.decimals);
+}
+
 /** True when the requested amount (base units) exceeds a known balance. Unknown balances never block. */
 export function exceedsBalance(amount: string | null, balance: SpendableBalance): boolean {
   if (!amount || balance.status !== "known") return false;

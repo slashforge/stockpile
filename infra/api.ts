@@ -1,10 +1,12 @@
 import { appConfig } from "./config";
 import { database } from "./database";
 import { domains } from "./domains";
-import { betterAuthSecret, databaseUrl, resendApiKey } from "./secrets";
+import { betterAuthSecret, databaseUrl, resendApiKey, tokensApiKey } from "./secrets";
 import { isDeployed } from "./utils";
 
-const API_LINKS = [appConfig, betterAuthSecret, resendApiKey];
+const API_LINKS = [appConfig, betterAuthSecret, resendApiKey, tokensApiKey];
+// The API reads provider keys from process.env (see apps/api/src/lib/tokens-api.ts), so the secret is also exposed as an env var.
+const API_ENVIRONMENT = { TOKENS_API_KEY: tokensApiKey.value };
 
 const WORKER_TRANSFORM = {
   worker: {
@@ -21,6 +23,7 @@ const WORKER_TRANSFORM = {
 export const api = !isDeployed()
   ? new sst.x.DevCommand("Api", {
       link: [...API_LINKS, databaseUrl],
+      environment: API_ENVIRONMENT,
       dev: { command: "bun dev", directory: "apps/api" },
     })
   : new sst.cloudflare.Worker("Api", {
@@ -35,6 +38,7 @@ export const api = !isDeployed()
         },
       },
       link: [...API_LINKS, database!],
+      environment: API_ENVIRONMENT,
       domain: domains.api,
       placement: {
         mode: "smart",

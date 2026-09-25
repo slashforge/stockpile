@@ -106,7 +106,7 @@ const ACCENT_POSITIONS = [
 ] as const;
 
 const styles = StyleSheet.create((theme) => ({
-  wrap: { gap: 16, alignItems: "stretch" },
+  wrap: { gap: theme.density.stack, alignItems: "stretch" },
   panel: {
     height: 220,
     ...theme.rounded(32),
@@ -140,7 +140,7 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 3,
     borderColor: "rgba(255,255,255,0.9)",
   },
-  text: { gap: 6, paddingHorizontal: 12 },
+  text: { gap: 6, paddingHorizontal: theme.density.rowY },
   body: { alignSelf: "center", maxWidth: 320 },
   action: { marginTop: 2 },
 }));

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { fakeTransaction } from "../lib/solana-tx.fixture";
+import { resetActivityCache } from "../lib/activity";
+import { resetTokenMetaCache } from "../lib/token-meta";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const WALLET = "11111111111111111111111111111111";
@@ -125,10 +127,76 @@ describe("portfolio (mocked Helius)", () => {
   it("reports zero USDC honestly when the wallet holds none", async () => {
     process.env.HELIUS_API_KEY = "test";
     globalThis.fetch = mock(async () => Response.json([{ id: 1, result: { value: 0 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [] } }])) as unknown as typeof fetch;
-    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", sol: { amount: "0", decimals: 9 }, usdc: { amount: "0", decimals: 6 }, holdings: [] });
+    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", sol: { amount: "0", decimals: 9, uiAmount: "0", usdPrice: null, usdValue: 0 }, usdc: { amount: "0", decimals: 6, usdValue: 0 }, holdings: [], totalUsd: 0, unpricedCount: 0 });
+  });
+  it("enriches holdings with Jupiter metadata, prices, bag membership and honest totals (Helius stays the balance source)", async () => {
+    resetTokenMetaCache();
+    process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "jup";
+    process.env.STOCKPILE_ALLOWED_MINTS = `NVDAx:${mints.NVDAx}`;
+    const unknown = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
+    const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
+    const calls: string[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request, options?: RequestInit) => {
+      const url = new URL(String(input)); calls.push(url.hostname + url.pathname);
+      if (url.hostname === "api.jup.ag") {
+        expect((options?.headers as Record<string, string>)["x-api-key"]).toBe("jup");
+        expect(url.searchParams.get("query")!.split(",").sort()).toEqual(["So11111111111111111111111111111111111111112", USDC, mints.NVDAx, unknown].sort());
+        return Response.json([{ id: "So11111111111111111111111111111111111111112", symbol: "SOL", name: "Wrapped SOL", decimals: 9, usdPrice: 200, icon: "https://img.example/sol.png" }, { id: USDC, symbol: "USDC", name: "USD Coin", decimals: 6, usdPrice: 0.9999 }, { id: mints.NVDAx, symbol: "NVDAx", name: "NVIDIA xStock", decimals: 8, usdPrice: 180.5, icon: "https://img.example/nvda.png" }]);
+      }
+      return Response.json([{ id: 1, result: { value: 1500000000 } }, { id: 2, result: { value: [tokenAccount(USDC, "5000000", 6), tokenAccount(unknown, "42", 0)] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "2100000", 8)] } }]);
+    }) as unknown as typeof fetch;
+    const portfolio = await json(app.request("/portfolio", { headers: auth() }));
+    expect(portfolio).toMatchObject({ status: "live", totalUsd: 308.7900, unpricedCount: 1,
+      sol: { amount: "1500000000", uiAmount: "1.5", usdPrice: 200, usdValue: 300 }, usdc: { amount: "5000000", uiAmount: "5", usdPrice: 0.9999, usdValue: 4.9995 } });
+    expect(portfolio.holdings).toEqual([
+      { mint: USDC, symbol: "USDC", name: "USD Coin", iconUrl: null, amount: "5000000", decimals: 6, uiAmount: "5", program: "token", usdPrice: 0.9999, usdValue: 4.9995, bagIds: [] },
+      { mint: unknown, symbol: null, name: null, iconUrl: null, amount: "42", decimals: 0, uiAmount: "42", program: "token", usdPrice: null, usdValue: null, bagIds: [] },
+      { mint: mints.NVDAx, symbol: "NVDAx", name: "NVIDIA xStock", iconUrl: "https://img.example/nvda.png", amount: "2100000", decimals: 8, uiAmount: "0.021", program: "token-2022", usdPrice: 180.5, usdValue: 3.7905, bagIds: ["megacap-builders", "ai-infrastructure"] },
+    ]);
+    expect(calls).toEqual(["mainnet.helius-rpc.com/", "api.jup.ag/tokens/v2/search"]);
+    // Jupiter outage: balances are still served, prices are simply absent.
+    resetTokenMetaCache();
+    globalThis.fetch = mock(async (input: string | URL | Request) => new URL(String(input)).hostname === "api.jup.ag" ? new Response("down", { status: 503 })
+      : Response.json([{ id: 1, result: { value: 1500000000 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "2100000", 8)] } }])) as unknown as typeof fetch;
+    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", totalUsd: 0, unpricedCount: 2, sol: { usdPrice: null, usdValue: null }, holdings: [{ symbol: "NVDAx", name: "NVIDIA xStock", usdPrice: null, usdValue: null, bagIds: ["megacap-builders", "ai-infrastructure"] }] });
   });
 });
 
+describe("activity (mocked Helius RPC)", () => {
+  const signature = `7${"5".repeat(87)}`;
+  it("returns typed errors without a wallet or provider and validates the cursor", async () => {
+    resetActivityCache();
+    expect(await json(app.request("/activity", { headers: auth("no-wallet") }))).toMatchObject({ status: "unavailable", walletAddress: null, items: [], nextCursor: null, error: { code: "NO_WALLET" } });
+    expect(await json(app.request("/activity", { headers: auth() }))).toMatchObject({ status: "unavailable", walletAddress: WALLET, items: [], error: { code: "PROVIDER_NOT_CONFIGURED", message: "Helius is not configured" } });
+    expect((await app.request("/activity?cursor=not-a-token", { headers: auth() })).status).toBe(400);
+    expect((await app.request(`/activity?cursor=${signature}`, { headers: auth() })).status).toBe(400);
+    expect((await app.request("/activity?limit=0", { headers: auth() })).status).toBe(400);
+  });
+  it("serves normalised getTransactionsForAddress pages with limit/cursor passthrough, a 400 for a rejected token, and a typed provider error", async () => {
+    resetActivityCache();
+    process.env.HELIUS_API_KEY = "test";
+    const transfer = { slot: 1, blockTime: 1790388000, transaction: { signatures: [signature], message: { accountKeys: [{ pubkey: WALLET, signer: true, writable: true }, { pubkey: OTHER_WALLET, signer: false, writable: true }], instructions: [{ program: "system", programId: "11111111111111111111111111111111" }] } },
+      meta: { err: null, fee: 5000, preBalances: [1_000_000_000, 0], postBalances: [749_995_000, 250_000_000], preTokenBalances: [], postTokenBalances: [] } };
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      expect(url.hostname).toBe("mainnet.helius-rpc.com");
+      const body = JSON.parse(String(init?.body)) as { method: string; params: [string, Record<string, unknown>] };
+      expect(body.method).toBe("getTransactionsForAddress");
+      expect(body.params[0]).toBe(WALLET);
+      expect(body.params[1]).toMatchObject({ limit: 1, paginationToken: "450291856:69", transactionDetails: "full", encoding: "jsonParsed" });
+      return Response.json({ jsonrpc: "2.0", id: 1, result: { data: [transfer], paginationToken: "450282300:176" } });
+    }) as unknown as typeof fetch;
+    const page = await json(app.request("/activity?limit=1&cursor=450291856:69", { headers: auth() }));
+    expect(page).toMatchObject({ status: "live", walletAddress: WALLET, nextCursor: "450282300:176", error: null, items: [{ signature, kind: "transfer-out", status: "confirmed", summary: "Sent 0.25 SOL to EPjF…Dt1v", feeLamports: 5000, bagId: null, explorerUrl: `https://solscan.io/tx/${signature}`, legs: [{ symbol: "SOL", amount: "0.25", direction: "out" }] }] });
+    resetActivityCache();
+    globalThis.fetch = mock(async () => Response.json({ jsonrpc: "2.0", id: 1, error: { code: -32603, message: "Bad request: Invalid pagination token" } })) as unknown as typeof fetch;
+    const rejected = await app.request("/activity?cursor=1:1", { headers: auth() });
+    expect(rejected.status).toBe(400);
+    expect(await rejected.json()).toEqual({ error: "Invalid activity cursor" });
+    globalThis.fetch = mock(async () => new Response("rate limited", { status: 429 })) as unknown as typeof fetch;
+    expect(await json(app.request("/activity", { headers: auth() }))).toMatchObject({ status: "unavailable", items: [], error: { code: "PROVIDER_UNAVAILABLE" } });
+  });
+});
 describe("trade quote and prepare (mocked Jupiter)", () => {
   it("rejects malformed trade requests and never calls a provider", async () => {
     const calls = mock(async () => { throw new Error("must not fetch"); });

@@ -6,7 +6,14 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -16,8 +23,8 @@ import { issuerMarkLabel } from "@/lib/pre-ipo";
 import { formatBps } from "@/utils/amounts";
 import { AllocationBar, useAssetColors } from "./allocation";
 import { BagArt } from "./bag-art";
-import { useBuySheet } from "./buy-sheet";
-import { bagTradable, TradeStatus } from "./bag-card";
+import { useOpenBuy } from "@/hooks/use-open-buy";
+import { bagTradable, researchOnlyReason, TradeStatus } from "./bag-card";
 import { Divider, MessageState, Skeleton } from "./layout";
 import { PrimaryButton } from "./primary-button";
 import { SaveButton } from "./save-button";
@@ -26,7 +33,9 @@ import { T } from "./type";
 
 type BagSheetContextValue = { openBag: (bagId: string) => void };
 
-const BagSheetContext = createContext<BagSheetContextValue>({ openBag: () => {} });
+const BagSheetContext = createContext<BagSheetContextValue>({
+  openBag: () => {},
+});
 
 export function useBagSheet() {
   return useContext(BagSheetContext);
@@ -48,7 +57,12 @@ function BagSheetBody({
 
   if (!bag.data) {
     return bag.isError ? (
-      <MessageState tone="error" icon="alert-circle-outline" title="Bag unavailable" body={bag.error.message} />
+      <MessageState
+        tone="error"
+        icon="alert-circle-outline"
+        title="Bag unavailable"
+        body={bag.error.message}
+      />
     ) : (
       <View style={styles.loading}>
         <Skeleton height={120} radius={22} />
@@ -85,7 +99,12 @@ function BagSheetBody({
           <View key={`${asset.symbol}-${index}`}>
             {index > 0 ? <Divider inset={56} /> : null}
             <View style={styles.row}>
-              <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} size={40} ring={colors[index]} />
+              <TokenAvatar
+                symbol={asset.symbol}
+                iconUrl={asset.iconUrl}
+                size={40}
+                ring={colors[index]}
+              />
               <View style={styles.flex}>
                 <T variant="headline">{asset.symbol}</T>
                 <T variant="caption" tone={asset.mint ? "tertiary" : "caution"}>
@@ -107,13 +126,17 @@ function BagSheetBody({
 
       {!tradable ? (
         <View style={styles.note}>
-          <Ionicons name="lock-closed" size={13} color={theme.ds.inkSecondary} />
-          <T variant="footnote" tone="secondary">
-            Research only until every token mint is verified
+          <Ionicons
+            name="lock-closed"
+            size={13}
+            color={theme.ds.inkSecondary}
+          />
+          <T variant="footnote" tone="secondary" style={styles.flex}>
+            {researchOnlyReason(data)}
           </T>
         </View>
       ) : null}
-      {tradable || !authenticated ? (
+      {tradable ? (
         <PrimaryButton
           label={authenticated ? "Put money in the bag" : "Sign in to buy"}
           icon={authenticated ? "add-circle" : "mail"}
@@ -123,8 +146,8 @@ function BagSheetBody({
       <PrimaryButton
         label="See details"
         icon="arrow-forward"
-        variant={tradable || !authenticated ? "ghost" : "solid"}
-        size={tradable || !authenticated ? "md" : "lg"}
+        variant={tradable ? "ghost" : "solid"}
+        size={tradable ? "md" : "lg"}
         onPress={onOpenDetail}
       />
     </>
@@ -143,7 +166,7 @@ export function BagSheetProvider({ children }: { children: React.ReactNode }) {
     ref.current?.present();
   }, []);
 
-  const { openBuy } = useBuySheet();
+  const openBuy = useOpenBuy();
   const buy = useCallback(() => {
     if (!bagId) return;
     const id = bagId;
@@ -160,7 +183,12 @@ export function BagSheetProvider({ children }: { children: React.ReactNode }) {
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.35} />
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.35}
+      />
     ),
     [],
   );
@@ -175,13 +203,26 @@ export function BagSheetProvider({ children }: { children: React.ReactNode }) {
         enableDynamicSizing
         maxDynamicContentSize={680}
         backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme.ds.surface, borderRadius: 32 }}
-        handleIndicatorStyle={{ backgroundColor: theme.ds.lineStrong, width: 40 }}
+        backgroundStyle={{
+          backgroundColor: theme.ds.surface,
+          borderRadius: 32,
+        }}
+        handleIndicatorStyle={{
+          backgroundColor: theme.ds.lineStrong,
+          width: 40,
+        }}
         onDismiss={() => setBagId(null)}
         accessibilityLabel="Bag summary"
       >
-        <BottomSheetScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom }]}>
-          {bagId ? <BagSheetBody bagId={bagId} onOpenDetail={openDetail} onBuy={buy} /> : null}
+        <BottomSheetScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom },
+          ]}
+        >
+          {bagId ? (
+            <BagSheetBody bagId={bagId} onOpenDetail={openDetail} onBuy={buy} />
+          ) : null}
         </BottomSheetScrollView>
       </BottomSheetModal>
     </BagSheetContext.Provider>
@@ -189,14 +230,33 @@ export function BagSheetProvider({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  content: { paddingHorizontal: 20, paddingTop: 4, gap: 14 },
-  loading: { gap: 12 },
+  content: {
+    paddingHorizontal: theme.density.gutter,
+    paddingTop: theme.density.sheetTop,
+    gap: theme.density.stack,
+  },
+  loading: { gap: theme.density.stack },
   art: { ...theme.rounded(22) },
-  artStatus: { position: "absolute", top: 12, right: 12 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  artStatus: { position: "absolute", top: 10, right: 10 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: theme.density.rowGap },
   flex: { flex: 1, gap: 2 },
-  list: { backgroundColor: theme.ds.canvas, ...theme.rounded(20), paddingVertical: 4 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  list: {
+    backgroundColor: theme.ds.canvas,
+    ...theme.rounded(20),
+    paddingVertical: 4,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.density.rowGap,
+    paddingHorizontal: theme.density.rowY,
+    paddingVertical: 8,
+  },
   tabular: { fontVariant: ["tabular-nums"] },
-  note: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  note: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
 }));

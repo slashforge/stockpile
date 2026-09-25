@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useScrollToTop } from "expo-router";
 import { setStatusBarStyle } from "expo-status-bar";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/stockpile/layout";
 import { useBagSheet } from "@/components/stockpile/bag-sheet";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { StoryReel } from "@/components/stockpile/story-reel";
+import { useTabBarInset } from "@/components/stockpile/tab-bar";
 import { T } from "@/components/stockpile/type";
 import { useBags } from "@/hooks/use-bags";
 import { collectStories, useFeed } from "@/hooks/use-feed";
@@ -40,19 +41,20 @@ function FeedState({
   onOpenBag?: (bagId: string) => void;
 }) {
   const { theme } = useUnistyles();
+  const tabInset = useTabBarInset();
   const logos = (bags ?? []).flatMap((bag) => bag.assets).filter(
     (asset, index, all) => all.findIndex((other) => other.symbol === asset.symbol) === index,
   );
   return (
     <View style={styles.state}>
       <LinearGradient
-        colors={[theme.ds.accentSoft, theme.ds.lilacSoft, theme.ds.canvas]}
+        colors={[theme.ds.accentSoft, theme.ds.tertiarySoft, theme.ds.canvas]}
         locations={[0, 0.45, 1]}
         style={StyleSheet.absoluteFill}
       />
       <View style={[styles.blob, styles.blobA]} />
       <View style={[styles.blob, styles.blobB]} />
-      <View style={styles.stateInner}>
+      <View style={[styles.stateInner, tabInset > 0 && { paddingBottom: tabInset + 40 }]}>
         {logos.length > 0 ? (
           <LogoCluster assets={logos} size={62} limit={5} />
         ) : (
@@ -74,7 +76,7 @@ function FeedState({
         ) : null}
       </View>
       {onOpenBag && bags && bags.length > 0 ? (
-        <View style={styles.peekWrap}>
+        <View style={[styles.peekWrap, tabInset > 0 && { bottom: tabInset + 16 }]}>
           <T variant="overline" tone="tertiary" align="center">
             Peek inside a bag
           </T>
@@ -101,9 +103,10 @@ function FeedState({
 }
 
 function FeedLoading() {
+  const tabInset = useTabBarInset();
   return (
     <View style={styles.state} accessibilityLabel="Loading stories" accessibilityRole="progressbar">
-      <View style={styles.loadingInner}>
+      <View style={[styles.loadingInner, tabInset > 0 && { paddingBottom: tabInset + 40 }]}>
         <Skeleton height={32} width="80%" radius={10} />
         <Skeleton height={32} width="60%" radius={10} />
         <Skeleton height={18} width="90%" />
@@ -118,6 +121,9 @@ export default function FeedScreen() {
   const bags = useBags();
   const { openBag } = useBagSheet();
   const insets = useSafeAreaInsets();
+  // Android: the floating tab bar sits over the reel, so its footprint replaces the safe area.
+  const tabInset = useTabBarInset();
+  const bottomInset = tabInset > 0 ? tabInset : insets.bottom;
   const [height, setHeight] = useState(0);
   // Spinner only for user pulls; background refetches must not show it (stuck spinner on iOS).
   const [pulling, setPulling] = useState(false);
@@ -131,11 +137,11 @@ export default function FeedScreen() {
         bags={relatedBags(item, bagsById)}
         height={height}
         topInset={insets.top}
-        bottomInset={insets.bottom}
+        bottomInset={bottomInset}
         onOpenBag={openBag}
       />
     ),
-    [height, insets.top, insets.bottom, openBag, bagsById],
+    [height, insets.top, bottomInset, openBag, bagsById],
   );
 
   const collected = collectStories(feed.data?.pages);
@@ -148,6 +154,10 @@ export default function FeedScreen() {
       return () => setStatusBarStyle("dark");
     }, [showingReels]),
   );
+
+  // Re-tapping the Feed tab jumps back to the first story.
+  const listRef = useRef<FlatList<Story>>(null);
+  useScrollToTop(listRef);
 
   let content: React.ReactNode;
   if (feed.isPending || collected.status === "pending") {
@@ -193,6 +203,7 @@ export default function FeedScreen() {
   } else if (height > 0) {
     content = (
       <FlatList
+        ref={listRef}
         data={collected.stories}
         keyExtractor={(story) => story.id}
         renderItem={renderItem}
@@ -240,8 +251,8 @@ const styles = StyleSheet.create((theme, rt) => ({
   blobB: { width: 200, height: 200, bottom: 120, left: -70, backgroundColor: theme.ds.mintSoft },
   stateInner: {
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 32,
+    gap: theme.density.stack,
+    paddingHorizontal: theme.density.hero,
     paddingTop: rt.insets.top,
     paddingBottom: rt.insets.bottom + 40,
   },
@@ -256,15 +267,15 @@ const styles = StyleSheet.create((theme, rt) => ({
     marginBottom: 8,
   },
   stateBody: { maxWidth: 320 },
-  peekWrap: { position: "absolute", left: 0, right: 0, bottom: rt.insets.bottom + 24, gap: 10 },
-  peekRow: { paddingHorizontal: 20, gap: 10 },
+  peekWrap: { position: "absolute", left: 0, right: 0, bottom: rt.insets.bottom + 20, gap: theme.density.item },
+  peekRow: { paddingHorizontal: theme.density.gutter, gap: theme.density.item },
   peek: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingLeft: 10,
-    paddingRight: 16,
+    gap: theme.density.item,
+    paddingVertical: 8,
+    paddingLeft: 8,
+    paddingRight: 14,
     borderRadius: 999,
     backgroundColor: theme.ds.surface,
     shadowColor: "#1B2250",
@@ -274,6 +285,11 @@ const styles = StyleSheet.create((theme, rt) => ({
     elevation: 2,
   },
   pressed: { opacity: 0.8 },
-  stateAction: { marginTop: 12, minWidth: 220 },
-  loadingInner: { padding: 24, gap: 12, marginTop: "auto", paddingBottom: rt.insets.bottom + 40 },
+  stateAction: { marginTop: theme.density.item, minWidth: 220 },
+  loadingInner: {
+    padding: theme.density.hero,
+    gap: theme.density.stack,
+    marginTop: "auto",
+    paddingBottom: rt.insets.bottom + 40,
+  },
 }));

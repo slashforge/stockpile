@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { View, type KeyboardTypeOptions, type ReturnKeyTypeOptions } from "react-native";
+import { useRef, useState } from "react";
+import { Pressable, View, type KeyboardTypeOptions, type ReturnKeyTypeOptions } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { SheetTextInput } from "./sheet-text-input";
+import { SheetTextInput, type SheetTextInputHandle } from "./sheet-text-input";
 import { T } from "./type";
 
 type Props = {
@@ -30,15 +30,24 @@ type Props = {
 export function Field({ label, icon, error, size = "md", ...input }: Props) {
   const { theme } = useUnistyles();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<SheetTextInputHandle>(null);
   styles.useVariants({ size, state: error ? "error" : focused ? "focused" : "idle" });
   return (
     <View style={styles.wrap} accessible={false}>
       <T variant="subhead" tone="secondary">
         {label}
       </T>
-      <View style={styles.box} accessibilityLabel={label}>
+      {/* The native field only fills its text line; a tap anywhere in the bordered box focuses it. */}
+      <Pressable
+        style={styles.box}
+        accessibilityLabel={label}
+        accessible={false}
+        onPress={() => inputRef.current?.focus()}
+        disabled={input.editable === false}
+      >
         {icon ? <Ionicons name={icon} size={18} color={focused ? theme.ds.accent : theme.ds.inkTertiary} /> : null}
         <SheetTextInput
+          ref={inputRef}
           {...input}
           size={size}
           align={size === "xl" ? "center" : "left"}
@@ -46,7 +55,7 @@ export function Field({ label, icon, error, size = "md", ...input }: Props) {
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
-      </View>
+      </Pressable>
       {error ? (
         <T variant="footnote" tone="danger" accessibilityRole="alert">
           {error}
@@ -62,7 +71,7 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     ...theme.rounded(16),
     backgroundColor: theme.ds.surface,
     borderWidth: 1.5,

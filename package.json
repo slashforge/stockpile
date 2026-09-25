@@ -9,6 +9,10 @@
     "db:generate": "bunx drizzle-kit generate",
     "db:migrate": "bunx drizzle-kit migrate",
     "stories:ingest": "bun --env-file=.env apps/api/scripts/ingest-stories.ts",
+    "stories:recontext": "bun --env-file=.env apps/api/scripts/recontext-stories.ts",
+    "tokens:coverage": "bun --env-file=.env apps/api/scripts/check-tokens-coverage.ts",
+    "prices:snapshot": "bun --env-file=.env apps/api/scripts/snapshot-prices.ts",
+    "congress:ingest": "bun --env-file=.env apps/api/scripts/ingest-congress.ts",
     "generate:sdk": "bun run --cwd apps/api generate:openapi && bun run --cwd packages/api-client generate"
   },
   "workspaces": [

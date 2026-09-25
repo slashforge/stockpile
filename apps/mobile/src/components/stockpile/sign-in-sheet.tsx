@@ -109,7 +109,7 @@ export function SignInSheetProvider({ children }: { children: React.ReactNode })
 }
 
 const styles = StyleSheet.create((theme) => ({
-  content: { gap: 18, paddingTop: 8 },
+  content: { gap: 14, paddingTop: theme.density.sheetTop },
   art: { height: 72, width: 120 },
   artMain: {
     position: "absolute",

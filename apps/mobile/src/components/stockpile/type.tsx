@@ -1,4 +1,13 @@
-import { Text as RNText, type TextProps } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Platform,
+  Text as RNText,
+  type StyleProp,
+  type TextProps,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
 export type TypeVariant =
@@ -40,6 +49,56 @@ export function T({ variant = "body", tone = "primary", align, style, ...props }
       {...props}
       style={[styles.text, align ? { textAlign: align } : null, style]}
     />
+  );
+}
+
+/**
+ * Long paragraph that must never clip. On iOS (Fabric) the text frame can be pixel-snapped a hair
+ * shorter than the measured text (e.g. 230.9998 for 11 lines of 21), so the drawn layout fits one
+ * line fewer and crams the overflow onto its last line, which is cut off. `onTextLayout` reports
+ * that drawn layout: when it has fewer lines than the frame holds, add a little slack so the last
+ * line fits. `containerStyle` sizes the wrapper (e.g. `flex: 1` inside a row).
+ */
+export function FullText({
+  containerStyle,
+  onTextLayout,
+  ...props
+}: Props & { containerStyle?: StyleProp<ViewStyle> }) {
+  const [minHeight, setMinHeight] = useState(0);
+  const frameHeight = useRef(0);
+  const drawn = useRef<{ count: number; lineHeight: number } | null>(null);
+  if (Platform.OS !== "ios") {
+    return <T {...props} onTextLayout={onTextLayout} style={[containerStyle as TextStyle, props.style]} />;
+  }
+  // Either event can arrive first, so both re-check.
+  const check = () => {
+    const lines = drawn.current;
+    const height = frameHeight.current;
+    if (!lines || height <= 0 || minHeight > 0) return;
+    if (lines.count * lines.lineHeight < height - lines.lineHeight / 2) {
+      setMinHeight(Math.ceil(height) + 2);
+    }
+  };
+  return (
+    <View style={containerStyle}>
+      <T
+        {...props}
+        numberOfLines={0}
+        style={[props.style, minHeight > 0 ? { minHeight } : null]}
+        onLayout={(event) => {
+          frameHeight.current = event.nativeEvent.layout.height;
+          check();
+        }}
+        onTextLayout={(event) => {
+          onTextLayout?.(event);
+          const lines = event.nativeEvent.lines;
+          drawn.current = lines.length
+            ? { count: lines.length, lineHeight: lines[0].height }
+            : null;
+          check();
+        }}
+      />
+    </View>
   );
 }
 

@@ -91,6 +91,7 @@ export function PrivyLoginForm({ onSuccess }: Props) {
       {step === "email" ? (
         <>
           <Field
+            key="email"
             label="Email address"
             icon="mail-outline"
             value={email}
@@ -113,6 +114,7 @@ export function PrivyLoginForm({ onSuccess }: Props) {
       ) : (
         <>
           <Field
+            key="code"
             label="Verification code"
             size="xl"
             value={code}
@@ -122,6 +124,8 @@ export function PrivyLoginForm({ onSuccess }: Props) {
             }}
             placeholder="000000"
             keyboardType="number-pad"
+            autoCapitalize="none"
+            autoCorrect={false}
             autoComplete="one-time-code"
             returnKeyType="done"
             onSubmitEditing={submitCode}

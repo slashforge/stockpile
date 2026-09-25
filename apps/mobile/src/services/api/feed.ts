@@ -16,10 +16,47 @@ export type StoriesResult =
 
 const PAGE_SIZE = 10;
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: "\u00A0",
+  lsquo: "\u2018",
+  rsquo: "\u2019",
+  ldquo: "\u201C",
+  rdquo: "\u201D",
+  ndash: "\u2013",
+  mdash: "\u2014",
+  hellip: "\u2026",
+};
+
+/** Publisher feeds sometimes leak HTML entities (`&#8216;`, `&amp;`) into titles; show the characters. */
+export function decodeEntities(text: string): string {
+  if (!text.includes("&")) return text;
+  return text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (match, body: string) => {
+    if (body[0] === "#") {
+      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    }
+    return NAMED_ENTITIES[body.toLowerCase()] ?? match;
+  });
+}
+
+function cleanStory(story: Story): Story {
+  return {
+    ...story,
+    title: decodeEntities(story.title),
+    summary: decodeEntities(story.summary),
+    publisher: decodeEntities(story.publisher),
+  };
+}
+
 async function asResult(call: Promise<StoryPage>, unavailableMessage: string): Promise<StoriesResult> {
   try {
     const page = await call;
-    return { status: "live", stories: page.stories, nextCursor: page.nextCursor };
+    return { status: "live", stories: page.stories.map(cleanStory), nextCursor: page.nextCursor };
   } catch (error) {
     // A server without the stories routes answers 404; report that honestly instead of failing.
     if (error instanceof ApiError && error.isNotFound) return { status: "unavailable", message: unavailableMessage };

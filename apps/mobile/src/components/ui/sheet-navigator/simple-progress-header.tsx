@@ -7,7 +7,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export interface SimpleProgressHeaderProps {
   currentStep: number;
@@ -64,6 +64,7 @@ const ProgressDot = ({
   currentStep: number;
   index: number;
 }) => {
+  const { theme } = useUnistyles();
   const dotStyle = useAnimatedStyle(() => {
     let scale = 1;
     if (isActive) scale = 1.2;
@@ -76,7 +77,7 @@ const ProgressDot = ({
 
   const getBackgroundColor = () => {
     if (isCompleted) return "#10B981"; // Green
-    if (isActive) return "#6366F1"; // Purple
+    if (isActive) return theme.ds.accent;
     return "#9CA3AF"; // Less dim gray
   };
 

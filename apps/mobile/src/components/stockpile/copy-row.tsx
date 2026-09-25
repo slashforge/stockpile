@@ -37,21 +37,21 @@ export function CopyRow({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create((theme) => ({
   row: {
-    minHeight: 56,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: theme.density.rowGap,
+    paddingHorizontal: theme.density.card,
+    paddingVertical: theme.density.rowY,
   },
   text: { gap: 2, flex: 1 },
   copy: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: theme.density.pillX,
+    paddingVertical: 5,
     borderRadius: 999,
     backgroundColor: theme.ds.accentSoft,
   },

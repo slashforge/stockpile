@@ -2,40 +2,33 @@
 import { SITE_TITLE } from '../consts';
 ---
 
-<nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="nav">
-  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2.5 group">
-      <img src="/logo.svg" alt="Stockpile logo" class="w-8 h-8" />
-      <span class="text-lg font-semibold text-text tracking-tight">{SITE_TITLE}</span>
+<nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="nav" aria-label="Primary">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6 py-3.5 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2.5 group" aria-label={`${SITE_TITLE} home`}>
+      <span class="w-9 h-9 rounded-xl squircle bg-grad-blue grid place-items-center shadow-sm">
+        <img src="/logo-mark.svg" alt="" class="w-5 h-5" width="20" height="20" />
+      </span>
+      <span class="text-lg font-bold text-text tracking-tight">{SITE_TITLE}</span>
     </a>
 
-    <div class="flex items-center gap-6">
-      <a href="/blog" class="text-text-subtle hover:text-text transition-colors duration-200 text-sm font-medium">
-        Blog
-      </a>
-      <a
-        href="#waitlist"
-        class="btn-primary text-sm py-2.5 px-5"
-      >
-        Get Started
-      </a>
+    <div class="flex items-center gap-1 sm:gap-2">
+      <a href="/#bags" class="btn-ghost text-sm hidden sm:inline-flex">Bags</a>
+      <a href="/#how" class="btn-ghost text-sm hidden sm:inline-flex">How it works</a>
+      <a href="/#builders" class="btn-ghost text-sm hidden md:inline-flex">Builders</a>
+      <a href="/blog" class="btn-ghost text-sm">Blog</a>
+      <a href="/#get" class="btn-primary text-sm py-2 px-4 ml-1">Get the app</a>
     </div>
   </div>
 </nav>
 
 <script>
   const nav = document.getElementById('nav');
-  let lastScroll = 0;
-
-  window.addEventListener('scroll', () => {
-    const currentScroll = window.scrollY;
-    
-    if (currentScroll > 50) {
-      nav?.classList.add('bg-background/80', 'backdrop-blur-md', 'border-b', 'border-border-subtle');
-    } else {
-      nav?.classList.remove('bg-background/80', 'backdrop-blur-md', 'border-b', 'border-border-subtle');
-    }
-    
-    lastScroll = currentScroll;
-  });
+  const scrolled = ['bg-background/85', 'backdrop-blur-md', 'border-b', 'border-border'];
+  const update = () => {
+    if (!nav) return;
+    if (window.scrollY > 24) nav.classList.add(...scrolled);
+    else nav.classList.remove(...scrolled);
+  };
+  update();
+  window.addEventListener('scroll', update, { passive: true });
 </script>

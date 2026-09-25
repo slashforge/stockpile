@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { HealthResponseSchema } from "./schemas";
 import accountRoutes from "./routes/account";
-import bagRoutes from "./routes/bags";
+import bagRoutes, { assetRoutes } from "./routes/bags";
 import storyRoutes, { bagStoryRoutes } from "./routes/stories";
 
 export const openApiConfig = { openapi: "3.1.0", info: { title: "Stockpile API", version: "1.0.0" } } as const;
@@ -20,6 +20,7 @@ app.onError((error, c) => {
 app.openapi(createRoute({ method: "get", path: "/health", operationId: "getHealth", tags: ["system"], responses: { 200: { description: "Service health", content: { "application/json": { schema: HealthResponseSchema } } } } }), (c) => c.json({ status: "ok" }, 200));
 app.route("/bags", bagRoutes);
 app.route("/bags", bagStoryRoutes);
+app.route("/assets", assetRoutes);
 app.route("/stories", storyRoutes);
 app.route("/", accountRoutes);
 app.doc31("/openapi.json", openApiConfig);

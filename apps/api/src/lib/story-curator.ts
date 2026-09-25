@@ -31,14 +31,29 @@ export function safeText(value: string, max = 320) {
   return clean.slice(0, max).replace(/\s+\S*$/, "").trim();
 }
 
+// Rule-based stance from the publisher's own words. Deliberately narrow: only wording that plainly reads as good or bad news for the
+// company counts, and mixed signals stay neutral. This is an editorial tone label, not a price prediction.
+const supportingTerms = /\b(launch(?:es|ed|ing)?|unveil(?:s|ed)?|expand(?:s|ed|ing)?|extends?\b.{0,30}\baccess|partnership|partners? with|record (?:revenue|quarter|high|sales|profit)|raises?\b.{0,40}\b(?:funding|round|valuation)|funding round|wins?\b.{0,40}\b(?:contract|deal|award)|awarded|approv(?:al|ed|es)|milestone|beats?\b.{0,30}\b(?:estimates|expectations)|surge[sd]?|revenue growth|growth in|new customers?|breakthrough|profitab(?:le|ility)|unique access|first to)\b/i;
+const opposingTerms = /\b(lawsuit|sue[sd]?|sued|breach|hack(?:ed|s)?|unauthori[sz]ed|recall(?:s|ed)? (?:\d|vehicles|cars|units|products)|layoffs?|decline[sd]?|losses?|ban(?:s|ned)?|shut(?:s)? down|fine[sd]? (?:\$|\d|for)|probe(?:s|d)? (?:into|of)|investigat(?:es|ed|ion)|outage|delay(?:s|ed)?|antitrust|legal consequences|defies|violat(?:es|ed|ion)|scrutiny|subpoena|scandal|resign(?:s|ed|ation)|misses?\b.{0,30}\b(?:estimates|expectations)|falls?\b.{0,20}\b(?:short|behind)|cuts? jobs)\b/i;
+export type Stance = { context: StoryConnection["context"]; evidence: string | null };
+export function stance(text: string): Stance {
+  const clean = safeText(text, 1200);
+  const good = supportingTerms.exec(clean), bad = opposingTerms.exec(clean);
+  if (good && !bad) return { context: "supporting", evidence: good[0] };
+  if (bad && !good) return { context: "opposing", evidence: bad[0] };
+  return { context: "neutral", evidence: null };
+}
+
 export function editorial(draft: Draft): Curated {
   const excerpt = safeText(draft.excerpt);
   const direct = new RegExp(`\\b${draft.company}\\b`, "i").test(`${draft.title} ${excerpt}`);
+  const tone = stance(`${draft.title} ${excerpt}`);
+  const toneNote = tone.evidence ? ` Tone ${tone.context}: the source says "${tone.evidence}".` : "";
   return {
     summary: excerpt || safeText(draft.title), provenance: "editorial",
     connections: draft.bagIds.filter((id) => knownBags.has(id)).map((bagId) => ({
-      bagId, relationship: direct ? "direct" : "inferred", context: "neutral",
-      explanation: direct ? `${draft.company} is explicitly mentioned in the publisher's title or excerpt.` : `${draft.publisher} publishes updates about ${draft.company}; this bag connection is editorial inference.`,
+      bagId, relationship: direct ? "direct" : "inferred", context: tone.context,
+      explanation: (direct ? `${draft.company} is explicitly mentioned in the publisher's title or excerpt.` : `${draft.publisher} publishes updates about ${draft.company}; this bag connection is editorial inference.`) + toneNote,
     })),
   };
 }
@@ -56,9 +71,9 @@ export function validateAi(output: unknown, draft: Draft): Curated | null {
   if (value.relationship !== "direct" && value.relationship !== "inferred") return null;
   if (value.context !== "neutral" && value.context !== "supporting" && value.context !== "opposing") return null;
   if (value.relationship === "direct" && !new RegExp(`\\b${draft.company}\\b`, "i").test(`${draft.title} ${excerpt}`)) return null;
-  // Context is neutral unless the supplied source excerpt itself explicitly expresses a direction.
-  const context = value.context === "supporting" && /increase|improve|launch|gain|expand/i.test(excerpt) ? "supporting"
-    : value.context === "opposing" && /decrease|decline|loss|recall|layoff/i.test(excerpt) ? "opposing" : "neutral";
+  // Context is neutral unless the supplied source text itself reads the same way under the editorial stance rules.
+  const tone = stance(`${draft.title} ${excerpt}`);
+  const context = value.context !== "neutral" && value.context === tone.context ? tone.context : "neutral";
   return {
     summary: safeText(value.summary, 280), provenance: "ai",
     connections: value.bagIds.map((bagId: string) => ({ bagId, relationship: value.relationship as "direct" | "inferred", context,

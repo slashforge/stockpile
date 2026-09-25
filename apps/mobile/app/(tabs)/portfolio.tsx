@@ -1,69 +1,519 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
-import { Pressable, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import * as WebBrowser from "expo-web-browser";
+import { ActivityIndicator, Pressable, View } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AuthGate } from "@/components/stockpile/auth-gate";
 import { GradientCard } from "@/components/stockpile/gradient-card";
+import { LowSolPill, useFundSheet } from "@/components/stockpile/fund-sheet";
 import { HeroState } from "@/components/stockpile/hero-state";
-import { Card, CardSkeleton, Divider, Screen, Section } from "@/components/stockpile/layout";
+import { CardSkeleton, Divider, Screen, Skeleton } from "@/components/stockpile/layout";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { UsdcLogo } from "@/components/stockpile/token-logos";
 import { T } from "@/components/stockpile/type";
-import { usePortfolio } from "@/hooks/use-account";
+import { density } from "@/config/sizing";
+import { useActivity, usePortfolio } from "@/hooks/use-account";
 import { indexAssetsByMint, useBags } from "@/hooks/use-bags";
-import { useSonner } from "@/hooks/use-sonner";
+import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { isLowSol } from "@/lib/funding";
+import {
+  activityVisual,
+  flattenActivity,
+  formatHoldingAmount,
+  formatUsdValue,
+  relativeTime,
+} from "@/lib/portfolio";
 import { USDC_MINT } from "@/lib/solana/transaction";
-import { spendableUsdc } from "@/lib/trade/balance";
+import { solBalance, spendableUsdc } from "@/lib/trade/balance";
 import { useStockpileAuth } from "@/providers/auth-context";
-import type { Portfolio } from "@/services/api/types";
-import { formatMoney, formatTokenAmount, formatUiAmount, shortAddress } from "@/utils/amounts";
+import type { Activity, Bag, Portfolio } from "@/services/api/types";
+import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
+
+/*
+ * Layout system for this screen:
+ * - Outer cards: rounded(24) continuous, clipped so pressed-row highlights keep the corners.
+ * - Rows: one grid for every list row = [badge/avatar 44 | flexible text | right column]. Both
+ *   columns top-align and the row has fixed `density.rowY` vertical padding, so a row with a bag
+ *   chip is exactly one chip taller than a row without.
+ * - Pills fully round, avatars/badges circles.
+ * - Spacing comes from the shared `density` tokens (section header gap, section spacing, hero pad).
+ */
+const AVATAR = 44;
+const ROW_H_PAD = density.card;
+const ROW_GAP = density.rowGap;
+const ROW_INSET = ROW_H_PAD + AVATAR + ROW_GAP;
+const RIGHT_MIN = 110;
+const WALLET_PILL = 44;
 
 function formatAsOf(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/** Section with a 20/600 title and an optional small muted trailing caption on the same line. */
+function PortfolioSection({
+  title,
+  trailing,
+  children,
+}: {
+  title: string;
+  trailing?: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <T style={styles.sectionTitle} accessibilityRole="header">
+          {title}
+        </T>
+        {trailing ? (
+          <T variant="caption" tone="tertiary" numberOfLines={1}>
+            {trailing}
+          </T>
+        ) : null}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** Outer card for lists: clips pressed-row highlights to the card's corners. */
+function ListCard({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.listCard}>
+      <View style={styles.listClip}>{children}</View>
+    </View>
+  );
+}
+
+function Rows<Item>({
+  items,
+  keyOf,
+  render,
+}: {
+  items: Item[];
+  keyOf: (item: Item) => string;
+  render: (item: Item) => React.ReactNode;
+}) {
+  return (
+    <>
+      {items.map((item, index) => (
+        <View key={keyOf(item)}>
+          {index > 0 ? <Divider inset={ROW_INSET} /> : null}
+          {render(item)}
+        </View>
+      ))}
+    </>
+  );
+}
+
+/** Round icon badge used by hint, status and activity rows (same size as token avatars). */
+function IconBadge({
+  icon,
+  color,
+  background,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
+  background: string;
+}) {
+  return (
+    <View style={[styles.badge, { backgroundColor: background }]}>
+      <Ionicons name={icon} size={20} color={color} />
+    </View>
+  );
+}
+
+/** Small full-round chip under a row title (bag membership, low-fee warning). */
+function RowChip({
+  label,
+  icon,
+  tone = "accent",
+  onPress,
+  accessibilityLabel,
+}: {
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  tone?: "accent" | "caution";
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
+  const { theme } = useUnistyles();
+  const color = tone === "caution" ? theme.ds.caution : theme.ds.accent;
+  const content = (
+    <>
+      <Ionicons name={icon} size={11} color={color} />
+      <T variant="caption" tone={tone} numberOfLines={1} ellipsizeMode="tail" style={styles.shrink}>
+        {label}
+      </T>
+    </>
+  );
+  const chipStyle = [styles.chip, tone === "caution" ? styles.chipCaution : styles.chipAccent];
+  if (!onPress) return <View style={chipStyle}>{content}</View>;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={6}
+      onPress={onPress}
+      style={({ pressed }) => [...chipStyle, pressed && styles.pressed]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
+/** "in <bag>" chip; opens the bag. Extra bags collapse into "+N". */
+function BagChip({ bagIds, bagsById }: { bagIds: string[]; bagsById: Map<string, Bag> }) {
+  const first = bagIds.map((id) => bagsById.get(id)).find(Boolean);
+  if (!first) return null;
+  const extra = bagIds.length - 1;
+  return (
+    <RowChip
+      icon="layers"
+      label={`${first.title}${extra > 0 ? ` +${extra}` : ""}`}
+      accessibilityLabel={`Open bag ${first.title}`}
+      onPress={() => router.push(`/bag/${first.id}`)}
+    />
+  );
+}
+
+/** Compact status row for "unavailable" states, in the same grid as list rows. */
+function StatusCard({ title, body, onRetry }: { title: string; body: string; onRetry: () => void }) {
+  const { theme } = useUnistyles();
+  return (
+    <ListCard>
+      <View style={styles.row}>
+        <IconBadge icon="cloud-offline-outline" color={theme.ds.inkSecondary} background={theme.ds.sunken} />
+        <View style={styles.textCol}>
+          <T variant="headline" numberOfLines={1}>
+            {title}
+          </T>
+          <T variant="footnote" tone="secondary" numberOfLines={2}>
+            {body}
+          </T>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${title}. Check again`}
+          hitSlop={8}
+          onPress={onRetry}
+          style={({ pressed }) => [styles.rightInline, pressed && styles.pressed]}
+        >
+          <T variant="subhead" tone="accent">
+            Retry
+          </T>
+        </Pressable>
+      </View>
+    </ListCard>
+  );
+}
+
+/** One-row nudge shown when the wallet holds no bag tokens; keeps Activity above the fold. */
+function NoBagTokensHint() {
+  const { theme } = useUnistyles();
+  return (
+    <ListCard>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="No bag tokens yet. Browse bags"
+        onPress={() => router.navigate("/bags")}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      >
+        <IconBadge icon="layers" color={theme.ds.accent} background={theme.ds.accentSoft} />
+        <View style={styles.textCol}>
+          <T variant="headline" numberOfLines={1}>
+            No bag tokens yet
+          </T>
+          <T variant="footnote" tone="secondary" numberOfLines={1}>
+            Put money in a bag to see it here
+          </T>
+        </View>
+        <View style={styles.rightInline}>
+          <T variant="subhead" tone="accent">
+            Browse
+          </T>
+          <Ionicons name="chevron-forward" size={16} color={theme.ds.accent} />
+        </View>
+      </Pressable>
+    </ListCard>
+  );
 }
 
 function WalletCard({ address, portfolio }: { address: string; portfolio: Portfolio }) {
-  const sonner = useSonner();
+  const { theme } = useUnistyles();
+  const { openFund } = useFundSheet();
+  const { copied, copy } = useCopyFeedback();
   const usdc = spendableUsdc(portfolio);
+  const live = portfolio.status === "live";
+  const usdcLine =
+    usdc.status === "known" ? `${formatMoney(usdc.raw.toString(), usdc.decimals)} USDC available` : usdc.reason;
+  const unpriced = live && portfolio.unpricedCount > 0 ? ` · ${portfolio.unpricedCount} unpriced` : "";
+
   return (
-    <GradientCard gradient="blue">
-      <T variant="subhead" style={styles.onGradientSoft}>
-        USDC available
-      </T>
-      <T variant="display" style={[styles.onGradient, styles.tabular]} numberOfLines={1} adjustsFontSizeToFit>
-        {usdc.status === "known" ? formatMoney(usdc.raw.toString(), usdc.decimals) : "—"}
-      </T>
-      {usdc.status === "unknown" ? (
+    <GradientCard gradient="blue" decorated={false} style={styles.wallet}>
+      <View style={styles.walletValue}>
         <T variant="footnote" style={styles.onGradientSoft}>
-          {usdc.reason}
+          Total value
         </T>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Copy wallet address"
-        onPress={async () => {
-          await Clipboard.setStringAsync(address);
-          sonner.success("Copied");
-        }}
-        style={({ pressed }) => [styles.addressPill, pressed && styles.pressed]}
-      >
-        <Ionicons name="wallet" size={14} color="#FFFFFF" />
-        <T variant="footnote" style={[styles.onGradient, styles.tabular]}>
-          {shortAddress(address, 6)}
+        <T variant="title1" style={[styles.onGradient, styles.walletAmount]} numberOfLines={1} adjustsFontSizeToFit>
+          {live ? formatUsdValue(portfolio.totalUsd) : "—"}
         </T>
-        <Ionicons name="copy-outline" size={14} color="#FFFFFF" />
-      </Pressable>
+        <View style={styles.usdcLine}>
+          {usdc.status === "known" ? <UsdcLogo size={14} /> : null}
+          <T variant="footnote" style={[styles.onGradientSoft, styles.tabular, styles.shrink]} numberOfLines={2}>
+            {usdcLine}
+            {unpriced}
+          </T>
+        </View>
+      </View>
+
+      <View style={styles.walletActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copied ? "Wallet address copied" : `Copy wallet address ${shortAddress(address, 4)}`}
+          onPress={() => copy(address).catch(() => {})}
+          style={({ pressed }) => [styles.pill, styles.pillGlass, styles.pillGrow, pressed && styles.pressed]}
+        >
+          <Ionicons name="wallet-outline" size={16} color="#FFFFFF" />
+          <T variant="subhead" style={[styles.onGradient, styles.pillText, styles.tabular, styles.shrink]} numberOfLines={1}>
+            {copied ? "Copied" : shortAddress(address, 4)}
+          </T>
+          <Ionicons name={copied ? "checkmark" : "copy-outline"} size={16} color="#FFFFFF" />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add funds"
+          onPress={openFund}
+          style={({ pressed }) => [styles.pill, styles.pillSolid, pressed && styles.pressed]}
+        >
+          <Ionicons name="add" size={16} color={theme.ds.accent} />
+          <T variant="subhead" tone="accent" style={styles.pillText}>
+            Add funds
+          </T>
+        </Pressable>
+      </View>
+      <LowSolPill />
     </GradientCard>
   );
+}
+
+type Row = {
+  key: string;
+  mint: string | null;
+  symbol: string;
+  name: string;
+  iconUrl: string | null | undefined;
+  amount: string;
+  usdValue: number | null;
+  bagIds: string[];
+  lowFees?: boolean;
+};
+
+function HoldingRow({ row, bagsById }: { row: Row; bagsById: Map<string, Bag> }) {
+  const amountLine = `${row.amount} ${row.symbol}`;
+  return (
+    <View
+      style={styles.row}
+      accessible
+      accessibilityLabel={`${row.symbol}, ${row.name}. ${formatUsdValue(row.usdValue)}, ${amountLine}`}
+    >
+      <TokenAvatar symbol={row.symbol} mint={row.mint} iconUrl={row.iconUrl} size={AVATAR} />
+      <View style={styles.textCol}>
+        <T variant="headline" numberOfLines={1}>
+          {row.symbol}
+        </T>
+        <T variant="footnote" tone="secondary" numberOfLines={1}>
+          {row.name}
+        </T>
+        {row.bagIds.length > 0 ? <BagChip bagIds={row.bagIds} bagsById={bagsById} /> : null}
+        {row.lowFees ? <RowChip icon="flash-outline" label="Low for fees" tone="caution" /> : null}
+      </View>
+      <View style={styles.rightCol}>
+        <T variant="numeric" style={styles.rightPrimary} numberOfLines={1}>
+          {formatUsdValue(row.usdValue)}
+        </T>
+        <T
+          variant="footnote"
+          tone="secondary"
+          style={[styles.rightSecondary, styles.tabular]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {amountLine}
+        </T>
+      </View>
+    </View>
+  );
+}
+
+function holdingRows(data: Portfolio, assets: ReturnType<typeof indexAssetsByMint>): Row[] {
+  const rows: Row[] = [];
+  if (data.usdc && data.usdc.amount !== "0") {
+    rows.push({
+      key: "usdc",
+      mint: USDC_MINT,
+      symbol: "USDC",
+      name: "USD Coin",
+      iconUrl: null,
+      amount: formatHoldingAmount(data.usdc.uiAmount),
+      usdValue: data.usdc.usdValue,
+      bagIds: [],
+    });
+  }
+  if (data.sol && data.sol.amount !== "0") {
+    rows.push({
+      key: "sol",
+      mint: null,
+      symbol: "SOL",
+      name: "Solana",
+      iconUrl: null,
+      amount: formatHoldingAmount(data.sol.uiAmount),
+      usdValue: data.sol.usdValue,
+      bagIds: [],
+      lowFees: isLowSol(solBalance(data)),
+    });
+  }
+  for (const holding of data.holdings) {
+    if (holding.amount === "0" || holding.mint === USDC_MINT) continue;
+    const asset = assets.get(holding.mint);
+    const symbol = holding.symbol ?? asset?.symbol ?? shortAddress(holding.mint);
+    const ui =
+      holding.uiAmount ??
+      formatTokenAmount(holding.amount, holding.decimals, asset?.uiAmountMultiplier ?? 1).replace(/,/g, "");
+    rows.push({
+      key: holding.mint,
+      mint: holding.mint,
+      symbol,
+      name: holding.name ?? asset?.name ?? "Token",
+      iconUrl: holding.iconUrl ?? asset?.iconUrl,
+      amount: formatHoldingAmount(ui),
+      usdValue: holding.usdValue,
+      bagIds: holding.bagIds,
+    });
+  }
+  return rows;
+}
+
+function ActivityRow({ item, bagsById }: { item: Activity; bagsById: Map<string, Bag> }) {
+  const { theme } = useUnistyles();
+  const visual = activityVisual(item);
+  const color = {
+    accent: theme.ds.accent,
+    positive: theme.ds.positive,
+    neutral: theme.ds.inkSecondary,
+    danger: theme.ds.danger,
+  }[visual.tone];
+  const background = {
+    accent: theme.ds.accentSoft,
+    positive: theme.ds.mintSoft,
+    neutral: theme.ds.sunken,
+    danger: theme.ds.dangerSoft,
+  }[visual.tone];
+  const when = relativeTime(item.ts);
+  const failed = item.status === "failed";
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${item.summary}${when ? `, ${when}` : ""}${failed ? ", failed" : ""}. Opens in explorer`}
+      onPress={() => WebBrowser.openBrowserAsync(item.explorerUrl).catch(() => {})}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <IconBadge icon={visual.icon} color={color} background={background} />
+      <View style={styles.textCol}>
+        <T variant="subhead" style={styles.activitySummary} numberOfLines={2}>
+          {item.summary}
+        </T>
+        {when || failed ? (
+          <T variant="footnote" tone={failed ? "danger" : "tertiary"} numberOfLines={1}>
+            {[failed ? "Failed" : null, when].filter(Boolean).join(" · ")}
+          </T>
+        ) : null}
+        {item.bagId ? <BagChip bagIds={[item.bagId]} bagsById={bagsById} /> : null}
+      </View>
+      <View style={styles.rightInline}>
+        <Ionicons name="open-outline" size={16} color={theme.ds.inkTertiary} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ActivitySection({ bagsById }: { bagsById: Map<string, Bag> }) {
+  const { theme } = useUnistyles();
+  const activity = useActivity();
+  const { fetchNextPage, isFetchNextPageError } = activity;
+  const first = activity.data?.pages[0];
+  const items = flattenActivity(activity.data?.pages);
+
+  let body: React.ReactNode;
+  if (activity.isPending) {
+    body = (
+      <ListCard>
+        <View style={[styles.row, styles.skeletons]}>
+          <Skeleton height={16} width="70%" />
+          <Skeleton height={16} width="45%" />
+        </View>
+      </ListCard>
+    );
+  } else if ((activity.isError && !isFetchNextPageError) || (first && first.status !== "live")) {
+    body = (
+      <StatusCard
+        title="Activity unavailable"
+        body={
+          activity.isError
+            ? activity.error.message
+            : (first?.error?.message ?? first?.message ?? "We couldn’t read your wallet history right now.")
+        }
+        onRetry={() => activity.refetch()}
+      />
+    );
+  } else if (items.length === 0) {
+    body = (
+      <ListCard>
+        <View style={styles.row}>
+          <IconBadge icon="time-outline" color={theme.ds.inkSecondary} background={theme.ds.sunken} />
+          <View style={styles.textCol}>
+            <T variant="headline" tone="secondary">
+              No activity yet
+            </T>
+          </View>
+        </View>
+      </ListCard>
+    );
+  } else {
+    body = (
+      <ListCard>
+        <Rows items={items} keyOf={(item) => item.signature} render={(item) => <ActivityRow item={item} bagsById={bagsById} />} />
+        {activity.isFetchingNextPage ? (
+          <View style={styles.more}>
+            <ActivityIndicator color={theme.ds.inkTertiary} />
+          </View>
+        ) : isFetchNextPageError ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => fetchNextPage()}
+            style={({ pressed }) => [styles.more, pressed && styles.rowPressed]}
+          >
+            <T variant="footnote" tone="accent">
+              Couldn’t load more · Try again
+            </T>
+          </Pressable>
+        ) : null}
+      </ListCard>
+    );
+  }
+
+  return <PortfolioSection title="Activity">{body}</PortfolioSection>;
 }
 
 function PortfolioBody() {
   const portfolio = usePortfolio();
   const bags = useBags();
   const { walletAddress: embeddedWallet } = useStockpileAuth();
+  const bagsById = new Map((bags.data ?? []).map((bag) => [bag.id, bag]));
 
   if (portfolio.isPending) return <CardSkeleton />;
   if (portfolio.isError) {
@@ -82,8 +532,8 @@ function PortfolioBody() {
 
   const data = portfolio.data;
   const walletAddress = data.walletAddress ?? embeddedWallet;
-  const assets = indexAssetsByMint(bags.data);
-  const tokens = data.holdings.filter((holding) => holding.amount !== "0" && holding.mint !== USDC_MINT);
+  const rows = holdingRows(data, indexAssetsByMint(bags.data));
+  const hasTokens = rows.some((row) => row.key !== "usdc" && row.key !== "sol");
   const asOf = formatAsOf(data.asOf);
 
   return (
@@ -91,75 +541,53 @@ function PortfolioBody() {
       {walletAddress ? <WalletCard address={walletAddress} portfolio={data} /> : null}
 
       {data.status !== "live" ? (
-        <HeroState
-          compact
-          gradient="sky"
-          icon="pulse"
-          title="Balances unavailable"
-          body={data.message ?? "We couldn’t read your on-chain balances right now."}
-          actionLabel="Check again"
-          actionIcon="refresh"
-          onAction={() => portfolio.refetch()}
-        />
-      ) : tokens.length === 0 ? (
-        <HeroState
-          compact
-          gradient="lilac"
-          icon="layers"
-          accents={["add", "sparkles"]}
-          title="No tokens yet"
-          body="Put money in a bag and its tokens show up here."
-          actionLabel="Browse bags"
-          actionIcon="layers"
-          onAction={() => router.navigate("/bags")}
-        />
+        <PortfolioSection title="Holdings">
+          <StatusCard
+            title="Balances unavailable"
+            body={data.message ?? "We couldn’t read your on-chain balances right now."}
+            onRetry={() => portfolio.refetch()}
+          />
+        </PortfolioSection>
       ) : (
-        <Section title="Tokens" caption={asOf ? `On-chain · ${asOf}` : "On-chain balances"}>
-          <Card padded={false}>
-            {tokens.map((holding, index) => {
-              const asset = assets.get(holding.mint);
-              const symbol = asset?.symbol ?? shortAddress(holding.mint);
-              return (
-                <View key={holding.mint}>
-                  {index > 0 ? <Divider inset={72} /> : null}
-                  <View style={styles.row}>
-                    <TokenAvatar symbol={symbol} iconUrl={asset?.iconUrl} size={44} />
-                    <View style={styles.flex}>
-                      <T variant="headline">{symbol}</T>
-                      <T variant="footnote" tone="secondary" numberOfLines={1}>
-                        {asset?.name ?? "Not in a Stockpile bag"}
-                      </T>
-                    </View>
-                    <T variant="numeric">
-                      {holding.uiAmount != null
-                        ? formatUiAmount(holding.uiAmount)
-                        : formatTokenAmount(holding.amount, holding.decimals, asset?.uiAmountMultiplier ?? 1)}
-                    </T>
-                  </View>
-                </View>
-              );
-            })}
-          </Card>
-        </Section>
+        <PortfolioSection title="Holdings" trailing={asOf ? `Updated ${asOf}` : null}>
+          {rows.length > 0 ? (
+            <ListCard>
+              <Rows items={rows} keyOf={(row) => row.key} render={(row) => <HoldingRow row={row} bagsById={bagsById} />} />
+            </ListCard>
+          ) : null}
+          {!hasTokens ? <NoBagTokensHint /> : null}
+        </PortfolioSection>
       )}
+
+      <ActivitySection bagsById={bagsById} />
     </>
   );
 }
 
 export default function PortfolioScreen() {
   const portfolio = usePortfolio();
+  const activity = useActivity();
   const { authenticated } = useStockpileAuth();
   return (
     <Screen
       title="Portfolio"
-      onRefresh={authenticated ? () => portfolio.refetch() : undefined}
+      onRefresh={authenticated ? () => Promise.all([portfolio.refetch(), activity.refetch()]) : undefined}
+      onEndReached={
+        authenticated
+          ? () => {
+              if (activity.hasNextPage && !activity.isFetchingNextPage && !activity.isFetchNextPageError) {
+                activity.fetchNextPage();
+              }
+            }
+          : undefined
+      }
     >
       <AuthGate
         gradient="blue"
         icon="pie-chart"
         accents={["wallet", "layers"]}
         title="Your bags, on-chain"
-        body="Sign in to see your wallet balance and the tokens you hold."
+        body="Sign in to see your wallet balance, the tokens you hold and your activity."
       >
         <PortfolioBody />
       </AuthGate>
@@ -169,20 +597,80 @@ export default function PortfolioScreen() {
 
 const styles = StyleSheet.create((theme) => ({
   onGradient: { color: "#FFFFFF" },
-  onGradientSoft: { color: "rgba(255,255,255,0.88)" },
+  onGradientSoft: { color: "rgba(255,255,255,0.82)" },
   tabular: { fontVariant: ["tabular-nums"] },
-  addressPill: {
-    flexDirection: "row",
-    alignSelf: "flex-start",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    minHeight: 38,
-    marginTop: 4,
-  },
+  shrink: { flexShrink: 1 },
   pressed: { opacity: 0.7 },
-  row: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
-  flex: { flex: 1, gap: 2 },
+
+  section: { gap: theme.density.sectionHeader, marginTop: theme.density.section - theme.density.stack },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: theme.density.rowGap,
+  },
+  sectionTitle: { fontSize: 20, lineHeight: 25, fontWeight: "600", letterSpacing: -0.2, flexShrink: 1 },
+
+  wallet: { gap: theme.density.stack, padding: theme.density.hero },
+  walletValue: { gap: 2 },
+  walletAmount: { fontSize: 36, lineHeight: 42, fontVariant: ["tabular-nums"], letterSpacing: -0.8 },
+  usdcLine: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  walletActions: { flexDirection: "row", alignItems: "center", gap: theme.density.item },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    height: WALLET_PILL,
+    paddingHorizontal: 14,
+    borderRadius: WALLET_PILL / 2,
+  },
+  pillText: { lineHeight: 20, includeFontPadding: false, textAlignVertical: "center" },
+  pillGrow: { flex: 1, minWidth: 0 },
+  pillGlass: { backgroundColor: "rgba(255,255,255,0.2)" },
+  pillSolid: { backgroundColor: "#FFFFFF" },
+
+  listCard: {
+    ...theme.rounded(24),
+    backgroundColor: theme.ds.surface,
+    shadowColor: "#1B2250",
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  listClip: { ...theme.rounded(24), overflow: "hidden" },
+
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: ROW_GAP,
+    paddingHorizontal: ROW_H_PAD,
+    paddingVertical: theme.density.rowY,
+  },
+  rowPressed: { backgroundColor: theme.ds.sunken },
+  textCol: { flex: 1, minWidth: 0, gap: 2 },
+  rightCol: { minWidth: RIGHT_MIN, maxWidth: "45%", flexShrink: 0, alignItems: "flex-end", gap: 2 },
+  rightPrimary: { lineHeight: 21, textAlign: "right" },
+  rightSecondary: { textAlign: "right", alignSelf: "stretch" },
+  rightInline: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 21, flexShrink: 0 },
+  activitySummary: { lineHeight: 21 },
+  badge: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center" },
+
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: theme.density.chipX,
+    paddingVertical: theme.density.chipY,
+    borderRadius: 999,
+  },
+  chipAccent: { backgroundColor: theme.ds.accentSoft },
+  chipCaution: { backgroundColor: theme.ds.cautionSoft },
+
+  skeletons: { flexDirection: "column", alignItems: "flex-start", gap: 10 },
+  more: { paddingVertical: theme.density.rowY, alignItems: "center" },
 }));

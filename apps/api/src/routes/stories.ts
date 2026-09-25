@@ -4,7 +4,7 @@ import { listStories } from "../lib/story-feed";
 import { ErrorSchema, StoriesResponseSchema } from "../schemas";
 
 const app = new OpenAPIHono();
-const query = z.object({ limit: z.coerce.number().int().min(1).max(20).optional(), cursor: z.string().regex(/^[a-f0-9]{32}$/).optional(), format: z.enum(["article", "podcast"]).optional() });
+const query = z.object({ limit: z.coerce.number().int().min(1).max(20).optional(), cursor: z.string().regex(/^[a-f0-9]{32}$/).optional(), format: z.enum(["article", "podcast", "disclosure"]).optional() });
 const response = { 200: { description: "Persisted sourced stories", content: { "application/json": { schema: StoriesResponseSchema } } },
   400: { description: "Invalid cursor", content: { "application/json": { schema: ErrorSchema } } } };
 

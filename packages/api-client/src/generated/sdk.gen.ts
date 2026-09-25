@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetBagData, GetBagErrors, GetBagResponses, GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, GetPortfolioData, GetPortfolioErrors, GetPortfolioResponses, ListBagsData, ListBagsResponses, ListBagStoriesData, ListBagStoriesErrors, ListBagStoriesResponses, ListSavedBagsData, ListSavedBagsErrors, ListSavedBagsResponses, ListStoriesData, ListStoriesErrors, ListStoriesResponses, PrepareBagTradeData, PrepareBagTradeErrors, PrepareBagTradeResponses, QuoteBagTradeData, QuoteBagTradeErrors, QuoteBagTradeResponses, RemoveSavedBagData, RemoveSavedBagErrors, RemoveSavedBagResponses, SaveBagData, SaveBagErrors, SaveBagResponses } from './types.gen';
+import type { GetAssetChartData, GetAssetChartErrors, GetAssetChartResponses, GetBagChartData, GetBagChartErrors, GetBagChartResponses, GetBagData, GetBagErrors, GetBagHistoryData, GetBagHistoryErrors, GetBagHistoryResponses, GetBagResponses, GetBagSparklinesData, GetBagSparklinesResponses, GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, GetPortfolioData, GetPortfolioErrors, GetPortfolioResponses, ListActivityData, ListActivityErrors, ListActivityResponses, ListBagsData, ListBagsResponses, ListBagStoriesData, ListBagStoriesErrors, ListBagStoriesResponses, ListSavedBagsData, ListSavedBagsErrors, ListSavedBagsResponses, ListStoriesData, ListStoriesErrors, ListStoriesResponses, PrepareBagTradeData, PrepareBagTradeErrors, PrepareBagTradeResponses, QuoteBagTradeData, QuoteBagTradeErrors, QuoteBagTradeResponses, RemoveSavedBagData, RemoveSavedBagErrors, RemoveSavedBagResponses, SaveBagData, SaveBagErrors, SaveBagResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -32,6 +32,13 @@ export const listBags = <ThrowOnError extends boolean = false>(options?: Options
     });
 };
 
+export const getBagSparklines = <ThrowOnError extends boolean = false>(options?: Options<GetBagSparklinesData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetBagSparklinesResponses, unknown, ThrowOnError>({
+        url: '/bags/sparklines',
+        ...options
+    });
+};
+
 export const getBag = <ThrowOnError extends boolean = false>(options: Options<GetBagData, ThrowOnError>) => {
     return (options.client ?? client).get<GetBagResponses, GetBagErrors, ThrowOnError>({
         url: '/bags/{id}',
@@ -39,9 +46,30 @@ export const getBag = <ThrowOnError extends boolean = false>(options: Options<Ge
     });
 };
 
+export const getBagChart = <ThrowOnError extends boolean = false>(options: Options<GetBagChartData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetBagChartResponses, GetBagChartErrors, ThrowOnError>({
+        url: '/bags/{id}/chart',
+        ...options
+    });
+};
+
+export const getBagHistory = <ThrowOnError extends boolean = false>(options: Options<GetBagHistoryData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetBagHistoryResponses, GetBagHistoryErrors, ThrowOnError>({
+        url: '/bags/{id}/history',
+        ...options
+    });
+};
+
 export const listBagStories = <ThrowOnError extends boolean = false>(options: Options<ListBagStoriesData, ThrowOnError>) => {
     return (options.client ?? client).get<ListBagStoriesResponses, ListBagStoriesErrors, ThrowOnError>({
         url: '/bags/{id}/stories',
+        ...options
+    });
+};
+
+export const getAssetChart = <ThrowOnError extends boolean = false>(options: Options<GetAssetChartData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetAssetChartResponses, GetAssetChartErrors, ThrowOnError>({
+        url: '/assets/{mint}/chart',
         ...options
     });
 };
@@ -88,6 +116,13 @@ export const removeSavedBag = <ThrowOnError extends boolean = false>(options: Op
 export const getPortfolio = <ThrowOnError extends boolean = false>(options?: Options<GetPortfolioData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetPortfolioResponses, GetPortfolioErrors, ThrowOnError>({
         url: '/portfolio',
+        ...options
+    });
+};
+
+export const listActivity = <ThrowOnError extends boolean = false>(options?: Options<ListActivityData, ThrowOnError>) => {
+    return (options?.client ?? client).get<ListActivityResponses, ListActivityErrors, ThrowOnError>({
+        url: '/activity',
         ...options
     });
 };

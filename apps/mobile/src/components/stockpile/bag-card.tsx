@@ -3,11 +3,13 @@ import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { isPreIpoBag } from "@/lib/pre-ipo";
+import { bagCurator, bagMarket } from "@/lib/market";
 import type { Bag } from "@/services/api/types";
 import { BagArt } from "./bag-art";
+import { ChangeBadge, CuratorLine } from "./market";
 import { SaveButton } from "./save-button";
 import { T } from "./type";
-import { rounded } from "@/config/sizing";
+import { density, rounded } from "@/config/sizing";
 
 /** Open to buy only when the server says so AND every asset has a verified mint. */
 export function bagTradable(bag: Bag) {
@@ -18,6 +20,16 @@ export function bagTradable(bag: Bag) {
   );
 }
 
+/** Why a bag is research-only: the server's reason when given, else the mint check. */
+export function researchOnlyReason(bag: Bag): string {
+  if (bag.tradableReason) return bag.tradableReason;
+  const unverified = bag.assets.filter((asset) => !asset.mint).length;
+  if (unverified === 0) return "Research only for now";
+  return unverified === bag.assets.length
+    ? "Research only until token mints are verified"
+    : `${unverified} of ${bag.assets.length} token mints still unverified`;
+}
+
 /** Compact tradability chip. Never implies verification from branding. */
 /** Small "Pre-IPO" marker for bags holding PreStocks tokens. */
 export function PreIpoChip({ onArt = false }: { onArt?: boolean }) {
@@ -25,7 +37,11 @@ export function PreIpoChip({ onArt = false }: { onArt?: boolean }) {
   preIpoStyles.useVariants({ onArt });
   return (
     <View style={preIpoStyles.chip} accessibilityLabel="Pre-IPO">
-      <Ionicons name="hourglass-outline" size={11} color={onArt ? "#FFFFFF" : theme.ds.lilac} />
+      <Ionicons
+        name="hourglass-outline"
+        size={11}
+        color={onArt ? "#FFFFFF" : theme.ds.tertiary}
+      />
       <T variant="caption" style={preIpoStyles.label}>
         Pre-IPO
       </T>
@@ -75,10 +91,11 @@ export function BagCard({
   compact?: boolean;
 }) {
   const tradable = bagTradable(bag);
+  const tokenCount = `${bag.assets.length} ${bag.assets.length === 1 ? "token" : "tokens"}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${bag.title}. ${bag.subtitle}. ${bag.assets.length} tokens. ${
+      accessibilityLabel={`${bag.title}. ${bag.subtitle}. ${tokenCount}. ${
         tradable ? "Open to buy" : "Research only"
       }`}
       accessibilityHint="Opens the bag"
@@ -108,10 +125,17 @@ export function BagCard({
           <T variant="footnote" style={styles.subtitle} numberOfLines={1}>
             {bag.subtitle}
           </T>
+          <CuratorLine curator={bagCurator(bag)} onArt />
           <View style={styles.meta}>
             <TradeStatus bag={bag} onArt />
+            <ChangeBadge
+              pct={bagMarket(bag)?.change24hPct}
+              coverage={bagMarket(bag)?.coverage}
+              source={bagMarket(bag)?.change24hSource}
+              onArt
+            />
             <T variant="caption" style={styles.count}>
-              {bag.assets.length} tokens
+              {tokenCount}
             </T>
           </View>
         </View>
@@ -132,10 +156,10 @@ const styles = StyleSheet.create({
   },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.96 },
   save: { position: "absolute", top: 10, right: 10 },
-  overlay: { paddingHorizontal: 18, paddingBottom: 16, gap: 2 },
+  overlay: { paddingHorizontal: density.card, paddingBottom: density.rowY, gap: 2 },
   title: { color: "#FFFFFF" },
   subtitle: { color: "rgba(255,255,255,0.9)" },
-  meta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: density.item, rowGap: 6, marginTop: 6 },
   count: { color: "rgba(255,255,255,0.9)", fontWeight: "600" },
 });
 
@@ -145,8 +169,8 @@ const statusStyles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: theme.density.pillX - 1,
+    paddingVertical: theme.density.pillY - 1,
     borderRadius: 999,
     variants: {
       tradable: {
@@ -179,13 +203,13 @@ const preIpoStyles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: theme.density.chipX,
+    paddingVertical: theme.density.chipY,
     borderRadius: 999,
     variants: {
       onArt: {
         true: { backgroundColor: "rgba(255,255,255,0.24)" },
-        false: { backgroundColor: theme.ds.lilacSoft },
+        false: { backgroundColor: theme.ds.tertiarySoft },
       },
     },
   },
@@ -194,7 +218,7 @@ const preIpoStyles = StyleSheet.create((theme) => ({
     variants: {
       onArt: {
         true: { color: "#FFFFFF" },
-        false: { color: theme.ds.lilac },
+        false: { color: theme.ds.tertiary },
       },
     },
   },

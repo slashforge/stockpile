@@ -2,6 +2,7 @@ import { BottomSheet, RNHostView, type SnapPoint } from "@expo/ui";
 import { Dimensions, Platform, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { FitSheet } from "./fit-sheet";
 import { sheetModifiers } from "./sheet-modifiers";
 
 // Material 3 drag handle: 4dp bar with 22dp vertical padding.
@@ -38,6 +39,16 @@ export function NativeSheet({
   // half-expanded state; M3 already insets its content from the status and navigation bars.
   const androidPage = Platform.OS === "android" && !fit;
   const pageHeight = Dimensions.get("screen").height - insets.top - insets.bottom - ANDROID_DRAG_HANDLE;
+
+  if (fit && Platform.OS === "android") {
+    return (
+      <FitSheet isPresented={isPresented} onDismiss={onDismiss} testID={testID}>
+        <RNHostView matchContents>
+          <View style={{ width: contentWidth }}>{children}</View>
+        </RNHostView>
+      </FitSheet>
+    );
+  }
 
   return (
     <BottomSheet

@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import { generateColorTheme } from "@/utils/colors";
-import { layout, radius, rounded, sizing, spacing, typography } from "./sizing";
+import { density, layout, radius, rounded, sizing, spacing, typography } from "./sizing";
 
 // Legacy generated palette, still consumed by template primitives (sonner, Box, Button...).
 // Tuned to the bright Stockpile palette so those pieces blend in.
@@ -8,8 +8,8 @@ const theme = generateColorTheme({
   base: {
     light: {
       primary: "#10131F",
-      brand: "#3A5BFF",
-      secondary: "#3A5BFF",
+      brand: "#2563EB",
+      secondary: "#2563EB",
       success: "#0E9F77",
       warning: "#B25E09",
       error: "#D8394B",
@@ -19,8 +19,8 @@ const theme = generateColorTheme({
     },
     dark: {
       primary: "#F2F4FA",
-      brand: "#8DA2FF",
-      secondary: "#8DA2FF",
+      brand: "#6BA4FF",
+      secondary: "#6BA4FF",
       success: "#4FD1A8",
       warning: "#F2B35B",
       error: "#FF8593",
@@ -53,12 +53,13 @@ const ds = {
     inkTertiary: "#7A8197",
     line: "#E6E8F1",
     lineStrong: "#D3D7E4",
-    accent: "#3A5BFF",
-    accentPressed: "#2B47D9",
-    accentSoft: "#E9EDFF",
+    accent: "#2563EB",
+    accentPressed: "#1D4ED8",
+    accentSoft: "#E8F0FF",
     onAccent: "#FFFFFF",
-    lilac: "#9A7BFF",
-    lilacSoft: "#F1ECFF",
+    /** Rare tertiary accent (cyan); AA as text on white and on tertiarySoft. */
+    tertiary: "#0E7490",
+    tertiarySoft: "#E0F5F9",
     coral: "#FF7A66",
     coralSoft: "#FFEDEA",
     mint: "#22C29A",
@@ -80,12 +81,12 @@ const ds = {
     inkTertiary: "#8B91A6",
     line: "#252936",
     lineStrong: "#343949",
-    accent: "#8DA2FF",
-    accentPressed: "#7389F5",
-    accentSoft: "#1D2442",
-    onAccent: "#0B1030",
-    lilac: "#B7A2FF",
-    lilacSoft: "#251E3F",
+    accent: "#6BA4FF",
+    accentPressed: "#4D8DF7",
+    accentSoft: "#13254A",
+    onAccent: "#06122B",
+    tertiary: "#5ED3E8",
+    tertiarySoft: "#0F2E36",
     coral: "#FF9C8C",
     coralSoft: "#3A221F",
     mint: "#4FD1A8",
@@ -104,20 +105,20 @@ const ds = {
 type Gradient = readonly [string, string];
 const gradients: Record<
   "light" | "dark",
-  Record<"blue" | "coral" | "mint" | "lilac" | "sky", Gradient>
+  Record<"blue" | "coral" | "mint" | "rose" | "sky", Gradient>
 > = {
   light: {
-    blue: ["#5B7CFF", "#9A7BFF"],
+    blue: ["#2563EB", "#38BDF8"],
     coral: ["#FF8A6B", "#FFB86B"],
     mint: ["#2BCFA3", "#4DA3FF"],
-    lilac: ["#B08CFF", "#FF8FB1"],
+    rose: ["#FF6F91", "#FF9E7A"],
     sky: ["#4DA3FF", "#6FE0E8"],
   },
   dark: {
-    blue: ["#3F5BE0", "#7A5CE6"],
+    blue: ["#1D4ED8", "#0E8FD0"],
     coral: ["#E0664F", "#E09A4F"],
     mint: ["#1FA886", "#3A86E0"],
-    lilac: ["#8E6BE6", "#E06F93"],
+    rose: ["#D9577A", "#E0835F"],
     sky: ["#3A86E0", "#4FC4CC"],
   },
 };
@@ -127,24 +128,24 @@ export type GradientName = keyof (typeof gradients)["light"];
 // Vivid, coordinated categorical palette for allocation segments.
 const chart = {
   light: [
-    "#3A5BFF",
+    "#2563EB",
     "#FF7A66",
     "#22C29A",
-    "#9A7BFF",
+    "#0E9AB5",
     "#FFB23F",
     "#2FA8E8",
     "#FF6FA3",
-    "#6E7BF2",
+    "#64748B",
   ],
   dark: [
-    "#8DA2FF",
+    "#6BA4FF",
     "#FF9C8C",
     "#4FD1A8",
-    "#B7A2FF",
+    "#5ED3E8",
     "#FFD27A",
     "#6CC4F2",
     "#FF9CC2",
-    "#A3ACFF",
+    "#A3B1C6",
   ],
 };
 
@@ -153,7 +154,7 @@ export const fonts = {
   sans: Platform.select({ ios: "System", default: undefined }),
 };
 
-const shared = { sizing, spacing, radius, rounded, typography, layout, fonts };
+const shared = { sizing, spacing, radius, rounded, typography, layout, fonts, density };
 
 export const lightTheme = {
   ...theme.light,

@@ -1,7 +1,9 @@
 import {
   getBag as sdkGetBag,
+  getBagHistory as sdkGetBagHistory,
   getMe as sdkGetMe,
   getPortfolio as sdkGetPortfolio,
+  listActivity as sdkListActivity,
   listBags as sdkListBags,
   listSavedBags as sdkListSavedBags,
   prepareBagTrade as sdkPrepareBagTrade,
@@ -9,7 +11,17 @@ import {
   removeSavedBag as sdkRemoveSavedBag,
   saveBag as sdkSaveBag,
 } from "./client";
-import type { Bag, Me, Portfolio, PreparedTrade, TradeQuote, TradeRequest } from "./types";
+import type {
+  ActivityPage,
+  Bag,
+  BagHistory,
+  HistoryRange,
+  Me,
+  Portfolio,
+  PreparedTrade,
+  TradeQuote,
+  TradeRequest,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -37,13 +49,20 @@ export class ApiError extends Error {
 type SdkResult<T> = { data?: T; error?: unknown; response?: Response };
 
 function errorMessage(error: unknown, status: number): string {
-  if (error && typeof error === "object" && "error" in error && typeof error.error === "string") {
+  if (
+    error &&
+    typeof error === "object" &&
+    "error" in error &&
+    typeof error.error === "string"
+  ) {
     return error.error;
   }
   // Non-JSON bodies (plain text, HTML from proxies or a different service) are never shown verbatim.
   if (status === 401) return "Please sign in again.";
-  if (status === 404) return "Not found. The server may not be the Stockpile API or may be out of date.";
-  if (status === 503) return "This feature is not configured on the server yet.";
+  if (status === 404)
+    return "Not found. The server may not be the Stockpile API or may be out of date.";
+  if (status === 503)
+    return "This feature is not configured on the server yet.";
   return `Request failed (${status || "network"})`;
 }
 
@@ -53,10 +72,17 @@ export async function unwrap<T>(call: Promise<SdkResult<T>>): Promise<T> {
     result = await call;
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new ApiError("Can't reach Stockpile right now. Check your connection.", 0);
+    throw new ApiError(
+      "Can't reach Stockpile right now. Check your connection.",
+      0,
+    );
   }
   const status = result.response?.status ?? 0;
-  if (result.error !== undefined || result.data === undefined || (status && status >= 400)) {
+  if (
+    result.error !== undefined ||
+    result.data === undefined ||
+    (status && status >= 400)
+  ) {
     throw new ApiError(errorMessage(result.error, status), status);
   }
   return result.data;
@@ -70,6 +96,13 @@ export async function fetchBags(): Promise<Bag[]> {
 export async function fetchBag(id: string): Promise<Bag> {
   const data = await unwrap(sdkGetBag({ path: { id } }));
   return data.bag;
+}
+
+export async function fetchBagHistory(
+  id: string,
+  range: HistoryRange,
+): Promise<BagHistory> {
+  return unwrap(sdkGetBagHistory({ path: { id }, query: { range } }));
 }
 
 export async function fetchMe(): Promise<Me> {
@@ -94,6 +127,10 @@ export async function unsaveBag(bagId: string): Promise<string[]> {
 
 export async function fetchPortfolio(): Promise<Portfolio> {
   return unwrap(sdkGetPortfolio());
+}
+
+export async function fetchActivity(cursor?: string | null, limit = 20): Promise<ActivityPage> {
+  return unwrap(sdkListActivity({ query: { limit, ...(cursor ? { cursor } : {}) } }));
 }
 
 export async function quoteTrade(body: TradeRequest): Promise<TradeQuote> {

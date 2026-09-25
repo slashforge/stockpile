@@ -33,7 +33,7 @@ export default function BagsScreen() {
         />
       ) : count === 0 ? (
         <HeroState
-          gradient="lilac"
+          gradient="rose"
           icon="layers"
           accents={["sparkles", "newspaper"]}
           title="No bags yet"

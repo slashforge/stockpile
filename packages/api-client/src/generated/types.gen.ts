@@ -19,11 +19,14 @@ export type Bag = {
     description: string;
     thesis: string;
     disclosure: string;
-    sourceType: 'editorial';
+    sourceType: 'editorial' | 'disclosure';
     issuer: Issuer;
     assetClass: AssetClass;
+    curator: Curator;
     risks: Array<string>;
     tradable: boolean;
+    tradableReason: string | null;
+    market: BagMarket;
     sources: Array<{
         title: string;
         url: string;
@@ -35,6 +38,26 @@ export type Issuer = 'xstocks' | 'prestocks';
 
 export type AssetClass = 'public-equity' | 'pre-ipo';
 
+export type Curator = {
+    kind: 'person' | 'aggregate' | 'editorial';
+    name: string;
+    description: string;
+};
+
+export type BagMarket = {
+    change24hPct: number | null;
+    change24hSource: Change24hSource;
+    premiumPct: number | null;
+    coverage: number;
+    worstLiquidityUsd: number | null;
+    worstLiquiditySymbol: string | null;
+    worstImpactPct: number | null;
+    worstImpactSymbol: string | null;
+    asOf: string;
+} | null;
+
+export type Change24hSource = 'snapshot' | 'jupiter' | null;
+
 export type BagAsset = {
     symbol: string;
     name: string;
@@ -45,6 +68,9 @@ export type BagAsset = {
     issuer: Issuer;
     assetClass: AssetClass;
     reference: IssuerReference;
+    market: AssetMarket;
+    liquidityTier: 'deep' | 'ok' | 'thin' | null;
+    evidence: Array<Evidence>;
     sourceUrl: string;
     iconUrl: string | null;
     iconSource: 'jupiter-token' | 'issuer-token' | 'underlying-brand' | null;
@@ -58,12 +84,136 @@ export type IssuerReference = {
     asOf: string;
 } | null;
 
+export type AssetMarket = {
+    usdPrice: number | null;
+    priceChange24hPct: number | null;
+    change24hSource: Change24hSource;
+    liquidityUsd: number | null;
+    organicScore: number | null;
+    organicScoreLabel: string | null;
+    holderCount: number | null;
+    volume24hUsd: number | null;
+    underlying: UnderlyingPrice;
+    premiumPct: number | null;
+    probe: QuoteProbe;
+    asOf: string;
+} | null;
+
+export type UnderlyingPrice = {
+    source: 'pyth' | 'prestocks' | 'jupiter-stock';
+    price: number;
+    asOf: string;
+} | null;
+
+export type QuoteProbe = {
+    sizeUsdc: number;
+    priceImpactPct: number;
+    asOf: string;
+} | null;
+
+export type Evidence = {
+    kind: 'disclosure';
+    member: string;
+    chamber: 'House' | 'Senate';
+    txnType: 'buy' | 'sell' | 'exchange';
+    txnDate: string;
+    disclosedDate: string;
+    amountRange: string;
+    amountMidUsd: number;
+    url: string;
+};
+
+export type BagSparklinesResponse = {
+    range: '1D';
+    interval: '1H';
+    source: ChartSource;
+    reason: ChartReason;
+    sparklines: {
+        [key: string]: Array<IndexPoint>;
+    };
+};
+
+export type ChartSource = 'tokens.xyz';
+
+export type ChartReason = 'unconfigured' | 'unresolved' | 'unavailable' | 'not_tradable' | 'insufficient_data' | null;
+
+export type IndexPoint = {
+    t: number;
+    value: number;
+};
+
 export type BagResponse = {
     bag: Bag;
 };
 
 export type _Error = {
     error: string;
+};
+
+export type BagChartResponse = {
+    bagId: string;
+    range: ChartRange;
+    interval: CandleInterval;
+    points: Array<IndexPoint>;
+    change: {
+        pct: number;
+    } | null;
+    legs: Array<ChartLeg>;
+    source: ChartSource;
+    reason: ChartReason;
+    asOf: string | null;
+};
+
+export type ChartRange = '1D' | '1W' | '1M' | 'ALL';
+
+export type CandleInterval = '1m' | '5m' | '15m' | '1H' | '4H' | '1D' | '1W';
+
+export type ChartLeg = {
+    mint: string | null;
+    symbol: string;
+    weight: number;
+    weightBps: number;
+    change: {
+        pct: number;
+    } | null;
+    ok: boolean;
+    reason: ChartReason;
+};
+
+export type BagHistoryResponse = {
+    bagId: string;
+    source: HistorySource;
+    range: HistoryRange;
+    interval: CandleInterval;
+    from: number;
+    to: number;
+    assets: Array<AssetSeries>;
+    bag: Array<{
+        t: number;
+        value: number;
+    }>;
+    changePct: number | null;
+    asOf: string | null;
+};
+
+export type HistorySource = 'tokens' | 'snapshot';
+
+export type HistoryRange = '24h' | '7d' | '30d' | '1y';
+
+export type AssetSeries = {
+    symbol: string;
+    mint: string | null;
+    weightBps: number;
+    candles: Array<Candle>;
+};
+
+export type Candle = {
+    t: number;
+    o: number;
+    h: number;
+    l: number;
+    c: number;
+    v: number | null;
 };
 
 export type StoriesResponse = {
@@ -74,7 +224,7 @@ export type StoriesResponse = {
 export type Story = {
     id: string;
     title: string;
-    format: 'article' | 'podcast';
+    format: 'article' | 'podcast' | 'disclosure';
     summary: string;
     publisher: string;
     sourceUrl: string;
@@ -92,6 +242,27 @@ export type StoryBagConnection = {
     relationship: 'direct' | 'inferred';
     context: 'supporting' | 'opposing' | 'neutral';
     explanation: string;
+};
+
+export type AssetChartResponse = {
+    mint: string;
+    symbol: string | null;
+    range: ChartRange;
+    interval: CandleInterval;
+    points: Array<PricePoint>;
+    candles: Array<Candle>;
+    change: {
+        abs: number;
+        pct: number;
+    } | null;
+    source: ChartSource;
+    reason: ChartReason;
+    asOf: string | null;
+};
+
+export type PricePoint = {
+    t: number;
+    close: number;
 };
 
 export type MeResponse = {
@@ -119,6 +290,8 @@ export type PortfolioResponse = {
     holdings: Array<Holding>;
     sol: Balance;
     usdc: Balance;
+    totalUsd: number | null;
+    unpricedCount: number;
     asOf: string | null;
     message: string | null;
 };
@@ -126,15 +299,57 @@ export type PortfolioResponse = {
 export type Holding = {
     mint: string;
     symbol: string | null;
+    name: string | null;
+    iconUrl: string | null;
     amount: string;
     decimals: number;
     uiAmount: string | null;
     program: 'token' | 'token-2022';
+    usdPrice: number | null;
+    usdValue: number | null;
+    bagIds: Array<string>;
 };
 
 export type Balance = {
     amount: string;
     decimals: number;
+    uiAmount: string;
+    usdPrice: number | null;
+    usdValue: number | null;
+} | null;
+
+export type ActivityResponse = {
+    status: 'live' | 'unavailable';
+    walletAddress: string | null;
+    items: Array<Activity>;
+    nextCursor: string | null;
+    asOf: string | null;
+    error: ActivityError;
+    message: string | null;
+};
+
+export type Activity = {
+    signature: string;
+    ts: string | null;
+    kind: 'swap' | 'transfer-in' | 'transfer-out' | 'other';
+    status: 'confirmed' | 'failed';
+    summary: string;
+    legs: Array<ActivityLeg>;
+    feeLamports: number;
+    bagId: string | null;
+    explorerUrl: string;
+};
+
+export type ActivityLeg = {
+    mint: string;
+    symbol: string | null;
+    amount: string;
+    direction: 'in' | 'out';
+};
+
+export type ActivityError = {
+    code: 'NO_WALLET' | 'PROVIDER_NOT_CONFIGURED' | 'PROVIDER_UNAVAILABLE' | 'INVALID_CURSOR';
+    message: string;
 } | null;
 
 export type QuoteResponse = {
@@ -226,6 +441,24 @@ export type ListBagsResponses = {
 
 export type ListBagsResponse = ListBagsResponses[keyof ListBagsResponses];
 
+export type GetBagSparklinesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        range?: '1D';
+    };
+    url: '/bags/sparklines';
+};
+
+export type GetBagSparklinesResponses = {
+    /**
+     * Last 24h hourly bag index (base 100) per bag for list mini charts; empty arrays when unavailable
+     */
+    200: BagSparklinesResponse;
+};
+
+export type GetBagSparklinesResponse = GetBagSparklinesResponses[keyof GetBagSparklinesResponses];
+
 export type GetBagData = {
     body?: never;
     path: {
@@ -253,6 +486,64 @@ export type GetBagResponses = {
 
 export type GetBagResponse = GetBagResponses[keyof GetBagResponses];
 
+export type GetBagChartData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        range?: ChartRange;
+    };
+    url: '/bags/{id}/chart';
+};
+
+export type GetBagChartErrors = {
+    /**
+     * Not found
+     */
+    404: _Error;
+};
+
+export type GetBagChartError = GetBagChartErrors[keyof GetBagChartErrors];
+
+export type GetBagChartResponses = {
+    /**
+     * Weight-normalised bag index from tokens.xyz candles (base 100); points empty with a reason when unavailable
+     */
+    200: BagChartResponse;
+};
+
+export type GetBagChartResponse = GetBagChartResponses[keyof GetBagChartResponses];
+
+export type GetBagHistoryData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        range?: HistoryRange;
+    };
+    url: '/bags/{id}/history';
+};
+
+export type GetBagHistoryErrors = {
+    /**
+     * Not found
+     */
+    404: _Error;
+};
+
+export type GetBagHistoryError = GetBagHistoryErrors[keyof GetBagHistoryErrors];
+
+export type GetBagHistoryResponses = {
+    /**
+     * Per-asset candles (tokens.xyz, or hourly snapshots as fallback) and a weighted bag index
+     */
+    200: BagHistoryResponse;
+};
+
+export type GetBagHistoryResponse = GetBagHistoryResponses[keyof GetBagHistoryResponses];
+
 export type ListBagStoriesData = {
     body?: never;
     path: {
@@ -261,7 +552,7 @@ export type ListBagStoriesData = {
     query?: {
         limit?: number;
         cursor?: string;
-        format?: 'article' | 'podcast';
+        format?: 'article' | 'podcast' | 'disclosure';
     };
     url: '/bags/{id}/stories';
 };
@@ -288,13 +579,42 @@ export type ListBagStoriesResponses = {
 
 export type ListBagStoriesResponse = ListBagStoriesResponses[keyof ListBagStoriesResponses];
 
+export type GetAssetChartData = {
+    body?: never;
+    path: {
+        mint: string;
+    };
+    query?: {
+        range?: ChartRange;
+    };
+    url: '/assets/{mint}/chart';
+};
+
+export type GetAssetChartErrors = {
+    /**
+     * Mint is not an allowlisted bag asset
+     */
+    404: _Error;
+};
+
+export type GetAssetChartError = GetAssetChartErrors[keyof GetAssetChartErrors];
+
+export type GetAssetChartResponses = {
+    /**
+     * Closes and candles for one allowlisted asset mint from tokens.xyz; points empty with a reason when unavailable
+     */
+    200: AssetChartResponse;
+};
+
+export type GetAssetChartResponse = GetAssetChartResponses[keyof GetAssetChartResponses];
+
 export type ListStoriesData = {
     body?: never;
     path?: never;
     query?: {
         limit?: number;
         cursor?: string;
-        format?: 'article' | 'podcast';
+        format?: 'article' | 'podcast' | 'disclosure';
     };
     url: '/stories';
 };
@@ -451,6 +771,38 @@ export type GetPortfolioResponses = {
 };
 
 export type GetPortfolioResponse = GetPortfolioResponses[keyof GetPortfolioResponses];
+
+export type ListActivityData = {
+    body?: never;
+    path?: never;
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/activity';
+};
+
+export type ListActivityErrors = {
+    /**
+     * Invalid cursor or limit
+     */
+    400: _Error;
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type ListActivityError = ListActivityErrors[keyof ListActivityErrors];
+
+export type ListActivityResponses = {
+    /**
+     * Parsed wallet history (newest first), or unavailable with a typed error
+     */
+    200: ActivityResponse;
+};
+
+export type ListActivityResponse = ListActivityResponses[keyof ListActivityResponses];
 
 export type QuoteBagTradeData = {
     body?: TradeRequest;

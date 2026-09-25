@@ -3,23 +3,27 @@ import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { safeIconUrl, tickerInitials } from "@/utils/token-icon";
+import { KnownTokenLogo, knownToken } from "./token-logos";
 import { T } from "./type";
 
 type Props = {
   symbol: string;
   iconUrl?: string | null;
+  /** Lets SOL / USDC resolve to the bundled marks even when the symbol is unexpected. */
+  mint?: string | null;
   size?: number;
   /** Ring colour, e.g. the asset's allocation colour. */
   ring?: string;
 };
 
 /**
- * Token logo with a cached remote image (memory + disk via expo-image) and a ticker
- * monogram fallback when the URL is missing, not HTTPS, or fails to load.
+ * Token logo: bundled marks for SOL / USDC, otherwise a cached remote image (memory + disk via
+ * expo-image) with a ticker monogram fallback when the URL is missing, not HTTPS, or fails to load.
  * Decorative: callers render the symbol as text for accessibility.
  */
-export function TokenAvatar({ symbol, iconUrl, size = 36, ring }: Props) {
+export function TokenAvatar({ symbol, iconUrl, mint, size = 36, ring }: Props) {
   const { theme } = useUnistyles();
+  const known = knownToken(symbol, mint);
   const url = safeIconUrl(iconUrl);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = !!url && failedUrl !== url;
@@ -35,7 +39,9 @@ export function TokenAvatar({ symbol, iconUrl, size = 36, ring }: Props) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {showImage ? (
+      {known ? (
+        <KnownTokenLogo token={known} size={size} />
+      ) : showImage ? (
         <Image
           source={{ uri: url }}
           style={{ width: size, height: size, borderRadius: radius }}

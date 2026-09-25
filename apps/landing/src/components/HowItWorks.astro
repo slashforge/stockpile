@@ -1,0 +1,51 @@
+---
+const steps = [
+  {
+    n: '01',
+    title: 'Swipe a story',
+    body: 'A vertical feed of real news, podcasts, and STOCK Act disclosures. Each one is mapped to the bag it touches, with a note on why.',
+    tone: 'bg-grad-blue',
+    icon: 'M4 6h16M4 12h16M4 18h10',
+  },
+  {
+    n: '02',
+    title: 'See the bag & evidence',
+    body: 'Holdings, weights, curator, and the source behind every position. Live 24h change, liquidity, and premium vs the underlying stock.',
+    tone: 'bg-grad-sky',
+    icon: 'M9 12l2 2 4-4m5.6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    n: '03',
+    title: 'Buy in one flow',
+    body: 'Fund with USDC, pick an amount, and approve the swaps from your embedded wallet. Non-custodial: Stockpile never holds your keys or submits for you.',
+    tone: 'bg-grad-mint',
+    icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+  },
+];
+---
+
+<section id="how" class="section">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="max-w-2xl mb-12 md:mb-16">
+      <p class="eyebrow mb-3">How it works</p>
+      <h2 class="text-4xl sm:text-5xl text-text text-balance">Three swipes from a headline to a holding.</h2>
+    </div>
+
+    <ol class="grid md:grid-cols-3 gap-4 md:gap-6">
+      {steps.map((s) => (
+        <li class="card squircle p-7 flex flex-col gap-5 hover-lift">
+          <div class="flex items-center justify-between">
+            <span class:list={['w-12 h-12 rounded-2xl squircle grid place-items-center text-white shadow-md', s.tone]}>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d={s.icon} /></svg>
+            </span>
+            <span class="font-mono text-sm text-text-muted">{s.n}</span>
+          </div>
+          <div>
+            <h3 class="text-2xl text-text">{s.title}</h3>
+            <p class="mt-2 text-text-subtle text-pretty">{s.body}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>

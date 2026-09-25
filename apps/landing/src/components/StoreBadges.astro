@@ -1,0 +1,42 @@
+---
+interface Props {
+  align?: 'start' | 'center';
+}
+const { align = 'center' } = Astro.props;
+---
+
+<div class:list={['flex flex-col sm:flex-row items-center gap-3', align === 'start' ? 'lg:justify-start justify-center' : 'justify-center']}>
+  <span class="store-badge squircle" aria-label="App Store: coming soon">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.365 12.77c-.02-2.18 1.78-3.23 1.86-3.28-1.02-1.49-2.6-1.7-3.16-1.72-1.35-.14-2.63.79-3.31.79-.68 0-1.74-.77-2.86-.75-1.47.02-2.83.86-3.59 2.17-1.53 2.65-.39 6.58 1.1 8.73.73 1.05 1.6 2.24 2.74 2.2 1.1-.05 1.52-.71 2.85-.71 1.33 0 1.7.71 2.87.69 1.19-.02 1.94-1.07 2.66-2.13.84-1.22 1.19-2.4 1.21-2.46-.03-.01-2.32-.89-2.34-3.53zM14.2 6.35c.6-.73 1.01-1.75.9-2.76-.87.04-1.92.58-2.54 1.31-.56.65-1.05 1.69-.92 2.68.97.08 1.96-.5 2.56-1.23z"/>
+    </svg>
+    <span class="text-left leading-tight">
+      <span class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Coming soon</span>
+      <span class="block text-base font-semibold">App Store</span>
+    </span>
+  </span>
+  <span class="store-badge squircle" aria-label="Google Play: coming soon">
+    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3.6 2.3 13.2 12l-9.6 9.7c-.3-.2-.5-.6-.5-1V3.3c0-.4.2-.8.5-1zm11 8.3L5.7 1.7l10.6 6.1-1.7 2.8zm0 2.8 1.7 2.8L5.7 22.3l8.9-8.9zm5.7-2.9c.7.4.7 1.6 0 2l-2.5 1.5-2-2.5 2-2.5 2.5 1.5z"/>
+    </svg>
+    <span class="text-left leading-tight">
+      <span class="block text-[10px] font-semibold uppercase tracking-wider opacity-70">Coming soon</span>
+      <span class="block text-base font-semibold">Google Play</span>
+    </span>
+  </span>
+</div>
+
+<style>
+  .store-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 168px;
+    padding: 10px 18px;
+    border-radius: 14px;
+    background: #10131f;
+    color: #fff;
+    cursor: default;
+    box-shadow: 0 6px 18px rgba(16, 19, 31, 0.18);
+  }
+</style>

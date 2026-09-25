@@ -16,7 +16,13 @@ export type StockpileAuth = {
    * Asks the embedded wallet to sign and submit one base64 transaction.
    * Null when no wallet is available.
    */
-  signAndSendTransaction: ((base64Transaction: string) => Promise<SubmittedTransaction>) | null;
+  signAndSendTransaction:
+    ((base64Transaction: string) => Promise<SubmittedTransaction>) | null;
+  /**
+   * Opens Privy's card onramp to buy USDC into the embedded wallet. Null unless a card provider
+   * is enabled in the Privy dashboard and the wallet exists, so callers can hide the button.
+   */
+  fundWithCard: (() => Promise<void>) | null;
 };
 
 export const browseOnlyAuth: StockpileAuth = {
@@ -27,6 +33,7 @@ export const browseOnlyAuth: StockpileAuth = {
   walletAddress: null,
   logout: async () => {},
   signAndSendTransaction: null,
+  fundWithCard: null,
 };
 
 export const AuthContext = createContext<StockpileAuth>(browseOnlyAuth);

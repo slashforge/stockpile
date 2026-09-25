@@ -3,139 +3,140 @@
 @tailwind utilities;
 
 @layer base {
-  @font-face {
-    font-family: 'Inter';
-    src: url('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2') format('woff2');
-    font-weight: 100 900;
-    font-style: normal;
-    font-display: swap;
-  }
-
-  @font-face {
-    font-family: 'Berkeley Mono';
-    src: url('https://fonts.cdnfonts.com/s/88491/BerkeleyMono-Regular.woff') format('woff');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
-
   html {
     scroll-behavior: smooth;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #FFFFFC;
-    color: #202329;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      system-ui, sans-serif;
+    background-color: #f5f6fb;
+    color: #10131f;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
   }
 
   ::selection {
-    background-color: rgba(66, 133, 244, 0.2);
-    color: #202329;
+    background-color: rgba(37, 99, 235, 0.18);
+    color: #10131f;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+
+  :focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
-  /* Primary button */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3
-           bg-brand text-white font-medium rounded-lg
+           bg-brand text-white font-semibold rounded-xl
            transition-all duration-200 ease-out
            hover:bg-brand-hover active:scale-[0.98];
-    box-shadow: 0 2px 8px rgba(66, 133, 244, 0.25);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 4px 16px rgba(66, 133, 244, 0.35);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.36);
   }
 
-  /* Secondary button */
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3
-           bg-transparent text-text font-medium rounded-lg
-           border border-border transition-all duration-200 ease-out
-           hover:bg-surface-subtle hover:border-border-strong active:scale-[0.98];
+           bg-white text-text font-semibold rounded-xl
+           border border-border-strong transition-all duration-200 ease-out
+           hover:bg-surface-subtle active:scale-[0.98];
   }
 
-  /* Ghost button */
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2
-           bg-transparent text-text-subtle font-medium rounded-lg
+           bg-transparent text-text-subtle font-medium rounded-xl
            transition-all duration-200 ease-out
            hover:bg-surface-subtle hover:text-text;
   }
 
-  /* Section spacing */
   .section {
     @apply py-20 md:py-28;
   }
 
-  /* Card */
   .card {
-    @apply bg-white border border-border-subtle rounded-xl p-6
+    @apply bg-white border border-border rounded-2xl p-6
            transition-all duration-200 ease-out;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 10px rgba(16, 19, 31, 0.04);
   }
 
   .card:hover {
-    @apply border-border;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    @apply border-border-strong;
+    box-shadow: 0 8px 24px rgba(16, 19, 31, 0.08);
   }
 
-  /* Input */
   .input {
-    @apply w-full px-4 py-3 text-base bg-white border border-border-subtle
-           rounded-lg transition-all duration-200
+    @apply w-full px-4 py-3 text-base bg-white border border-border
+           rounded-xl transition-all duration-200
            placeholder:text-text-muted
            focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20;
   }
 
-  /* Badge */
   .badge {
-    @apply inline-flex items-center px-3 py-1 text-sm font-medium
+    @apply inline-flex items-center gap-1.5 px-3 py-1 text-sm font-semibold
            rounded-full bg-surface-subtle text-text-subtle;
   }
 
   .badge-brand {
-    @apply bg-brand/10 text-brand;
+    @apply bg-brand-soft text-brand;
   }
 
-  /* Gradient text */
+  .badge-mint {
+    @apply bg-mint-soft text-positive;
+  }
+
+  .badge-tertiary {
+    @apply bg-tertiary-soft text-tertiary;
+  }
+
+  .badge-coral {
+    @apply bg-coral-soft text-[#C0392B];
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.14em] text-text-muted;
+  }
+
   .gradient-text {
-    @apply bg-gradient-to-r from-brand to-secondary bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-brand via-sky to-mint bg-clip-text text-transparent;
   }
 
-  /* Scroll animations */
-  .scroll-fade {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-  }
-
-  .scroll-fade.visible {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Animation delays */
-  .delay-100 { transition-delay: 0.1s; }
-  .delay-200 { transition-delay: 0.2s; }
-  .delay-300 { transition-delay: 0.3s; }
-  .delay-400 { transition-delay: 0.4s; }
-  .delay-500 { transition-delay: 0.5s; }
-
-  /* Link */
   .link {
-    @apply text-brand hover:text-brand-hover transition-colors duration-200;
+    @apply text-brand hover:text-brand-hover transition-colors duration-200 underline underline-offset-4 decoration-brand/30 hover:decoration-brand;
+  }
+
+  /* Continuous ("squircle") corners where supported; falls back to border-radius. */
+  .squircle {
+    corner-shape: superellipse(1.6);
   }
 }
 
@@ -144,16 +145,28 @@
     text-wrap: balance;
   }
 
-  .font-mono {
-    font-family: 'Berkeley Mono', 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  .text-pretty {
+    text-wrap: pretty;
   }
 
-  /* Subtle hover lift */
+  .font-mono {
+    font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
   .hover-lift {
     @apply transition-transform duration-300;
   }
 
   .hover-lift:hover {
     @apply -translate-y-1;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

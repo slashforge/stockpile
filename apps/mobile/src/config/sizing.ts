@@ -50,6 +50,41 @@ export function rounded(value: number) {
   return { borderRadius: value, borderCurve: "continuous" } as const;
 }
 
+/**
+ * Density tokens for the Stockpile screens. Every screen, card, row, chip and sheet spaces itself
+ * from these, so the overall density can be tuned in one place. Tap targets stay >= 44.
+ */
+export const density = {
+  /** Screen horizontal gutter. */
+  gutter: 16,
+  /** Gap between stacked blocks inside a screen (cards in a list, card to card). */
+  stack: 12,
+  /** Total space between two sections. */
+  section: 20,
+  /** Section header to its card. */
+  sectionHeader: 8,
+  /** Inner padding of standard cards. */
+  card: 16,
+  /** Inner padding of gradient hero cards (wallet, profile). */
+  hero: 20,
+  /** Vertical padding of list rows inside cards (horizontal uses `card`). */
+  rowY: 12,
+  /** Gap between a row's leading icon/avatar, text and trailing column. */
+  rowGap: 10,
+  /** Gap between items in a list or grid, and between small inline items. */
+  item: 8,
+  /** Chips (small inline labels). */
+  chipX: 7,
+  chipY: 2,
+  /** Pills (status/meta pills, overlay pills). */
+  pillX: 9,
+  pillY: 4,
+  /** Bottom sheet content. */
+  sheetTop: 4,
+  sheetBottom: 12,
+  sheetGap: 10,
+} as const;
+
 export const typography = {
   size: {
     xs: 10,

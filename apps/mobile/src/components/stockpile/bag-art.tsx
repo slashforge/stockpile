@@ -15,11 +15,11 @@ const THEMES: { pattern: RegExp; icon: IconName; gradient: GradientName }[] = [
   { pattern: /\b(ai|compute|chip|semi|hardware|infrastructure)\b/i, icon: "hardware-chip", gradient: "blue" },
   { pattern: /\b(consumer|commerce|retail|shopping|entertainment)\b/i, icon: "bag-handle", gradient: "coral" },
   { pattern: /\b(energy|power|utilit|grid|solar)\b/i, icon: "flash", gradient: "mint" },
-  { pattern: /\b(health|bio|pharma|medic)\b/i, icon: "medkit", gradient: "lilac" },
+  { pattern: /\b(health|bio|pharma|medic)\b/i, icon: "medkit", gradient: "rose" },
   { pattern: /\b(financ|bank|payment|fintech)\b/i, icon: "card", gradient: "sky" },
-  { pattern: /\b(megacap|platform|builder|software|cloud|computing)\b/i, icon: "layers", gradient: "lilac" },
+  { pattern: /\b(megacap|platform|builder|software|cloud|computing)\b/i, icon: "layers", gradient: "rose" },
 ];
-const FALLBACK: GradientName[] = ["blue", "mint", "coral", "lilac", "sky"];
+const FALLBACK: GradientName[] = ["blue", "mint", "coral", "rose", "sky"];
 
 function hash(value: string) {
   let h = 0;
@@ -59,30 +59,43 @@ export function LogoCluster({
   assets,
   size = 56,
   limit = 4,
+  flat = false,
 }: {
   assets: Bag["assets"];
   size?: number;
   limit?: number;
+  /** No drop shadow: for small clusters sitting on flat canvas (headers, list rows). */
+  flat?: boolean;
 }) {
+  const { theme } = useUnistyles();
   const shown = assets.slice(0, limit);
   const rest = assets.length - shown.length;
   const overlap = size * 0.28;
+  // Ring and shadow scale with the avatar so 16px clusters don't wear a 3px ring and a 8px blur.
+  const ring = Math.min(3, Math.max(1.5, size * 0.1));
+  const item = [
+    styles.clusterItem,
+    { borderWidth: ring, borderRadius: size },
+    flat
+      ? styles.clusterFlat
+      : {
+          shadowRadius: Math.max(3, size * 0.15),
+          shadowOffset: { width: 0, height: Math.max(1, size * 0.07) },
+        },
+  ];
   return (
     <View style={styles.cluster} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {shown.map((asset, index) => (
         <View
           key={`${asset.symbol}-${index}`}
-          style={[
-            styles.clusterItem,
-            { marginLeft: index === 0 ? 0 : -overlap, zIndex: shown.length - index, borderRadius: size },
-          ]}
+          style={[item, { marginLeft: index === 0 ? 0 : -overlap, zIndex: shown.length - index }]}
         >
           <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} size={size} />
         </View>
       ))}
       {rest > 0 ? (
-        <View style={[styles.clusterItem, styles.more, { marginLeft: -overlap, width: size + 6, height: size + 6, borderRadius: size }]}>
-          <Text style={[styles.moreText, { fontSize: Math.max(11, size * 0.3) }]} maxFontSizeMultiplier={1}>
+        <View style={[item, styles.more, { marginLeft: -overlap, width: size + ring * 2, height: size + ring * 2 }]}>
+          <Text style={[styles.moreText, { color: theme.ds.accent, fontSize: Math.max(11, size * 0.3) }]} maxFontSizeMultiplier={1}>
             +{rest}
           </Text>
         </View>
@@ -113,14 +126,25 @@ export function BagArt({
   const { theme } = useUnistyles();
   const { icon, gradient } = bagTheme(bag);
   const colors = theme.gradients[gradient];
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  // With logos on top, `height` is a minimum: the overlay grows the card instead of sliding under the logos.
+  const sizing = logosOnTop
+    ? { minHeight: height, paddingTop: CLUSTER_TOP + logoSize + 16 }
+    : { height };
   return (
     <View
-      style={[styles.art, { height }, style]}
-      onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width))}
+      style={[styles.art, sizing, style]}
+      onLayout={(event) =>
+        setSize({
+          width: Math.round(event.nativeEvent.layout.width),
+          height: Math.round(event.nativeEvent.layout.height),
+        })
+      }
     >
       <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      {width > 0 ? <Motif seed={hash(bag.id)} width={width} height={height} /> : null}
+      {size.width > 0 ? (
+        <Motif seed={hash(bag.id)} width={size.width} height={Math.max(height, size.height)} />
+      ) : null}
       {showThemeIcon ? (
         <View style={styles.themeIcon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Ionicons name={icon} size={16} color="#FFFFFF" />
@@ -143,6 +167,8 @@ export function BagArt({
   );
 }
 
+const CLUSTER_TOP = 18;
+
 const styles = StyleSheet.create({
   art: { overflow: "hidden", justifyContent: "flex-end" },
   themeIcon: {
@@ -157,18 +183,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.22)",
   },
   clusterWrap: { paddingHorizontal: 18, paddingBottom: 16 },
-  clusterTop: { position: "absolute", top: 18, left: 18 },
+  clusterTop: { position: "absolute", top: CLUSTER_TOP, left: 18 },
   cluster: { flexDirection: "row", alignItems: "center" },
   clusterItem: {
-    borderWidth: 3,
     borderColor: "#FFFFFF",
     backgroundColor: "#FFFFFF",
     shadowColor: "#10131F",
     shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  clusterFlat: { shadowOpacity: 0, elevation: 0 },
   more: { alignItems: "center", justifyContent: "center", backgroundColor: "#E9EDFF" },
-  moreText: { color: "#3A5BFF", fontWeight: "800" },
+  moreText: { fontWeight: "800" },
 });

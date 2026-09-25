@@ -55,7 +55,8 @@
           "sourceType": {
             "type": "string",
             "enum": [
-              "editorial"
+              "editorial",
+              "disclosure"
             ]
           },
           "issuer": {
@@ -63,6 +64,9 @@
           },
           "assetClass": {
             "$ref": "#/components/schemas/AssetClass"
+          },
+          "curator": {
+            "$ref": "#/components/schemas/Curator"
           },
           "risks": {
             "type": "array",
@@ -72,6 +76,15 @@
           },
           "tradable": {
             "type": "boolean"
+          },
+          "tradableReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "market": {
+            "$ref": "#/components/schemas/BagMarket"
           },
           "sources": {
             "type": "array",
@@ -108,8 +121,11 @@
           "sourceType",
           "issuer",
           "assetClass",
+          "curator",
           "risks",
           "tradable",
+          "tradableReason",
+          "market",
           "sources",
           "assets"
         ]
@@ -126,6 +142,105 @@
         "enum": [
           "public-equity",
           "pre-ipo"
+        ]
+      },
+      "Curator": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "person",
+              "aggregate",
+              "editorial"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "name",
+          "description"
+        ]
+      },
+      "BagMarket": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "change24hPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "change24hSource": {
+            "$ref": "#/components/schemas/Change24hSource"
+          },
+          "premiumPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "coverage": {
+            "type": "number"
+          },
+          "worstLiquidityUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "worstLiquiditySymbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "worstImpactPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "worstImpactSymbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asOf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "change24hPct",
+          "change24hSource",
+          "premiumPct",
+          "coverage",
+          "worstLiquidityUsd",
+          "worstLiquiditySymbol",
+          "worstImpactPct",
+          "worstImpactSymbol",
+          "asOf"
+        ]
+      },
+      "Change24hSource": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "snapshot",
+          "jupiter",
+          null
         ]
       },
       "BagAsset": {
@@ -163,6 +278,27 @@
           },
           "reference": {
             "$ref": "#/components/schemas/IssuerReference"
+          },
+          "market": {
+            "$ref": "#/components/schemas/AssetMarket"
+          },
+          "liquidityTier": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "deep",
+              "ok",
+              "thin",
+              null
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
           },
           "sourceUrl": {
             "type": "string"
@@ -203,6 +339,9 @@
           "issuer",
           "assetClass",
           "reference",
+          "market",
+          "liquidityTier",
+          "evidence",
           "sourceUrl",
           "iconUrl",
           "iconSource",
@@ -235,6 +374,266 @@
           "asOf"
         ]
       },
+      "AssetMarket": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "usdPrice": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "priceChange24hPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "change24hSource": {
+            "$ref": "#/components/schemas/Change24hSource"
+          },
+          "liquidityUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "organicScore": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "organicScoreLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holderCount": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "volume24hUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "underlying": {
+            "$ref": "#/components/schemas/UnderlyingPrice"
+          },
+          "premiumPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "probe": {
+            "$ref": "#/components/schemas/QuoteProbe"
+          },
+          "asOf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "usdPrice",
+          "priceChange24hPct",
+          "change24hSource",
+          "liquidityUsd",
+          "organicScore",
+          "organicScoreLabel",
+          "holderCount",
+          "volume24hUsd",
+          "underlying",
+          "premiumPct",
+          "probe",
+          "asOf"
+        ]
+      },
+      "UnderlyingPrice": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "pyth",
+              "prestocks",
+              "jupiter-stock"
+            ]
+          },
+          "price": {
+            "type": "number"
+          },
+          "asOf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "price",
+          "asOf"
+        ]
+      },
+      "QuoteProbe": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "sizeUsdc": {
+            "type": "number"
+          },
+          "priceImpactPct": {
+            "type": "number"
+          },
+          "asOf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sizeUsdc",
+          "priceImpactPct",
+          "asOf"
+        ]
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "disclosure"
+            ]
+          },
+          "member": {
+            "type": "string"
+          },
+          "chamber": {
+            "type": "string",
+            "enum": [
+              "House",
+              "Senate"
+            ]
+          },
+          "txnType": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell",
+              "exchange"
+            ]
+          },
+          "txnDate": {
+            "type": "string"
+          },
+          "disclosedDate": {
+            "type": "string"
+          },
+          "amountRange": {
+            "type": "string"
+          },
+          "amountMidUsd": {
+            "type": "number"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "member",
+          "chamber",
+          "txnType",
+          "txnDate",
+          "disclosedDate",
+          "amountRange",
+          "amountMidUsd",
+          "url"
+        ]
+      },
+      "BagSparklinesResponse": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "1D"
+            ]
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "1H"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/ChartSource"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ChartReason"
+          },
+          "sparklines": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/IndexPoint"
+              }
+            }
+          }
+        },
+        "required": [
+          "range",
+          "interval",
+          "source",
+          "reason",
+          "sparklines"
+        ]
+      },
+      "ChartSource": {
+        "type": "string",
+        "enum": [
+          "tokens.xyz"
+        ]
+      },
+      "ChartReason": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "unconfigured",
+          "unresolved",
+          "unavailable",
+          "not_tradable",
+          "insufficient_data",
+          null
+        ]
+      },
+      "IndexPoint": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "t",
+          "value"
+        ]
+      },
       "BagResponse": {
         "type": "object",
         "properties": {
@@ -255,6 +654,289 @@
         },
         "required": [
           "error"
+        ]
+      },
+      "BagChartResponse": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/ChartRange"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/CandleInterval"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexPoint"
+            }
+          },
+          "change": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pct": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pct"
+            ]
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChartLeg"
+            }
+          },
+          "source": {
+            "$ref": "#/components/schemas/ChartSource"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ChartReason"
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "bagId",
+          "range",
+          "interval",
+          "points",
+          "change",
+          "legs",
+          "source",
+          "reason",
+          "asOf"
+        ]
+      },
+      "ChartRange": {
+        "type": "string",
+        "enum": [
+          "1D",
+          "1W",
+          "1M",
+          "ALL"
+        ]
+      },
+      "CandleInterval": {
+        "type": "string",
+        "enum": [
+          "1m",
+          "5m",
+          "15m",
+          "1H",
+          "4H",
+          "1D",
+          "1W"
+        ]
+      },
+      "ChartLeg": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "weightBps": {
+            "type": "number"
+          },
+          "change": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pct": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "pct"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ChartReason"
+          }
+        },
+        "required": [
+          "mint",
+          "symbol",
+          "weight",
+          "weightBps",
+          "change",
+          "ok",
+          "reason"
+        ]
+      },
+      "BagHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/HistorySource"
+          },
+          "range": {
+            "$ref": "#/components/schemas/HistoryRange"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/CandleInterval"
+          },
+          "from": {
+            "type": "number"
+          },
+          "to": {
+            "type": "number"
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetSeries"
+            }
+          },
+          "bag": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "number"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "t",
+                "value"
+              ]
+            }
+          },
+          "changePct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "bagId",
+          "source",
+          "range",
+          "interval",
+          "from",
+          "to",
+          "assets",
+          "bag",
+          "changePct",
+          "asOf"
+        ]
+      },
+      "HistorySource": {
+        "type": "string",
+        "enum": [
+          "tokens",
+          "snapshot"
+        ]
+      },
+      "HistoryRange": {
+        "type": "string",
+        "enum": [
+          "24h",
+          "7d",
+          "30d",
+          "1y"
+        ]
+      },
+      "AssetSeries": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "mint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "weightBps": {
+            "type": "number"
+          },
+          "candles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            }
+          }
+        },
+        "required": [
+          "symbol",
+          "mint",
+          "weightBps",
+          "candles"
+        ]
+      },
+      "Candle": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number"
+          },
+          "o": {
+            "type": "number"
+          },
+          "h": {
+            "type": "number"
+          },
+          "l": {
+            "type": "number"
+          },
+          "c": {
+            "type": "number"
+          },
+          "v": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "t",
+          "o",
+          "h",
+          "l",
+          "c",
+          "v"
         ]
       },
       "StoriesResponse": {
@@ -291,7 +973,8 @@
             "type": "string",
             "enum": [
               "article",
-              "podcast"
+              "podcast",
+              "disclosure"
             ]
           },
           "summary": {
@@ -392,6 +1075,95 @@
           "explanation"
         ]
       },
+      "AssetChartResponse": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/ChartRange"
+          },
+          "interval": {
+            "$ref": "#/components/schemas/CandleInterval"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          },
+          "candles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Candle"
+            }
+          },
+          "change": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "abs": {
+                "type": "number"
+              },
+              "pct": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "abs",
+              "pct"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/ChartSource"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ChartReason"
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mint",
+          "symbol",
+          "range",
+          "interval",
+          "points",
+          "candles",
+          "change",
+          "source",
+          "reason",
+          "asOf"
+        ]
+      },
+      "PricePoint": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number"
+          },
+          "close": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "t",
+          "close"
+        ]
+      },
       "MeResponse": {
         "type": "object",
         "properties": {
@@ -485,6 +1257,15 @@
           "usdc": {
             "$ref": "#/components/schemas/Balance"
           },
+          "totalUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unpricedCount": {
+            "type": "number"
+          },
           "asOf": {
             "type": [
               "string",
@@ -504,6 +1285,8 @@
           "holdings",
           "sol",
           "usdc",
+          "totalUsd",
+          "unpricedCount",
           "asOf",
           "message"
         ]
@@ -515,6 +1298,18 @@
             "type": "string"
           },
           "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iconUrl": {
             "type": [
               "string",
               "null"
@@ -538,15 +1333,38 @@
               "token",
               "token-2022"
             ]
+          },
+          "usdPrice": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "usdValue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "bagIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "mint",
           "symbol",
+          "name",
+          "iconUrl",
           "amount",
           "decimals",
           "uiAmount",
-          "program"
+          "program",
+          "usdPrice",
+          "usdValue",
+          "bagIds"
         ]
       },
       "Balance": {
@@ -560,11 +1378,199 @@
           },
           "decimals": {
             "type": "number"
+          },
+          "uiAmount": {
+            "type": "string"
+          },
+          "usdPrice": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "usdValue": {
+            "type": [
+              "number",
+              "null"
+            ]
           }
         },
         "required": [
           "amount",
-          "decimals"
+          "decimals",
+          "uiAmount",
+          "usdPrice",
+          "usdValue"
+        ]
+      },
+      "ActivityResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "unavailable"
+            ]
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "$ref": "#/components/schemas/ActivityError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "walletAddress",
+          "items",
+          "nextCursor",
+          "asOf",
+          "error",
+          "message"
+        ]
+      },
+      "Activity": {
+        "type": "object",
+        "properties": {
+          "signature": {
+            "type": "string"
+          },
+          "ts": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "swap",
+              "transfer-in",
+              "transfer-out",
+              "other"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "failed"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityLeg"
+            }
+          },
+          "feeLamports": {
+            "type": "number"
+          },
+          "bagId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "explorerUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "signature",
+          "ts",
+          "kind",
+          "status",
+          "summary",
+          "legs",
+          "feeLamports",
+          "bagId",
+          "explorerUrl"
+        ]
+      },
+      "ActivityLeg": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amount": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out"
+            ]
+          }
+        },
+        "required": [
+          "mint",
+          "symbol",
+          "amount",
+          "direction"
+        ]
+      },
+      "ActivityError": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NO_WALLET",
+              "PROVIDER_NOT_CONFIGURED",
+              "PROVIDER_UNAVAILABLE",
+              "INVALID_CURSOR"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
         ]
       },
       "QuoteResponse": {
@@ -879,6 +1885,40 @@
         }
       }
     },
+    "/bags/sparklines": {
+      "get": {
+        "operationId": "getBagSparklines",
+        "tags": [
+          "bags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1D"
+              ],
+              "default": "1D"
+            },
+            "required": false,
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Last 24h hourly bag index (base 100) per bag for list mini charts; empty arrays when unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagSparklinesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/bags/{id}": {
       "get": {
         "operationId": "getBag",
@@ -902,6 +1942,102 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BagResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bags/{id}/chart": {
+      "get": {
+        "operationId": "getBagChart",
+        "tags": [
+          "bags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/ChartRange"
+            },
+            "required": false,
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weight-normalised bag index from tokens.xyz candles (base 100); points empty with a reason when unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagChartResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bags/{id}/history": {
+      "get": {
+        "operationId": "getBagHistory",
+        "tags": [
+          "bags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/HistoryRange"
+            },
+            "required": false,
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-asset candles (tokens.xyz, or hourly snapshots as fallback) and a weighted bag index",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagHistoryResponse"
                 }
               }
             }
@@ -958,7 +2094,8 @@
               "type": "string",
               "enum": [
                 "article",
-                "podcast"
+                "podcast",
+                "disclosure"
               ]
             },
             "required": false,
@@ -989,6 +2126,55 @@
           },
           "404": {
             "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assets/{mint}/chart": {
+      "get": {
+        "operationId": "getAssetChart",
+        "tags": [
+          "bags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            },
+            "required": true,
+            "name": "mint",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/ChartRange"
+            },
+            "required": false,
+            "name": "range",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closes and candles for one allowlisted asset mint from tokens.xyz; points empty with a reason when unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetChartResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mint is not an allowlisted bag asset",
             "content": {
               "application/json": {
                 "schema": {
@@ -1031,7 +2217,8 @@
               "type": "string",
               "enum": [
                 "article",
-                "podcast"
+                "podcast",
+                "disclosure"
               ]
             },
             "required": false,
@@ -1233,6 +2420,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PortfolioResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "operationId": "listActivity",
+        "tags": [
+          "account"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,12}:\\d{1,6}$"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Parsed wallet history (newest first), or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor or limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

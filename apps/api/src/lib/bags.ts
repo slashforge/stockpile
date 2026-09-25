@@ -2,14 +2,19 @@ import { assetIcon } from "./token-icons";
 import { issuerAsset } from "./issuer-assets";
 import { PRESTOCKS_DISCLAIMER, preStock, preStocksDirectory, verifyPreStock, type PreStock } from "./prestocks";
 import { base58Mint } from "./constants";
+import { assetMarket, bagMarket, liquidityTier, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
+import { congressConsensus, loadDisclosures, pelosiTracker, tickerToSymbol, type Evidence, type TrackerAsset } from "./congress";
 
 export type Issuer = "xstocks" | "prestocks";
 export type AssetClass = "public-equity" | "pre-ipo";
 export type BagSource = { title: string; url: string };
-export type BagAssetDefinition = { symbol: string; name: string; weightBps: number; sourceUrl: string };
+export type BagAssetDefinition = { symbol: string; name: string; weightBps: number; sourceUrl: string; underlyingTicker?: string; evidence?: Evidence[] };
+export type Curator = { kind: "person" | "aggregate" | "editorial"; name: string; description: string };
 export type Bag = {
   id: string; title: string; subtitle: string; description: string; thesis: string; disclosure: string;
-  sourceType: "editorial"; issuer: Issuer; assetClass: AssetClass; risks: string[]; sources: BagSource[]; assets: BagAssetDefinition[];
+  sourceType: "editorial" | "disclosure"; issuer: Issuer; assetClass: AssetClass; curator: Curator; risks: string[]; sources: BagSource[]; assets: BagAssetDefinition[];
+  /** Data-driven bags compute assets at request time from persisted disclosures; `minAssets` gates tradability. */
+  tracker?: { kind: "pelosi" | "consensus"; minAssets: number };
 };
 export type Reference = { markPrice: number; tokenPrice: number; impliedValuation: number; asOf: string };
 export type ResolvedAsset = { mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: Issuer; assetClass: AssetClass; reference: Reference | null; issuerIconUrl: string | null; issuerMint: string | null };
@@ -35,46 +40,58 @@ const prestocksRisks = [
   "Editorial bag composition and weights are Stockpile's own inference, not issuer views or recommendations.",
 ];
 const product = (slug: string) => `https://prestocks.com/${slug}`;
+const editorialCurator: Curator = { kind: "editorial", name: "Stockpile Editorial", description: "Hand-picked by the Stockpile team from issuer product directories; weights are editorial, not recommendations." };
+const disclosureDisclosure = "Built from STOCK Act periodic transaction reports (public House Clerk / Senate eFD filings via CongressInvests). These are disclosed trades, reported 30-45 days after the transaction, in dollar ranges rather than exact amounts, and often made by a spouse or dependent. This is not a live portfolio, not an endorsement by any member of Congress, and not investment advice. Assets are xStocks tokens tracking the disclosed tickers; xStocks restrictions and risks apply.";
+const disclosureRisks = [
+  "Disclosures lag the actual trade by 30-45 days (STOCK Act deadline), so the bag reflects past filings, not current positions.",
+  "Filings report dollar ranges, not exact amounts; weights use range midpoints and can be dominated by a single large filing.",
+  "Reported trades frequently belong to a spouse or dependent child, and may include options rather than shares.",
+  "Members are not affiliated with Stockpile and do not endorse this bag; filings are public records used under House Clerk usage terms.",
+  ...xstocksRisks.slice(0, 3),
+];
+const clerk = { title: "House Clerk financial disclosures (PTR search)", url: "https://disclosures-clerk.house.gov/FinancialDisclosure" };
+const efd = { title: "Senate electronic financial disclosures (eFD)", url: "https://efdsearch.senate.gov/search/" };
+const congressInvests = { title: "CongressInvests API (normalised STOCK Act filings)", url: "https://congressinvests.com" };
 
 export const bags: Bag[] = [
   {
     id: "megacap-builders", title: "Megacap Builders", subtitle: "Platforms behind everyday computing",
     description: "An editorial look at large technology companies represented by xStocks tokens.",
     thesis: "Stockpile editorial inference: these companies span devices, software, and compute infrastructure. Inclusion and weights are not supplied by the issuer.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", risks: xstocksRisks, sources: [xstocksSource],
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
     assets: [
-      { symbol: "AAPLx", name: "Apple xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "MSFTx", name: "Microsoft xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "NVDAx", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: xstocks },
+      { symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: xstocks },
+      { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: xstocks },
+      { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: xstocks },
     ],
   },
   {
     id: "ai-infrastructure", title: "AI Infrastructure", subtitle: "Hardware, platforms, and compute",
     description: "A thematic editorial bag of tokenized technology exposures.",
     thesis: "Stockpile editorial inference: hardware and platform companies may be exposed to demand for AI infrastructure. This is not an issuer view.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", risks: xstocksRisks, sources: [xstocksSource],
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
     assets: [
-      { symbol: "NVDAx", name: "NVIDIA xStock", weightBps: 4000, sourceUrl: xstocks },
-      { symbol: "AMDx", name: "AMD xStock", weightBps: 3000, sourceUrl: xstocks },
-      { symbol: "GOOGLx", name: "Alphabet xStock", weightBps: 3000, sourceUrl: xstocks },
+      { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 4000, sourceUrl: xstocks },
+      { symbol: "AMDx", underlyingTicker: "AMD", name: "AMD xStock", weightBps: 3000, sourceUrl: xstocks },
+      { symbol: "GOOGLx", underlyingTicker: "GOOGL", name: "Alphabet xStock", weightBps: 3000, sourceUrl: xstocks },
     ],
   },
   {
     id: "consumer-frontiers", title: "Consumer Frontiers", subtitle: "Commerce, mobility, and entertainment",
     description: "A cross-sector editorial selection of tokenized consumer companies.",
     thesis: "Stockpile editorial inference: these companies serve different facets of consumer demand. Bag composition and weights are our own, not sourced financial recommendations.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", risks: xstocksRisks, sources: [xstocksSource],
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
     assets: [
-      { symbol: "AMZNx", name: "Amazon xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "TSLAx", name: "Tesla xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "NFLXx", name: "Netflix xStock", weightBps: 3000, sourceUrl: xstocks },
+      { symbol: "AMZNx", underlyingTicker: "AMZN", name: "Amazon xStock", weightBps: 3500, sourceUrl: xstocks },
+      { symbol: "TSLAx", underlyingTicker: "TSLA", name: "Tesla xStock", weightBps: 3500, sourceUrl: xstocks },
+      { symbol: "NFLXx", underlyingTicker: "NFLX", name: "Netflix xStock", weightBps: 3000, sourceUrl: xstocks },
     ],
   },
   {
     id: "frontier-ai-labs", title: "Frontier AI Labs", subtitle: "Pre-IPO exposure to model, robotics, and neural-interface labs",
     description: "An editorial bag of PreStocks tokens tracking private AI companies: OpenAI, Anthropic, Figure AI, and Neuralink.",
     thesis: "Stockpile editorial inference: frontier model labs and embodied-AI companies are raising at rising private marks, and PreStocks is the only issuer whose SPV tokens are used here. Weights favour the two model labs; this is not an issuer view or a forecast.",
-    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", risks: prestocksRisks,
+    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", curator: editorialCurator, risks: prestocksRisks,
     sources: [prestocksSource, { title: "PreStocks: OpenAI product page", url: product("openai") }, { title: "PreStocks: Anthropic product page", url: product("anthropic") }, { title: "PreStocks: Figure AI product page", url: product("figureai") }, { title: "PreStocks: Neuralink product page", url: product("neuralink") },
       { title: "Anthropic newsroom", url: "https://www.anthropic.com/news" }, { title: "Figure AI news", url: "https://www.figure.ai/news" }, { title: "Neuralink updates", url: "https://neuralink.com/updates/" }, { title: "TechCrunch AI coverage", url: "https://techcrunch.com/category/artificial-intelligence/" }],
     assets: [
@@ -88,7 +105,7 @@ export const bags: Bag[] = [
     id: "prediction-markets", title: "Prediction Markets", subtitle: "Pre-IPO exposure to event-contract venues",
     description: "An editorial bag of PreStocks tokens tracking the two largest private prediction-market operators: Kalshi and Polymarket.",
     thesis: "Stockpile editorial inference: regulated and crypto-native prediction markets are both growing volume and raising private capital. Equal weights reflect editorial uncertainty about which model wins; this is not an issuer view.",
-    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", risks: prestocksRisks,
+    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", curator: editorialCurator, risks: prestocksRisks,
     sources: [prestocksSource, { title: "PreStocks: Kalshi product page", url: product("kalshi") }, { title: "PreStocks: Polymarket product page", url: product("polymarket") }, { title: "Polymarket newsroom", url: "https://news.polymarket.com/" }, { title: "CNBC Technology coverage", url: "https://www.cnbc.com/technology/" }],
     assets: [
       { symbol: "KALSHI", name: "Kalshi PreStocks", weightBps: 5000, sourceUrl: product("kalshi") },
@@ -99,17 +116,43 @@ export const bags: Bag[] = [
     id: "defense-space", title: "Defense & Space", subtitle: "Pre-IPO exposure to launch and autonomous defense",
     description: "An editorial bag of PreStocks tokens tracking SpaceX and Anduril.",
     thesis: "Stockpile editorial inference: launch, satellite broadband, and autonomous defense systems are capital-intensive private franchises with government and commercial demand. SpaceX carries the larger weight for scale; this is not an issuer view.",
-    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", risks: prestocksRisks,
+    disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", curator: editorialCurator, risks: prestocksRisks,
     sources: [prestocksSource, { title: "PreStocks: SpaceX product page", url: product("spacex") }, { title: "PreStocks: Anduril product page", url: product("anduril") }, { title: "SpaceX updates", url: "https://www.spacex.com/updates/" }, { title: "Anduril press", url: "https://www.anduril.com/press" }],
     assets: [
       { symbol: "SPACEX", name: "SpaceX PreStocks", weightBps: 6000, sourceUrl: product("spacex") },
       { symbol: "ANDURIL", name: "Anduril PreStocks", weightBps: 4000, sourceUrl: product("anduril") },
     ],
   },
+  {
+    id: "pelosi-tracker", title: "Pelosi Tracker", subtitle: "Purchases disclosed by Rep. Nancy Pelosi in the last 12 months",
+    description: "Tokenized versions of the stocks Nancy Pelosi's STOCK Act filings disclosed as purchases in the last 12 months, limited to tickers Stockpile can trade as xStocks and weighted by the midpoint of each disclosed dollar range.",
+    thesis: "Follows public disclosures, not a strategy: the bag mirrors what the filings say was bought, weeks or months after the fact. Filings typically describe trades by Paul Pelosi (spouse), often as call options; sales and non-tradable tickers are excluded.",
+    disclosure: disclosureDisclosure, sourceType: "disclosure", issuer: "xstocks", assetClass: "public-equity", risks: disclosureRisks,
+    curator: { kind: "person", name: "Nancy Pelosi", description: "Representative for California's 11th district. Trades are taken from her periodic transaction reports filed with the House Clerk; they are public disclosures, not a managed portfolio, and she has no affiliation with Stockpile." },
+    sources: [clerk, congressInvests], assets: [], tracker: { kind: "pelosi", minAssets: 2 },
+  },
+  {
+    id: "congress-consensus", title: "Congress Consensus", subtitle: "Net-most-bought tickers across all members, last 90 days",
+    description: "For each tradable ticker, all disclosed purchases minus sales by members of the House and Senate over the last 90 days (range midpoints); tickers with positive net buying are weighted by that net amount.",
+    thesis: "An aggregate of public filings, not a strategy: it shows where members' disclosed money went on net. Ranges, lags and spouse trades make this a rough signal at best.",
+    disclosure: disclosureDisclosure, sourceType: "disclosure", issuer: "xstocks", assetClass: "public-equity", risks: disclosureRisks,
+    curator: { kind: "aggregate", name: "U.S. Congress (all members)", description: "Aggregated STOCK Act periodic transaction reports from the House Clerk and Senate eFD, normalised by CongressInvests. Public records; no member endorses this bag." },
+    sources: [clerk, efd, congressInvests], assets: [], tracker: { kind: "consensus", minAssets: 2 },
+  },
 ];
 
 export function findBag(id: string) { return bags.find((bag) => bag.id === id); }
-export const allSymbols = () => new Set(bags.flatMap((bag) => bag.assets.map((asset) => asset.symbol)));
+export const allSymbols = () => new Set([...bags.flatMap((bag) => bag.assets.map((asset) => asset.symbol)), ...Object.values(tickerToSymbol)]);
+const fromTracker = (asset: TrackerAsset): BagAssetDefinition => ({ symbol: asset.symbol, name: asset.name, weightBps: asset.weightBps, sourceUrl: asset.sourceUrl, underlyingTicker: asset.ticker, evidence: asset.evidence });
+
+/** Asset definitions for a bag; tracker bags are computed from persisted disclosures (cached 5 min in congress.ts). */
+export async function bagAssets(bag: Bag): Promise<BagAssetDefinition[]> {
+  if (!bag.tracker) return bag.assets;
+  const rows = await loadDisclosures();
+  return (bag.tracker.kind === "pelosi" ? pelosiTracker(rows) : congressConsensus(rows)).map(fromTracker);
+}
+/** Tracker bags with fewer overlapping tickers than `minAssets` stay research-only even when every mint resolves. */
+export function trackerBlocked(bag: Bag, assets: BagAssetDefinition[]) { return bag.tracker ? assets.length < bag.tracker.minAssets : false; }
 
 // Operators must independently verify issuer mints before adding them to this allowlist.
 export function configuredMint(symbol: string): string | null {
@@ -126,6 +169,21 @@ export function configuredSymbol(mint: string): string | null {
   return null;
 }
 
+/** Editorial display name for an allowlisted symbol (tracker tickers reuse the editorial xStocks names). */
+export function configuredName(symbol: string): string | null {
+  for (const bag of bags) for (const asset of bag.assets) if (asset.symbol === symbol) return asset.name;
+  return null;
+}
+
+/** IDs of every bag (editorial or tracker) whose current assets include the allowlisted mint, in catalogue order. */
+export async function bagIdsForMint(mint: string): Promise<string[]> {
+  const symbol = configuredSymbol(mint);
+  if (!symbol) return [];
+  const ids: string[] = [];
+  for (const bag of bags) if ((await bagAssets(bag)).some((asset) => asset.symbol === symbol)) ids.push(bag.id);
+  return ids;
+}
+
 /**
  * Resolves the tradable mint for an asset. xStocks: operator allowlist. PreStocks: operator allowlist AND the issuer's
  * current directory entry AND Jupiter verification must all agree on the same mint; otherwise the asset is research-only.
@@ -134,7 +192,7 @@ export async function resolveAsset(bag: Bag, asset: BagAssetDefinition): Promise
   const allowed = configuredMint(asset.symbol);
   if (bag.issuer === "xstocks") {
     const issuer = issuerAsset(asset.symbol);
-    return { mint: allowed, decimals: allowed ? issuer?.decimals ?? null : null, uiAmountMultiplier: 1, issuer: "xstocks", assetClass: "public-equity", reference: null, issuerIconUrl: issuer?.logoUrl ?? null, issuerMint: issuer?.mint ?? null };
+    return { mint: allowed, decimals: allowed ? issuer?.decimals ?? null : null, uiAmountMultiplier: allowed ? await scaledUiMultiplier(allowed) : 1, issuer: "xstocks", assetClass: "public-equity", reference: null, issuerIconUrl: issuer?.logoUrl ?? null, issuerMint: issuer?.mint ?? null };
   }
   const listed: PreStock | null = await preStock(asset.symbol);
   const base = { issuer: "prestocks" as const, assetClass: "pre-ipo" as const, issuerIconUrl: listed?.imageUrl ?? null, issuerMint: listed?.mint ?? null };
@@ -147,17 +205,37 @@ export async function resolveAsset(bag: Bag, asset: BagAssetDefinition): Promise
     : { ...base, mint: null, decimals: null, uiAmountMultiplier: 1, reference };
 }
 
-/** A bag is tradable only when every asset resolves to a verified mint. */
+/** A bag is tradable only when every asset resolves to a verified mint (and tracker bags meet their overlap minimum). */
 export async function isTradable(bag: Bag) {
-  for (const asset of bag.assets) if (!(await resolveAsset(bag, asset)).mint) return false;
+  const assets = await bagAssets(bag);
+  if (!assets.length || trackerBlocked(bag, assets)) return false;
+  for (const asset of assets) if (!(await resolveAsset(bag, asset)).mint) return false;
   return true;
 }
 
+export type PublicAsset = BagAssetDefinition & ResolvedAsset & { evidence: Evidence[]; market: AssetMarket | null; liquidityTier: ReturnType<typeof liquidityTier>; iconUrl: string | null; iconSource: "jupiter-token" | "issuer-token" | "underlying-brand" | null; brandColor: string | null };
+
 export async function publicBag(bag: Bag) {
-  const assets = await Promise.all(bag.assets.map(async (asset) => {
+  const definitions = await bagAssets(bag);
+  const assets: PublicAsset[] = await Promise.all(definitions.map(async (asset) => {
     const resolved = await resolveAsset(bag, asset);
-    const icon = await assetIcon(asset.symbol, resolved.issuerMint ?? resolved.mint, resolved.issuerIconUrl);
-    return { ...asset, mint: resolved.mint, decimals: resolved.decimals, uiAmountMultiplier: resolved.uiAmountMultiplier, issuer: resolved.issuer, assetClass: resolved.assetClass, reference: resolved.reference, ...icon };
+    const [icon, market] = await Promise.all([
+      assetIcon(asset.symbol, resolved.issuerMint ?? resolved.mint, resolved.issuerIconUrl),
+      assetMarket(resolved.mint, { underlyingTicker: asset.underlyingTicker ?? null, mark: resolved.reference ? { price: resolved.reference.markPrice, asOf: resolved.reference.asOf } : null }),
+    ]);
+    return { ...asset, evidence: asset.evidence ?? [], ...resolved, market, liquidityTier: liquidityTier(market?.liquidityUsd ?? null, market?.probe?.priceImpactPct ?? null), ...icon };
   }));
-  return { ...bag, tradable: assets.every((asset) => asset.mint !== null), assets };
+  const blocked = trackerBlocked(bag, definitions);
+  const tradable = assets.length > 0 && !blocked && assets.every((asset) => asset.mint !== null);
+  const { tracker, ...rest } = bag;
+  const tradableReason = !assets.length ? "No qualifying disclosures found yet" : blocked ? `Research-only: only ${assets.length} disclosed ticker${assets.length === 1 ? "" : "s"} overlap tradable xStocks (minimum ${tracker!.minAssets})` : tradable ? null : "One or more assets have no verified mint";
+  return { ...rest, tradable, tradableReason, market: bagMarket(assets), assets };
+}
+
+/** Registers every configured issuer mint with the market cache so one batched refresh covers all bags. */
+export function trackAllMints() {
+  const mints = new Set<string>();
+  for (const symbol of allSymbols()) { const mint = configuredMint(symbol); if (mint) mints.add(mint); }
+  trackMints(mints);
+  return mints;
 }

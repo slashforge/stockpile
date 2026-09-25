@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStockpileAuth } from "@/providers/auth-context";
 import {
+  fetchActivity,
   fetchMe,
   fetchPortfolio,
   fetchSavedBagIds,
@@ -34,6 +35,19 @@ export function useSavedBagIds() {
     queryKey: queryKeys.saved,
     queryFn: fetchSavedBagIds,
     enabled: authenticated,
+  });
+}
+
+/** Wallet history, newest first, paged by `nextCursor`. */
+export function useActivity() {
+  const { authenticated } = useStockpileAuth();
+  return useInfiniteQuery({
+    queryKey: queryKeys.activity,
+    queryFn: ({ pageParam }) => fetchActivity(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => (page.status === "live" ? page.nextCursor : null) ?? undefined,
+    enabled: authenticated,
+    staleTime: 30 * 1000,
   });
 }
 

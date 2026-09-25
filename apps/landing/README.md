@@ -1,62 +1,41 @@
-# Astro Starter Kit: Blog
+# Stockpile landing (`apps/landing`)
 
-```sh
-bun create astro@latest -- --template blog
+Astro 6 + Tailwind 3 marketing site for [stockpile.cash](https://stockpile.cash), deployed to Cloudflare via
+`@astrojs/cloudflare` (see `infra/landing.ts`). Includes an MDX blog and satori-rendered OG images.
+
+## Structure
+
+```
+src/pages/index.astro         Landing page (Hero, HowItWorks, Bags, Receipts, Builders, Footer)
+src/components/               Sections + TokenAvatar / BagCard / PhoneMock / StoreBadges
+src/lib/bags.ts               Bag catalogue: live from the API at build time, static fallback otherwise
+src/pages/blog/, src/content  Blog (Markdown/MDX), config in src/content.config.ts
+src/pages/og/[...path].svg.ts OG image route (og-image-renderer.mjs + og-image-options.mjs)
+src/consts.ts                 Site title/description/URL, GitHub link
+tailwind.config.mjs           Design tokens mirrored from apps/mobile `theme.ds` (bright, cool palette)
+scripts/                      Dev-only helpers (headless Chrome screenshots / overflow check)
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Bag catalogue
 
-Features:
+`src/lib/bags.ts` fetches `GET /bags` from `LANDING_API_URL` (default `http://localhost:4040`) during
+`astro build`. Only composition metadata (title, curator, holdings, editorial weights, logos, brand colours) is
+rendered; prices and performance are never shown. If the API is unreachable the page uses the static snapshot in
+the same file and labels the section accordingly. Token logos come from the issuers (`xstocks-metadata.backed.fi`,
+`prestocks.com`) and fall back to a ticker monogram.
 
-- ✅ Minimal styling (make it your own!)
-- ✅ 100/100 Lighthouse performance
-- ✅ SEO-friendly with canonical URLs and OpenGraph data
-- ✅ Sitemap support
-- ✅ RSS Feed support
-- ✅ Markdown & MDX support
+## Commands
 
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-├── public/
-├── src/
-│   ├── components/
-│   ├── content/
-│   ├── layouts/
-│   └── pages/
-├── astro.config.mjs
-├── README.md
-├── package.json
-└── tsconfig.json
+```bash
+bun run build      # astro build (fetches bags from the API if reachable)
+bun run preview    # serve dist/ on http://localhost:4321 (restart after rebuilding)
+bunx tsc --noEmit  # typecheck
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Do not run `bun dev` standalone in the monorepo; the site is normally served through SST (`.agents/infra.md`).
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## OG images
 
-The `src/content/` directory contains "collections" of related Markdown and MDX documents. Use `getCollection()` to retrieve posts from `src/content/blog/`, and type-check your frontmatter using an optional schema. See [Astro's Content Collections docs](https://docs.astro.build/en/guides/content-collections/) to learn more.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
-
-## Credit
-
-This theme is based off of the lovely [Bear Blog](https://github.com/HermanMartinus/bearblog/).
+`/og/<path>.svg` renders the page's `og:title`/`og:description` with satori. The renderer can be exercised
+directly under Bun (`og-image-renderer.mjs` + `satori`); `astro preview`'s local workerd sandbox refuses satori's
+runtime WASM compile ("Wasm code generation disallowed by embedder"), so that route returns 500 in preview.

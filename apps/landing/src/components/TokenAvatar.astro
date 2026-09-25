@@ -1,0 +1,68 @@
+---
+import { CHART_PALETTE, monogram } from '../lib/bags';
+
+interface Props {
+  symbol: string;
+  name?: string;
+  iconUrl?: string | null;
+  brandColor?: string | null;
+  size?: number;
+  index?: number;
+  class?: string;
+}
+
+const { symbol, name, iconUrl, brandColor, size = 40, index = 0, class: className = '' } = Astro.props;
+const fallback = brandColor ?? CHART_PALETTE[index % CHART_PALETTE.length];
+const label = name ?? symbol;
+---
+
+<span
+  class:list={['token-avatar squircle', className]}
+  style={`--size:${size}px; --tone:${fallback}`}
+  title={label}
+  role="img"
+  aria-label={label}
+>
+  <span class="token-avatar__mono" aria-hidden="true">{monogram(symbol)}</span>
+  {iconUrl && (
+    <img
+      src={iconUrl}
+      alt=""
+      width={size}
+      height={size}
+      loading="lazy"
+      decoding="async"
+      referrerpolicy="no-referrer"
+      onerror="this.remove()"
+    />
+  )}
+</span>
+
+<style>
+  .token-avatar {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 30%;
+    background: color-mix(in srgb, var(--tone) 18%, #ffffff);
+    color: var(--tone);
+    overflow: hidden;
+    flex: none;
+    box-shadow: inset 0 0 0 1px rgba(16, 19, 31, 0.06);
+  }
+  .token-avatar__mono {
+    font-size: calc(var(--size) * 0.34);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .token-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

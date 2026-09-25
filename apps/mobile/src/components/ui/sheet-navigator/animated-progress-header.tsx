@@ -10,7 +10,7 @@ import Animated, {
   useDerivedValue,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export interface AnimatedProgressHeaderProps {
   currentStep: number;
@@ -106,6 +106,7 @@ const ProgressDot = ({
   isUpcoming: boolean;
   index: number;
 }) => {
+  const { theme } = useUnistyles();
   const dotAnimatedStyle = useAnimatedStyle(() => {
     const scale = isActive ? 1.3 : isCompleted ? 1.1 : 1;
     const opacity = isUpcoming ? 0.3 : 1;
@@ -125,7 +126,7 @@ const ProgressDot = ({
 
   const gradientColors = useDerivedValue(() => {
     if (isCompleted) return ["#10B981", "#059669"]; // Green gradient
-    if (isActive) return ["#6366F1", "#4F46E5"]; // Purple gradient  
+    if (isActive) return [theme.ds.accent, theme.ds.accentPressed];
     return ["#E5E7EB", "#D1D5DB"]; // Gray gradient
   });
 
@@ -176,6 +177,7 @@ const ConnectingLine = ({
   isActive: boolean;
   progress: number;
 }) => {
+  const { theme } = useUnistyles();
   const lineAnimatedStyle = useAnimatedStyle(() => {
     const width = isCompleted ? 24 : isActive ? 12 + (progress * 12) : 8;
     const opacity = isCompleted ? 1 : isActive ? 0.7 : 0.3;
@@ -186,7 +188,7 @@ const ConnectingLine = ({
     };
   });
 
-  const backgroundColor = isCompleted ? "#10B981" : isActive ? "#6366F1" : "#E5E7EB";
+  const backgroundColor = isCompleted ? "#10B981" : isActive ? theme.ds.accent : "#E5E7EB";
 
   return (
     <Animated.View

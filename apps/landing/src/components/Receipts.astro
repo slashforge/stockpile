@@ -1,0 +1,73 @@
+---
+const points = [
+  {
+    title: 'Evidence on every holding',
+    body: 'Editorial bags cite the issuer product directory. Disclosure bags cite each STOCK Act filing that contributed, with a link to the House Clerk or Senate eFD record.',
+    tone: 'bg-brand-soft text-brand',
+    icon: 'M9 12h6m-6 4h6M7 4h7l5 5v11a1 1 0 01-1 1H7a1 1 0 01-1-1V5a1 1 0 011-1z',
+  },
+  {
+    title: 'Curated, not generated',
+    body: 'Stockpile Editorial hand-picks composition; Pelosi Tracker and Congress Consensus are computed from public periodic transaction reports. No member endorses a bag.',
+    tone: 'bg-tertiary-soft text-tertiary',
+    icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  },
+  {
+    title: 'Live market context',
+    body: '24h change, on-chain liquidity, and the premium or discount of each token versus its underlying stock or issuer mark, via Jupiter. Shown in the app, never on this page.',
+    tone: 'bg-mint-soft text-positive',
+    icon: 'M3 17l6-6 4 4 8-8M14 7h7v7',
+  },
+  {
+    title: 'Your keys, your swaps',
+    body: 'A Privy embedded Solana wallet signs each Jupiter swap after you inspect it on-device. Stockpile never custodies funds, never signs, never submits.',
+    tone: 'bg-coral-soft text-[#C0392B]',
+    icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+  },
+];
+---
+
+<section id="receipts" class="section">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="grid lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-16 items-start">
+      <div class="lg:sticky lg:top-28">
+        <p class="eyebrow mb-3">Curated with receipts</p>
+        <h2 class="text-4xl sm:text-5xl text-text text-balance">No thesis without a source.</h2>
+        <p class="mt-4 text-lg text-text-subtle text-pretty">
+          A bag is only as good as what backs it. Stockpile shows the filing, the directory entry, or the story behind every
+          weight, and the lag, range, and liquidity caveats that come with it.
+        </p>
+
+        <!-- Illustrative disclosure receipt -->
+        <div class="mt-8 card squircle p-5 max-w-md" aria-label="Example of a disclosure receipt">
+          <div class="flex items-center justify-between text-xs text-text-muted">
+            <span class="badge badge-coral text-xs py-0.5">Disclosure</span>
+            <span>House Clerk PTR</span>
+          </div>
+          <p class="mt-3 font-semibold text-text">Periodic transaction report</p>
+          <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dt class="text-text-muted">Member</dt><dd class="text-text font-medium">Named on filing</dd>
+            <dt class="text-text-muted">Type</dt><dd class="text-text font-medium">Purchase</dd>
+            <dt class="text-text-muted">Amount</dt><dd class="text-text font-medium">Disclosed range</dd>
+            <dt class="text-text-muted">Lag</dt><dd class="text-text font-medium">30–45 days</dd>
+          </dl>
+          <p class="mt-4 text-xs text-text-muted">
+            Ranges, not amounts. Filings include spouse trades. Not a live portfolio.
+          </p>
+        </div>
+      </div>
+
+      <ul class="grid sm:grid-cols-2 gap-4 md:gap-5">
+        {points.map((p) => (
+          <li class="card squircle p-6">
+            <span class:list={['w-11 h-11 rounded-xl squircle grid place-items-center', p.tone]}>
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d={p.icon} /></svg>
+            </span>
+            <h3 class="mt-4 text-xl text-text">{p.title}</h3>
+            <p class="mt-2 text-sm text-text-subtle text-pretty">{p.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>

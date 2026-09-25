@@ -54,8 +54,22 @@ export const SheetTextInput = forwardRef<SheetTextInputHandle, Props>(function S
   const state = useNativeState(value);
   const inner = useRef<TextInputRef>(null);
 
-  // Push external changes (presets, "Max", resets) into the native field.
+  // Values we emitted that React hasn't echoed back yet. A render carrying one of these is stale
+  // (fast typing outran React); writing it back would drop the newer keystrokes.
+  const pending = useRef<string[]>([]);
+  const handleChange = (text: string) => {
+    pending.current.push(text);
+    onChangeText(text);
+  };
+
+  // Push external changes (presets, "Max", resets, sanitising) into the native field.
   useEffect(() => {
+    const index = pending.current.indexOf(value);
+    if (index >= 0) {
+      pending.current.splice(0, index + 1);
+      return;
+    }
+    pending.current = [];
     if (state.value !== value) state.value = value;
   }, [state, value]);
 
@@ -70,7 +84,7 @@ export const SheetTextInput = forwardRef<SheetTextInputHandle, Props>(function S
       <NativeTextInput
         ref={inner}
         value={state}
-        onChangeText={onChangeText}
+        onChangeText={handleChange}
         placeholder={placeholder}
         placeholderTextColor={theme.ds.inkTertiary}
         keyboardType={keyboardType}

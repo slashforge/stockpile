@@ -20,6 +20,9 @@ const bag = {
       issuer: "xstocks" as const,
       assetClass: "public-equity" as const,
       reference: null,
+      market: null,
+      liquidityTier: null,
+      evidence: [],
     },
     {
       symbol: "NVDAx",
@@ -35,6 +38,9 @@ const bag = {
       issuer: "xstocks" as const,
       assetClass: "public-equity" as const,
       reference: null,
+      market: null,
+      liquidityTier: null,
+      evidence: [],
     },
   ],
 };

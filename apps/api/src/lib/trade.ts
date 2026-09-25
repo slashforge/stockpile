@@ -1,4 +1,4 @@
-import { findBag, resolveAsset, type Bag } from "./bags";
+import { bagAssets, findBag, resolveAsset, trackerBlocked, type Bag } from "./bags";
 import { inspectTransaction } from "./solana-tx";
 
 import { USDC } from "./constants";
@@ -24,10 +24,12 @@ const jupiterHeaders = () => ({ "x-api-key": process.env.JUPITER_API_KEY!, "Cont
 export async function splitLegs(bag: Bag, amount: bigint): Promise<Result<Leg[]>> {
   const legs: Leg[] = [];
   let allocated = 0n;
-  for (const [index, asset] of bag.assets.entries()) {
+  const assets = await bagAssets(bag);
+  if (!assets.length || trackerBlocked(bag, assets)) return fail("BAG_NOT_TRADABLE", `${bag.title} is research-only: not enough disclosed tickers overlap tradable assets`);
+  for (const [index, asset] of assets.entries()) {
     const resolved = await resolveAsset(bag, asset);
     if (!resolved.mint) return fail("BAG_NOT_TRADABLE", `${asset.symbol} has no verified mint; this bag is research-only`, { index, symbol: asset.symbol });
-    const legAmount = index === bag.assets.length - 1 ? amount - allocated : amount * BigInt(asset.weightBps) / 10000n;
+    const legAmount = index === assets.length - 1 ? amount - allocated : amount * BigInt(asset.weightBps) / 10000n;
     allocated += legAmount;
     legs.push({ index, asset, mint: resolved.mint, decimals: resolved.decimals, uiAmountMultiplier: resolved.uiAmountMultiplier, amount: legAmount });
   }

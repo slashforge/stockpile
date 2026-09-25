@@ -39,6 +39,52 @@ export function isPreparedExpired(preparedAt: number | null, now: number): boole
   return preparedAt != null && now - preparedAt > PREPARED_TTL_MS;
 }
 
+/** Whole seconds left before a prepared set expires (0 once expired), or null if nothing is prepared. */
+export function secondsUntilExpiry(preparedAt: number | null, now: number): number | null {
+  if (preparedAt == null) return null;
+  return Math.max(0, Math.ceil((PREPARED_TTL_MS - (now - preparedAt)) / 1000));
+}
+
+/** Output mints of legs that were broadcast and not reported failed (the purchase may have landed). */
+export function boughtMints(outputMints: string[], states: Record<number, LegSigningState>): string[] {
+  return outputMints.filter((_, index) => {
+    const status = states[index]?.status;
+    return status === "submitted" || status === "confirmed";
+  });
+}
+
+/** Next leg after `after` that can still be signed and wasn't already bought in an earlier set. */
+export function nextLegToSign(
+  outputMints: string[],
+  states: Record<number, LegSigningState>,
+  alreadyBought: ReadonlySet<string>,
+  after: number,
+): number | null {
+  for (let index = after + 1; index < outputMints.length; index += 1) {
+    if (canSignLeg(states[index]) && !alreadyBought.has(outputMints[index])) return index;
+  }
+  return null;
+}
+
+/**
+ * True when every leg is either confirmed in this set or was already bought in an earlier set and
+ * left unsigned here.
+ */
+export function purchaseComplete(
+  outputMints: string[],
+  states: Record<number, LegSigningState>,
+  alreadyBought: ReadonlySet<string>,
+): boolean {
+  if (outputMints.length === 0) return false;
+  const confirmedHere = outputMints.some((_, index) => states[index]?.status === "confirmed");
+  if (!confirmedHere && alreadyBought.size === 0) return false;
+  return outputMints.every((mint, index) => {
+    const state = states[index];
+    if (state?.status === "confirmed") return true;
+    return alreadyBought.has(mint) && (!state || state.status === "idle");
+  });
+}
+
 type SignLegDeps = {
   signAndSend: ((base64: string) => Promise<{ signature: string }>) | null;
   waitForConfirmation: (signature: string) => Promise<ConfirmationResult>;

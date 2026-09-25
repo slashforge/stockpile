@@ -27,12 +27,12 @@ function getPageLabel(pathname) {
 }
 
 export async function renderOpenGraphImage({ title, description, pathname }) {
-  const brand = '#4285f4';
-  const brandMuted = '#dbeafe';
-  const text = '#202329';
-  const subtle = '#5f6773';
+  const brand = '#2563eb';
+  const brandMuted = '#e8f0ff';
+  const text = '#10131f';
+  const subtle = '#555c72';
   const surface = '#ffffff';
-  const background = '#fffffc';
+  const background = '#f5f6fb';
   const path = normalize(pathname);
   const label = getPageLabel(path);
   const url = path === '/' ? 'stockpile.cash' : `stockpile.cash${path}`;
@@ -61,10 +61,10 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
             flexDirection: 'column',
             justifyContent: 'space-between',
             backgroundColor: surface,
-            border: '1px solid rgba(66, 133, 244, 0.18)',
+            border: '1px solid rgba(37, 99, 235, 0.18)',
             borderRadius: '28px',
             padding: '52px 56px',
-            boxShadow: '0 18px 60px rgba(66, 133, 244, 0.08)',
+            boxShadow: '0 18px 60px rgba(37, 99, 235, 0.08)',
           },
         },
         h(
@@ -86,10 +86,10 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
             },
             h('div', {
               style: {
-                width: '14px',
-                height: '14px',
-                borderRadius: '999px',
-                backgroundColor: brand,
+                width: '18px',
+                height: '18px',
+                borderRadius: '6px',
+                backgroundImage: 'linear-gradient(135deg, #2563EB, #38BDF8)',
                 marginRight: '14px',
               },
             }),
@@ -183,7 +183,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
                 width: '76px',
                 height: '6px',
                 borderRadius: '999px',
-                backgroundColor: brand,
+                backgroundImage: 'linear-gradient(90deg, #2563EB, #38BDF8, #22C29A)',
                 marginBottom: '16px',
               },
             }),
@@ -195,7 +195,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
                   color: subtle,
                 },
               },
-              'Built with Slashforge',
+              'Swipe the news. Buy the bag. Built for Solana Seeker.',
             ),
           ),
           h(

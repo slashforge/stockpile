@@ -1,25 +1,59 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef } from "react";
+import { LinearGradient } from "expo-linear-gradient";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { AllocationBar, useAssetColors } from "@/components/stockpile/allocation";
-import { BagArt } from "@/components/stockpile/bag-art";
-import { bagTradable, TradeStatus } from "@/components/stockpile/bag-card";
-import { Card, Collapsible, Divider, MessageState, Screen, Skeleton } from "@/components/stockpile/layout";
+import { useAssetColors } from "@/components/stockpile/allocation";
+import { bagTheme } from "@/components/stockpile/bag-art";
+import {
+  bagTradable,
+  researchOnlyReason,
+  TradeStatus,
+} from "@/components/stockpile/bag-card";
+import {
+  Collapsible,
+  Divider,
+  MessageState,
+  Screen,
+  Skeleton,
+} from "@/components/stockpile/layout";
+import {
+  PriceChart,
+  RangeChips,
+  useChartColor,
+} from "@/components/stockpile/price-chart";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { SaveButton } from "@/components/stockpile/save-button";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
-import { T } from "@/components/stockpile/type";
-import { useBuySheet } from "@/components/stockpile/buy-sheet";
+import { FullText, T } from "@/components/stockpile/type";
+import { useOpenBuy } from "@/hooks/use-open-buy";
+import { usePortfolio } from "@/hooks/use-account";
 import { useBag } from "@/hooks/use-bags";
+import { useBagChart } from "@/hooks/use-charts";
 import { collectStories, useBagStories } from "@/hooks/use-feed";
 import { connectionFor, type Story } from "@/services/api/feed";
 import { formatStoryDate } from "@/components/stockpile/story-reel";
 import { useStockpileAuth } from "@/providers/auth-context";
-import { issuerMarkLabel } from "@/lib/pre-ipo";
-import type { Bag } from "@/services/api/types";
+import {
+  bagCurator,
+  bagMarket,
+  changeTone,
+  formatAsOf,
+  formatImpactPct,
+  formatSignedPct,
+  formatUsdCompact,
+} from "@/lib/market";
+import { formatUsdValue } from "@/lib/portfolio";
+import {
+  type BagChart,
+  type ChartPoint,
+  type ChartRange,
+  isDrawable,
+} from "@/services/api/charts";
+import type { Bag, Portfolio } from "@/services/api/types";
+import { density } from "@/config/sizing";
 import { formatBps } from "@/utils/amounts";
 
 function hostOf(url: string) {
@@ -34,62 +68,354 @@ function openLink(url: string) {
   WebBrowser.openBrowserAsync(url).catch(() => {});
 }
 
-function Holdings({ bag }: { bag: Bag }) {
-  const colors = useAssetColors(bag.assets);
+function categoryLabel(bag: Bag) {
+  const issuer = bag.issuer === "prestocks" ? "PreStocks" : "xStocks";
+  return bag.assetClass === "pre-ipo" ? `${issuer} · Pre-IPO` : issuer;
+}
+
+/** USD value of the wallet's tokens attributed to this bag; null when nothing priced is held. */
+function bagHoldingUsd(portfolio: Portfolio | undefined, bagId: string) {
+  if (!portfolio || portfolio.status !== "live") return null;
+  const held = portfolio.holdings.filter((holding) =>
+    holding.bagIds.includes(bagId),
+  );
+  const priced = held.filter((holding) => holding.usdValue != null);
+  if (priced.length === 0) return null;
+  return priced.reduce((sum, holding) => sum + (holding.usdValue ?? 0), 0);
+}
+
+function pctBetween(from: number, to: number) {
+  return from > 0 ? ((to - from) / from) * 100 : null;
+}
+
+function useToneColor(pct: number | null | undefined) {
   const { theme } = useUnistyles();
-  const max = Math.max(...bag.assets.map((asset) => asset.weightBps), 1);
+  const tone = changeTone(pct);
+  if (tone === "up") return theme.ds.positive;
+  if (tone === "down") return theme.ds.danger;
+  return theme.ds.inkTertiary;
+}
+
+function Hero({ bag }: { bag: Bag }) {
+  const { theme } = useUnistyles();
+  const { icon, gradient } = bagTheme(bag);
+  const curator = bagCurator(bag);
   return (
-    <Card padded={false}>
-      <View style={styles.barWrap}>
-        <AllocationBar assets={bag.assets} height={14} />
-      </View>
-      {bag.assets.map((asset, index) => (
-        <View key={`${asset.symbol}-${index}`}>
-          <Divider inset={76} />
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel={`${asset.symbol}, ${asset.name}, ${formatBps(asset.weightBps)}. ${
-              asset.mint ? "" : "Token mint not yet verified. "
-            }Opens the source for why it's included.`}
-            onPress={() => openLink(asset.sourceUrl)}
-            style={({ pressed }) => [styles.assetRow, pressed && styles.pressed]}
+    <View style={styles.hero}>
+      <View style={styles.heroRow}>
+        <LinearGradient
+          colors={theme.gradients[gradient]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroIcon}
+        >
+          <Ionicons name={icon} size={34} color="#FFFFFF" />
+        </LinearGradient>
+        <View style={styles.flex}>
+          <T
+            variant="title1"
+            accessibilityRole="header"
+            numberOfLines={2}
+            style={styles.heroTitle}
           >
-            <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} size={44} ring={colors[index]} />
-            <View style={styles.flex}>
-              <View style={styles.assetTitle}>
-                <T variant="headline">{asset.symbol}</T>
-                {asset.mint ? null : (
-                  <View style={styles.unverified}>
-                    <T variant="caption" tone="caution" style={styles.bold}>
-                      Mint unverified
-                    </T>
-                  </View>
-                )}
-              </View>
-              <T variant="footnote" tone="secondary" numberOfLines={1}>
-                {asset.name}
+            {bag.title}
+          </T>
+          <View style={styles.pills}>
+            <View style={styles.category}>
+              <T variant="caption" style={styles.categoryLabel}>
+                {categoryLabel(bag)}
               </T>
-              {issuerMarkLabel(asset) ? (
-                <T variant="caption" tone="tertiary" numberOfLines={1}>
-                  {issuerMarkLabel(asset)} · not a quote
-                </T>
-              ) : null}
-              <View style={styles.track}>
-                <View
-                  style={[styles.fill, { width: `${(asset.weightBps / max) * 100}%`, backgroundColor: colors[index] }]}
-                />
-              </View>
             </View>
-            <View style={styles.weightCol}>
-              <T variant="title3" style={styles.tabular}>
-                {formatBps(asset.weightBps)}
-              </T>
-              <Ionicons name="open-outline" size={14} color={theme.ds.inkTertiary} />
-            </View>
-          </Pressable>
+            <TradeStatus bag={bag} />
+          </View>
         </View>
-      ))}
-    </Card>
+      </View>
+      <T variant="callout" tone="secondary" numberOfLines={2}>
+        {bag.subtitle}
+      </T>
+      {curator ? (
+        <T variant="footnote" tone="tertiary" numberOfLines={1}>
+          Tracks {curator.name}
+        </T>
+      ) : null}
+    </View>
+  );
+}
+
+const RANGE_WORD: Record<ChartRange, string> = {
+  "1D": "today",
+  "1W": "past week",
+  "1M": "past month",
+  ALL: "all time",
+};
+
+function formatPointDate(timestamp: number, range: ChartRange) {
+  const date = new Date(timestamp);
+  return range === "1D"
+    ? date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        ...(range === "ALL" ? { year: "numeric" } : {}),
+      });
+}
+
+function Performance({
+  bag,
+  chart,
+  range,
+  onRange,
+  loading,
+  holdingUsd,
+}: {
+  bag: Bag;
+  chart: BagChart | undefined;
+  range: ChartRange;
+  onRange: (range: ChartRange) => void;
+  loading: boolean;
+  holdingUsd: number | null;
+}) {
+  const [scrub, setScrub] = useState<ChartPoint | null>(null);
+  const points = chart?.points;
+  const drawable = isDrawable(points);
+  const first = drawable ? points[0] : null;
+  const last = drawable ? points[points.length - 1] : null;
+  const rangePct =
+    chart?.changePct ?? (first && last ? pctBetween(first.value, last.value) : null);
+  const market = bagMarket(bag);
+  // Without a series, fall back to the 24h figure the bag already carries.
+  const fallback24h = !drawable && rangePct == null;
+  const shownPct = scrub && first
+    ? pctBetween(first.value, scrub.value)
+    : fallback24h
+      ? (market?.change24hPct ?? null)
+      : rangePct;
+  const color = useChartColor(rangePct ?? (fallback24h ? market?.change24hPct : null));
+  const headColor = useToneColor(shownPct);
+  const caption = scrub
+    ? formatPointDate(scrub.timestamp, range)
+    : fallback24h
+      ? "24h"
+      : RANGE_WORD[range];
+  // Keep the chips while any range has been drawable so the user can switch back.
+  const [everDrawn, setEverDrawn] = useState(false);
+  if (drawable && !everDrawn) setEverDrawn(true);
+
+  return (
+    <View style={styles.performance}>
+      <View style={styles.headline}>
+        <T variant="footnote" tone="tertiary" style={styles.bold}>
+          Bag index
+        </T>
+        {shownPct == null ? (
+          <T style={[styles.bigNumber, styles.bigMuted]}>—</T>
+        ) : (
+          <T
+            style={[styles.bigNumber, { color: headColor }]}
+            accessibilityLabel={`${formatSignedPct(shownPct, 2)} ${caption}`}
+          >
+            {formatSignedPct(shownPct, 2)}
+          </T>
+        )}
+        <View style={styles.headlineMeta}>
+          <T variant="subhead" tone="secondary">
+            {caption}
+          </T>
+          {holdingUsd != null ? (
+            <>
+              <View style={styles.metaDot} />
+              <T variant="subhead" tone="secondary" style={styles.tabular}>
+                You hold {formatUsdValue(holdingUsd)}
+              </T>
+            </>
+          ) : null}
+        </View>
+      </View>
+
+      {drawable ? (
+        <PriceChart
+          points={points}
+          color={color}
+          range={range}
+          height={220}
+          bleed={density.gutter}
+          onScrub={setScrub}
+          accessibilityLabel={`Bag index chart, ${RANGE_WORD[range]}, ${formatSignedPct(rangePct, 2)}`}
+        />
+      ) : loading && !everDrawn ? (
+        <View style={styles.chartPlaceholder}>
+          <Skeleton height={220} radius={0} />
+        </View>
+      ) : (
+        <T variant="caption" tone="tertiary" style={styles.soon}>
+          Chart coming soon
+        </T>
+      )}
+
+      {drawable || everDrawn ? (
+        <RangeChips value={range} onChange={onRange} color={color} busy={loading} />
+      ) : null}
+    </View>
+  );
+}
+
+function Holdings({ bag, chart }: { bag: Bag; chart: BagChart | undefined }) {
+  const colors = useAssetColors(bag.assets);
+  const legs = useMemo(
+    () =>
+      new Map(
+        (chart?.legs ?? [])
+          .filter((leg) => leg.mint && leg.changePct != null)
+          .map((leg) => [leg.mint, leg]),
+      ),
+    [chart?.legs],
+  );
+  // Range change only when every leg has its own series; otherwise the 24h figures, consistently.
+  const hasLegs = legs.size > 0 && legs.size === bag.assets.length;
+  return (
+    <View style={styles.block}>
+      <View style={styles.blockHeader}>
+        <T variant="title3" accessibilityRole="header">
+          Holdings
+        </T>
+        <T variant="footnote" tone="tertiary">
+          {bag.assets.length} assets · {hasLegs ? "range" : "24h"} change
+        </T>
+      </View>
+      <View style={styles.weights}>
+        {bag.assets.map((asset, index) => (
+          <View
+            key={`${asset.symbol}-${index}`}
+            style={{ flex: asset.weightBps, backgroundColor: colors[index] }}
+          />
+        ))}
+      </View>
+      {bag.assets.map((asset, index) => {
+        const leg = asset.mint ? legs.get(asset.mint) : undefined;
+        const pct = hasLegs
+          ? (leg?.changePct ?? null)
+          : (asset.market?.priceChange24hPct ?? null);
+        return (
+          <View key={`${asset.symbol}-${index}`}>
+            {index > 0 ? <Divider inset={52 + density.rowGap} /> : null}
+            <HoldingRow
+              bagId={bag.id}
+              symbol={asset.symbol}
+              name={asset.name}
+              iconUrl={asset.iconUrl}
+              verified={!!asset.mint}
+              weight={formatBps(asset.weightBps)}
+              pct={pct}
+            />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function HoldingRow({
+  bagId,
+  symbol,
+  name,
+  iconUrl,
+  verified,
+  weight,
+  pct,
+}: {
+  bagId: string;
+  symbol: string;
+  name: string;
+  iconUrl: string | null;
+  verified: boolean;
+  weight: string;
+  pct: number | null;
+}) {
+  const color = useToneColor(pct);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${symbol}, ${name}, ${weight} of the bag${pct != null ? `, ${formatSignedPct(pct)}` : ""}${verified ? "" : ". Token mint not yet verified"}`}
+      accessibilityHint="Opens the asset"
+      onPress={() =>
+        router.push({
+          pathname: "/asset/[symbol]",
+          params: { symbol, bag: bagId },
+        })
+      }
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <TokenAvatar symbol={symbol} iconUrl={iconUrl} size={52} />
+      <View style={styles.flex}>
+        <T variant="headline" numberOfLines={1}>
+          {symbol}
+        </T>
+        <T
+          variant="footnote"
+          tone={verified ? "secondary" : "caution"}
+          numberOfLines={1}
+        >
+          {verified ? name : `${name} · mint unverified`}
+        </T>
+      </View>
+      <View style={styles.rowRight}>
+        <T variant="headline" style={styles.tabular}>
+          {weight}
+        </T>
+        <T variant="footnote" style={[styles.tabular, styles.bold, { color }]}>
+          {formatSignedPct(pct)}
+        </T>
+      </View>
+    </Pressable>
+  );
+}
+
+function Facts({ bag }: { bag: Bag }) {
+  const market = bagMarket(bag);
+  const asOf = formatAsOf(market?.asOf);
+  const rows: [string, string][] = [];
+  if (market?.premiumPct != null)
+    rows.push(["Token vs stock", formatSignedPct(market.premiumPct)]);
+  if (market?.worstImpactSymbol && market.worstImpactPct != null)
+    rows.push([
+      "Thinnest route",
+      `${market.worstImpactSymbol} · ${formatImpactPct(market.worstImpactPct)} @ $10`,
+    ]);
+  if (market?.worstLiquidityUsd != null)
+    rows.push([
+      "Smallest pool",
+      `${market.worstLiquiditySymbol ? `${market.worstLiquiditySymbol} · ` : ""}${formatUsdCompact(market.worstLiquidityUsd)}`,
+    ]);
+  rows.push([
+    "Sources",
+    `${bag.sources.length} ${bag.sources.length === 1 ? "source" : "sources"}`,
+  ]);
+  return (
+    <View style={styles.block}>
+      <T variant="title3" accessibilityRole="header">
+        Market
+      </T>
+      <View>
+        {rows.map(([label, value], index) => (
+          <View key={label}>
+            {index > 0 ? <Divider /> : null}
+            <View style={styles.fact}>
+              <T variant="callout" tone="secondary" numberOfLines={1} style={styles.flex}>
+                {label}
+              </T>
+              <T variant="callout" style={[styles.bold, styles.tabular]}>
+                {value}
+              </T>
+            </View>
+          </View>
+        ))}
+      </View>
+      {asOf ? (
+        <T variant="caption" tone="tertiary">
+          Market data {asOf}. Not a quote.
+        </T>
+      ) : null}
+    </View>
   );
 }
 
@@ -155,7 +481,8 @@ function RelatedStories({ bagId }: { bagId: string }) {
   const result = collectStories(stories.data?.pages);
   const list = result.status === "live" ? result.stories : [];
   const count = (context: "supporting" | "opposing") =>
-    list.filter((story) => connectionFor(story, bagId)?.context === context).length;
+    list.filter((story) => connectionFor(story, bagId)?.context === context)
+      .length;
   const summary = stories.isError
     ? "Couldn't load stories"
     : result.status === "unavailable"
@@ -164,7 +491,13 @@ function RelatedStories({ bagId }: { bagId: string }) {
         ? "No related stories yet"
         : `${count("supporting")} supporting · ${count("opposing")} challenging`;
   return (
-    <Collapsible title="Stories" icon="newspaper" tint="coral" count={list.length || undefined} summary={summary}>
+    <Collapsible
+      title="Stories"
+      icon="newspaper"
+      tint="coral"
+      count={list.length || undefined}
+      summary={summary}
+    >
       {list.length === 0 ? (
         <T variant="footnote" tone="secondary">
           {summary}
@@ -199,10 +532,15 @@ const GENERAL_RISKS = [
 function DetailSkeleton() {
   return (
     <View style={styles.skeleton} accessibilityLabel="Loading bag">
-      <Skeleton height={240} radius={28} />
-      <Skeleton height={30} width="60%" />
-      <Skeleton height={16} width="80%" />
-      <Skeleton height={220} radius={24} />
+      <View style={styles.heroRow}>
+        <Skeleton height={80} width={80} radius={26} />
+        <View style={[styles.flex, styles.skeletonText]}>
+          <Skeleton height={28} width="80%" />
+          <Skeleton height={16} width="40%" />
+        </View>
+      </View>
+      <Skeleton height={44} width="45%" />
+      <Skeleton height={220} radius={20} />
     </View>
   );
 }
@@ -210,9 +548,25 @@ function DetailSkeleton() {
 export default function BagScreen() {
   const { id, buy } = useLocalSearchParams<{ id: string; buy?: string }>();
   const bag = useBag(id);
+  const [range, setRange] = useState<ChartRange>("1W");
+  const chart = useBagChart(id, range);
+  const portfolio = usePortfolio();
   const auth = useStockpileAuth();
   const { theme } = useUnistyles();
-  const { openBuy } = useBuySheet();
+  const openBuy = useOpenBuy();
+
+  // Refetch whenever the screen regains focus (mount already fetches: staleTime is 0).
+  const focusedOnce = useRef(false);
+  const refetchBag = bag.refetch;
+  useFocusEffect(
+    useCallback(() => {
+      if (!focusedOnce.current) {
+        focusedOnce.current = true;
+        return;
+      }
+      refetchBag();
+    }, [refetchBag]),
+  );
 
   // `stockpile://bag/<id>?buy=1` opens "Put money in the bag" once the bag has loaded.
   const autoBuyDone = useRef(false);
@@ -249,7 +603,7 @@ export default function BagScreen() {
 
   const data = bag.data;
   const tradable = bagTradable(data);
-  const unverified = data.assets.filter((asset) => !asset.mint).length;
+  const holdingUsd = bagHoldingUsd(portfolio.data, data.id);
 
   // Signed-out users go through the sign-in sheet and land in the buy sheet afterwards.
   const tradeCta = () => openBuy(data.id);
@@ -258,91 +612,80 @@ export default function BagScreen() {
     <Screen
       back
       right={<SaveButton bagId={data.id} title={data.title} variant="circle" />}
-      onRefresh={() => bag.refetch()}
+      onRefresh={() => Promise.all([bag.refetch(), chart.refetch()])}
       footer={
         auth.configured ? (
           <>
             {!tradable ? (
               <View style={styles.footerNote}>
-                <Ionicons name="lock-closed" size={13} color={theme.ds.inkSecondary} />
-                <T variant="footnote" tone="secondary">
-                  {unverified === data.assets.length
-                    ? "Research only until token mints are verified"
-                    : `${unverified} of ${data.assets.length} token mints still unverified`}
+                <Ionicons
+                  name="lock-closed"
+                  size={13}
+                  color={theme.ds.inkSecondary}
+                />
+                <T variant="footnote" tone="secondary" style={styles.flex}>
+                  {researchOnlyReason(data)}
                 </T>
               </View>
             ) : null}
-            <PrimaryButton
-              label={auth.authenticated ? "Put money in the bag" : "Sign in to buy"}
-              icon={auth.authenticated ? "add-circle" : "mail"}
-              onPress={tradeCta}
-              disabled={auth.authenticated && !tradable}
-              accessibilityHint="Get a quote and review each transaction before signing"
-            />
+            {/* Research-only bags can't be bought, so never invite a sign-in "to buy" them. */}
+            {tradable ? (
+              <PrimaryButton
+                label={
+                  auth.authenticated ? "Put money in the bag" : "Sign in to buy"
+                }
+                icon={auth.authenticated ? "add-circle" : "mail"}
+                onPress={tradeCta}
+                accessibilityHint="Get a quote and review each transaction before signing"
+              />
+            ) : null}
           </>
         ) : undefined
       }
     >
-      <BagArt bag={data} height={230} logoSize={72} style={styles.hero}>
-        <View style={styles.heroStatus}>
-          <TradeStatus bag={data} onArt />
-        </View>
-      </BagArt>
+      <Hero bag={data} />
 
-      <View style={styles.titleBlock}>
-        <T variant="title1" accessibilityRole="header">
-          {data.title}
-        </T>
-        <T variant="callout" tone="secondary">
-          {data.subtitle}
-        </T>
-      </View>
+      <Performance
+        bag={data}
+        chart={chart.isError ? undefined : chart.data}
+        range={range}
+        onRange={setRange}
+        loading={chart.isFetching}
+        holdingUsd={holdingUsd}
+      />
 
-      <View style={styles.stats}>
-        <Stat icon="pie-chart" tint={theme.ds.accent} bg={theme.ds.accentSoft} value={`${data.assets.length}`} label="Assets" />
-        <Stat
-          icon="document-text"
-          tint={theme.ds.lilac}
-          bg={theme.ds.lilacSoft}
-          value={`${data.sources.length}`}
-          label={data.sources.length === 1 ? "Source" : "Sources"}
-        />
-        <Stat
-          icon={tradable ? "flash" : "book"}
-          tint={tradable ? theme.ds.positive : theme.ds.coral}
-          bg={tradable ? theme.ds.mintSoft : theme.ds.coralSoft}
-          value={tradable ? "Open" : "Research"}
-          label="Status"
-        />
-      </View>
+      <Holdings bag={data} chart={chart.isError ? undefined : chart.data} />
 
-      <View style={styles.sectionHeader}>
-        <T variant="title3" accessibilityRole="header">
-          What’s inside
-        </T>
-        <T variant="caption" tone="tertiary">
-          Target weights · tap for source
-        </T>
-      </View>
-      <Holdings bag={data} />
+      <Facts bag={data} />
 
       <View style={styles.sections}>
-        <RelatedStories bagId={data.id} />
-        <Collapsible title="Why this bag" icon="bulb" tint="accent" summary={data.thesis}>
-          <T variant="callout">{data.thesis}</T>
+        <Collapsible
+          title="Why this bag"
+          icon="bulb"
+          tint="accent"
+          summary={data.thesis}
+        >
+          <FullText variant="callout">{data.thesis}</FullText>
           {data.description ? (
-            <T variant="footnote" tone="secondary">
+            <FullText variant="footnote" tone="secondary">
               {data.description}
-            </T>
+            </FullText>
           ) : null}
         </Collapsible>
+
+        <RelatedStories bagId={data.id} />
 
         <Collapsible
           title="Evidence"
           icon="document-text"
-          tint="lilac"
+          tint="tertiary"
           count={data.sources.length}
-          summary={data.sources.length ? data.sources.map((s) => hostOf(s.url)).join(" · ") : "No sources attached yet"}
+          defaultOpen={bagCurator(data) != null && data.sources.length > 0}
+          summary={
+            data.sources.length
+              ? data.sources.map((s) => hostOf(s.url)).join(" · ")
+              : "No sources attached yet"
+          }
         >
           {data.sources.map((source) => (
             <Pressable
@@ -350,7 +693,10 @@ export default function BagScreen() {
               accessibilityRole="link"
               accessibilityLabel={`Open source: ${source.title}`}
               onPress={() => openLink(source.url)}
-              style={({ pressed }) => [styles.source, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.source,
+                pressed && styles.pressed,
+              ]}
             >
               <View style={styles.flex}>
                 <T variant="callout" style={styles.bold} numberOfLines={3}>
@@ -365,14 +711,23 @@ export default function BagScreen() {
           ))}
         </Collapsible>
 
-        <Collapsible title="Risks & disclosure" icon="shield-checkmark" tint="caution" summary={data.disclosure}>
-          <T variant="callout">{data.disclosure}</T>
+        <Collapsible
+          title="Risks & disclosure"
+          icon="shield-checkmark"
+          tint="caution"
+          summary={data.disclosure}
+        >
+          <FullText variant="callout">{data.disclosure}</FullText>
           {(data.risks.length > 0 ? data.risks : GENERAL_RISKS).map((risk) => (
             <View key={risk} style={styles.riskItem}>
               <View style={styles.riskBullet} />
-              <T variant="footnote" tone="secondary" style={styles.flex}>
+              <FullText
+                variant="footnote"
+                tone="secondary"
+                containerStyle={styles.flex}
+              >
                 {risk}
-              </T>
+              </FullText>
             </View>
           ))}
         </Collapsible>
@@ -381,90 +736,117 @@ export default function BagScreen() {
   );
 }
 
-function Stat({
-  icon,
-  tint,
-  bg,
-  value,
-  label,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  tint: string;
-  bg: string;
-  value: string;
-  label: string;
-}) {
-  return (
-    <View style={styles.stat}>
-      <View style={[styles.statIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={16} color={tint} />
-      </View>
-      <T variant="headline" numberOfLines={1}>
-        {value}
-      </T>
-      <T variant="caption" tone="tertiary">
-        {label}
-      </T>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
   bold: { fontWeight: "600" },
-  pressed: { backgroundColor: theme.ds.scrim },
-  hero: { ...theme.rounded(28) },
-  heroStatus: { position: "absolute", top: 14, right: 14 },
-  titleBlock: { gap: 4, marginTop: 4 },
-  stats: { flexDirection: "row", gap: 10 },
-  stat: {
-    flex: 1,
-    backgroundColor: theme.ds.surface,
-    ...theme.rounded(20),
-    padding: 14,
-    gap: 4,
-    shadowColor: "#1B2250",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
-  },
-  statIcon: { width: 30, height: 30, ...theme.rounded(10), alignItems: "center", justifyContent: "center", marginBottom: 4 },
-  sectionHeader: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", marginTop: 8 },
-  barWrap: { padding: 16 },
-  assetRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
-  assetTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
-  unverified: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: theme.ds.cautionSoft,
-  },
-  track: { height: 5, borderRadius: 3, backgroundColor: theme.ds.sunken, marginTop: 8, overflow: "hidden" },
-  fill: { height: 5, borderRadius: 3 },
-  weightCol: { alignItems: "flex-end", gap: 6 },
   tabular: { fontVariant: ["tabular-nums"] },
-  sections: { gap: 12, marginTop: 8 },
+  pressed: { opacity: 0.6 },
+  hero: { gap: 10, marginTop: 4 },
+  heroRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  heroIcon: {
+    width: 80,
+    height: 80,
+    ...theme.rounded(26),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTitle: { fontSize: 30, lineHeight: 34 },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  category: {
+    paddingHorizontal: theme.density.chipX,
+    paddingVertical: theme.density.chipY,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.ds.accentSoft,
+  },
+  categoryLabel: { fontWeight: "700", color: theme.ds.accent },
+  performance: { gap: 12, marginTop: 20 },
+  headline: { gap: 2 },
+  bigNumber: {
+    fontSize: 46,
+    lineHeight: 52,
+    fontWeight: "800",
+    letterSpacing: -1.2,
+    fontVariant: ["tabular-nums"],
+  },
+  bigMuted: { color: theme.ds.inkTertiary },
+  headlineMeta: { flexDirection: "row", alignItems: "center", gap: 8 },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: theme.ds.inkTertiary,
+  },
+  chartPlaceholder: { marginHorizontal: -theme.density.gutter, opacity: 0.6 },
+  soon: { marginTop: -4 },
+  block: { gap: 12, marginTop: 28 },
+  blockHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+  },
+  weights: {
+    flexDirection: "row",
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+    gap: 2,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.density.rowGap,
+    paddingVertical: 12,
+  },
+  rowRight: { alignItems: "flex-end", gap: 2 },
+  fact: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+  },
+  sections: { gap: theme.density.item, marginTop: 28 },
   source: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12,
+    gap: theme.density.rowGap,
+    padding: 10,
     ...theme.rounded(14),
     backgroundColor: theme.ds.canvas,
   },
-  story: { gap: 6, padding: 12, ...theme.rounded(14), backgroundColor: theme.ds.canvas },
+  story: {
+    gap: 6,
+    padding: 10,
+    ...theme.rounded(14),
+    backgroundColor: theme.ds.canvas,
+  },
   stance: {
     flexDirection: "row",
     alignSelf: "flex-start",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: theme.density.chipX,
+    paddingVertical: theme.density.chipY,
     borderRadius: 999,
   },
-  riskItem: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  riskBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.ds.caution, marginTop: 7 },
-  footerNote: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  skeleton: { gap: 14, marginTop: 4 },
+  riskItem: {
+    flexDirection: "row",
+    gap: theme.density.item,
+    alignItems: "flex-start",
+  },
+  riskBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.ds.caution,
+    marginTop: 7,
+  },
+  footerNote: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  skeleton: { gap: theme.density.stack, marginTop: 4 },
+  skeletonText: { gap: 8 },
 }));

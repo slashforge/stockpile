@@ -1,0 +1,250 @@
+---
+/**
+ * Illustrative CSS/SVG mock of the reel -> bag flow. No real prices or
+ * screenshots; the story is a real feed item, the bag is a real catalogue
+ * entry, weights are the editorial weights.
+ */
+import TokenAvatar from './TokenAvatar.astro';
+import type { LandingBag } from '../lib/bags';
+
+interface Props {
+  bag: LandingBag;
+  class?: string;
+}
+
+const { bag, class: className = '' } = Astro.props;
+const assets = bag.assets.slice(0, 4);
+---
+
+<div class:list={['phone-scene', className]}>
+  <!-- Phone -->
+  <div class="phone squircle" aria-hidden="true">
+    <div class="phone__screen">
+      <!-- Status bar -->
+      <div class="flex items-center justify-between px-6 pt-3 text-[11px] font-semibold text-white/90">
+        <span>9:41</span>
+        <span class="phone__island"></span>
+        <span class="flex items-center gap-1">
+          <span class="w-3.5 h-2 rounded-[2px] border border-white/80 relative"><span class="absolute inset-[1.5px] right-[3px] bg-white rounded-[1px]"></span></span>
+        </span>
+      </div>
+
+      <!-- Reel card -->
+      <div class="reel">
+        <div class="reel__art">
+          <span class="reel__blob reel__blob--a"></span>
+          <span class="reel__blob reel__blob--b"></span>
+          <svg class="reel__lines" viewBox="0 0 200 120" fill="none" preserveAspectRatio="none">
+            <path d="M0 96 C 40 70, 70 110, 110 60 S 170 30, 200 46" stroke="rgba(255,255,255,0.55)" stroke-width="2" />
+            <path d="M0 110 C 50 90, 80 118, 120 84 S 175 62, 200 70" stroke="rgba(255,255,255,0.28)" stroke-width="2" />
+          </svg>
+        </div>
+        <div class="reel__body">
+          <div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">
+            <span class="w-1.5 h-1.5 rounded-full bg-mint"></span>
+            CNBC Technology
+          </div>
+          <p class="mt-2 text-[17px] leading-[1.25] font-bold text-white text-balance">
+            Tesla poised to scale production of heavy-duty Semi trucks with opening of Nevada factory
+          </p>
+          <p class="mt-2 text-[12px] leading-snug text-white/70">
+            Source-derived summary · Article
+          </p>
+        </div>
+
+        <!-- Bag chip pinned at the bottom of the reel -->
+        <div class="reel__bag squircle">
+          <div class="flex -space-x-2">
+            {assets.map((a, i) => (
+              <TokenAvatar symbol={a.symbol} name={a.name} iconUrl={a.iconUrl} brandColor={a.brandColor} size={26} index={i} class="ring-2 ring-white" />
+            ))}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-[12px] font-bold text-text truncate">{bag.title}</p>
+            <p class="text-[10px] text-text-muted truncate">{bag.curator.name} · {bag.assets.length} holdings</p>
+          </div>
+          <span class="text-brand text-[11px] font-bold">Open</span>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="phone__tabs">
+        <span class="phone__tab phone__tab--active">Feed</span>
+        <span class="phone__tab">Bags</span>
+        <span class="phone__tab">Saved</span>
+        <span class="phone__tab">Wallet</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating bag sheet -->
+  <div class="sheet squircle" aria-hidden="true">
+    <div class="flex items-center justify-between">
+      <span class="badge badge-brand text-[10px] py-0.5 px-2">Bag</span>
+      <span class="text-[10px] font-semibold text-text-muted">{bag.sourceType === 'disclosure' ? 'STOCK Act' : 'Editorial'}</span>
+    </div>
+    <p class="mt-2 text-[15px] font-bold text-text leading-tight">{bag.title}</p>
+    <p class="text-[11px] text-text-subtle">{bag.subtitle}</p>
+
+    <ul class="mt-3 space-y-1.5">
+      {assets.map((a, i) => (
+        <li class="flex items-center gap-2">
+          <TokenAvatar symbol={a.symbol} name={a.name} iconUrl={a.iconUrl} brandColor={a.brandColor} size={22} index={i} />
+          <span class="text-[11px] font-semibold text-text w-16 truncate">{a.symbol}</span>
+          <span class="flex-1 h-1.5 rounded-full bg-surface-subtle overflow-hidden">
+            <span class="block h-full rounded-full" style={`width:${a.weightBps / 100}%; background:${a.brandColor ?? '#2563EB'}`}></span>
+          </span>
+          <span class="text-[11px] font-mono text-text-muted w-8 text-right">{Math.round(a.weightBps / 100)}%</span>
+        </li>
+      ))}
+    </ul>
+
+    <div class="mt-3 flex items-center gap-1.5 text-[10px] text-text-subtle">
+      <svg class="w-3 h-3 text-mint" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z" clip-rule="evenodd"/></svg>
+      Every holding cites its source
+    </div>
+    <div class="mt-2 btn-primary w-full text-[12px] py-2 rounded-lg pointer-events-none">Buy bag · one flow</div>
+  </div>
+</div>
+
+<style>
+  .phone-scene {
+    position: relative;
+    width: 320px;
+    height: 690px;
+    margin: 0 auto;
+  }
+  .phone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 580px;
+    border-radius: 48px;
+    padding: 10px;
+    background: linear-gradient(160deg, #1b1f2e, #0e1017);
+    box-shadow:
+      0 40px 80px -20px rgba(37, 99, 235, 0.35),
+      0 24px 48px -24px rgba(16, 19, 31, 0.5),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .phone__screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 40px;
+    overflow: hidden;
+    background: #10131f;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone__island {
+    width: 74px;
+    height: 20px;
+    border-radius: 999px;
+    background: #000;
+  }
+  .reel {
+    position: relative;
+    flex: 1;
+    margin: 12px 10px 10px;
+    border-radius: 28px;
+    overflow: hidden;
+    background: linear-gradient(160deg, #2563eb 0%, #38bdf8 60%, #6fe0e8 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .reel__art {
+    position: absolute;
+    inset: 0;
+  }
+  .reel__blob {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(18px);
+    opacity: 0.8;
+  }
+  .reel__blob--a {
+    width: 160px;
+    height: 160px;
+    right: -40px;
+    top: 20px;
+    background: #ffb86b;
+  }
+  .reel__blob--b {
+    width: 120px;
+    height: 120px;
+    left: -30px;
+    top: 120px;
+    background: #6fe0e8;
+  }
+  .reel__lines {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 60px;
+    height: 140px;
+    width: 100%;
+  }
+  .reel__body {
+    position: relative;
+    padding: 0 16px 14px;
+    background: linear-gradient(180deg, rgba(16, 19, 31, 0) 0%, rgba(16, 19, 31, 0.55) 60%, rgba(16, 19, 31, 0.75) 100%);
+    padding-top: 80px;
+  }
+  .reel__bag {
+    position: relative;
+    margin: 0 10px 10px;
+    padding: 8px 10px;
+    border-radius: 16px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(16, 19, 31, 0.25);
+  }
+  .phone__tabs {
+    display: flex;
+    justify-content: space-around;
+    padding: 6px 12px 16px;
+    background: #10131f;
+  }
+  .phone__tab {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+  }
+  .phone__tab--active {
+    color: #fff;
+  }
+  .sheet {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 210px;
+    padding: 14px;
+    border-radius: 22px;
+    background: #fff;
+    box-shadow:
+      0 24px 60px -16px rgba(16, 19, 31, 0.25),
+      0 0 0 1px rgba(16, 19, 31, 0.05);
+    transform: rotate(3deg);
+  }
+  @media (min-width: 640px) {
+    .phone-scene {
+      width: 440px;
+      height: 700px;
+    }
+    .phone {
+      left: 0;
+      top: 0;
+    }
+    .sheet {
+      right: 0;
+      bottom: 0;
+      width: 236px;
+      transform: rotate(4deg);
+    }
+  }
+</style>

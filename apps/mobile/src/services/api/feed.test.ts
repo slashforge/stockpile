@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { afterEach, expect, test } from "bun:test";
-import { fetchBagStories, fetchStories } from "./feed";
+import { decodeEntities, fetchBagStories, fetchStories } from "./feed";
 
 const realFetch = globalThis.fetch;
 let urls: string[] = [];
@@ -45,4 +45,10 @@ test("fetchBagStories targets the bag", async () => {
   mockFetch(() => json(200, { stories: [], nextCursor: null }));
   await fetchBagStories("ai-infrastructure");
   expect(urls[0]).toContain("/bags/ai-infrastructure/stories");
+});
+
+test("decodeEntities turns leaked HTML entities into characters", () => {
+  expect(decodeEntities("Google Photos &#8216;Clueless&#8217;-inspired")).toBe("Google Photos \u2018Clueless\u2019-inspired");
+  expect(decodeEntities("AT&amp;T &#x2014; &quot;ok&quot;")).toBe('AT&T \u2014 "ok"');
+  expect(decodeEntities("R&D &unknown; & more")).toBe("R&D &unknown; & more");
 });

@@ -58,7 +58,7 @@ src/components/stockpile/  Design system: type scale (T), Screen/Card/Section/st
 src/config/theme.ts    Tokens: `theme.ds` (paper/ink/green palette), `theme.chart`, `theme.fonts`
 ```
 
-Design system: bright, light-only UI with system fonts (SF Pro / Roboto), cool white canvas and blue/lilac/coral/mint
+Design system: bright, light-only UI with system fonts (SF Pro / Roboto), cool white canvas and blue/coral/mint (cyan tertiary)
 accents (`theme.ds`, `theme.gradients`, `theme.chart` in `src/config/theme.ts`). Piles render as gradient artwork with
 oversized real token logos (`basket-art.tsx`). Stories render as full-screen vertical reels (`story-reel.tsx`) from
 `GET /stories` via the generated SDK (`src/services/api/feed.ts`); missing story images use designed fallback artwork,
@@ -90,6 +90,27 @@ Unit coverage (`bun test src`):
 - `src/lib/solana/transaction.test.ts`: on-device transaction inspection (fee payer / sole signer / no wallet / bad base64).
 - `src/lib/trade/signing.test.ts`: the approval and signing state machine. Unsafe or undecodable transactions never reach the wallet; a user rejection is retryable; anything broadcast is never re-sent; partial completion is tracked without claiming success; prepared transactions expire.
 - `src/utils/amounts.test.ts`: exact decimal/base-unit conversion.
+
+## Wallet funding
+
+"Add funds" opens a sheet from three places: the Portfolio wallet card, the Account wallet row, and the buy sheet's "Add USDC" button. The sheet (`src/components/stockpile/fund-sheet.tsx`) shows:
+
+- A QR code of the embedded Solana wallet address, drawn with `react-native-qrcode-styled`. It's pure JS on `react-native-svg` and is a required peer of `@privy-io/expo/ui`, so no dev-client rebuild is needed.
+- The address, with Copy and Share buttons.
+- A "Solana" network chip.
+- A low-SOL fee note when the known SOL balance is under 0.005 SOL.
+
+**Buy with card (Privy onramp).** `@privy-io/expo@0.63` exports `useFundSolanaWallet` from `@privy-io/expo/ui`. Its flow is rendered by `<PrivyElements />`, which is mounted in `src/lib/privy/privy-auth-provider.tsx`. The "Buy USDC with card" button only appears when the app's Privy config (`client.app.getConfig().funding_config`) lists a card provider (`moonpay` or `coinbase-onramp`). Otherwise it stays hidden.
+
+As of Sep 25 2026, this app's `funding_config` is `null`: no funding methods are enabled, so the button is hidden. To turn it on:
+
+1. In the Privy Dashboard → your app → Wallets → **Funding**, enable **Pay with card** (MoonPay and/or Coinbase Onramp) for **Solana**.
+2. Set the default asset to **USDC** and a default amount.
+3. Complete any provider onboarding the dashboard asks for.
+
+Nothing in code needs to change. The button appears after the app next loads its Privy config.
+
+**Transfer from another wallet (Android MWA)** is not implemented, because `@solana-mobile/mobile-wallet-adapter-protocol-web3js` is not installed. Adding it is a native change that needs a dev-client rebuild.
 
 ## Troubleshooting
 

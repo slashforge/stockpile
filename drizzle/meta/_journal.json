@@ -29,6 +29,13 @@
       "when": 1790281222418,
       "tag": "0003_bags_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790318448841,
+      "tag": "0004_market_and_congress",
+      "breakpoints": true
     }
   ]
 }

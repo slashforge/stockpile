@@ -5,9 +5,15 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { CopyRow } from "@/components/stockpile/copy-row";
+import { LowSolPill, useFundSheet } from "@/components/stockpile/fund-sheet";
 import { GradientCard } from "@/components/stockpile/gradient-card";
 import { HeroState } from "@/components/stockpile/hero-state";
-import { Card, Collapsible, ListRow, Screen } from "@/components/stockpile/layout";
+import {
+  Card,
+  Collapsible,
+  ListRow,
+  Screen,
+} from "@/components/stockpile/layout";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { useSignInSheet } from "@/components/stockpile/sign-in-sheet";
 import { T } from "@/components/stockpile/type";
@@ -35,10 +41,19 @@ function Disclosures() {
   const { theme } = useUnistyles();
   const bags = useBags();
   const sources = Array.from(
-    new Map((bags.data ?? []).flatMap((bag) => bag.sources).map((source) => [source.url, source])).values(),
+    new Map(
+      (bags.data ?? [])
+        .flatMap((bag) => bag.sources)
+        .map((source) => [source.url, source]),
+    ).values(),
   );
   return (
-    <Collapsible title="Disclosures" icon="shield-checkmark" tint="caution" summary="Risks and issuer information">
+    <Collapsible
+      title="Disclosures"
+      icon="shield-checkmark"
+      tint="caution"
+      summary="Risks and issuer information"
+    >
       {RISKS.map((risk) => (
         <View key={risk} style={styles.risk}>
           <View style={styles.bullet} />
@@ -52,7 +67,9 @@ function Disclosures() {
           key={source.url}
           accessibilityRole="link"
           accessibilityLabel={`Open ${source.title}`}
-          onPress={() => WebBrowser.openBrowserAsync(source.url).catch(() => {})}
+          onPress={() =>
+            WebBrowser.openBrowserAsync(source.url).catch(() => {})
+          }
           style={({ pressed }) => [styles.link, pressed && styles.pressed]}
         >
           <View style={styles.flex}>
@@ -75,6 +92,7 @@ export default function AccountScreen() {
   const me = useMe();
   const sonner = useSonner();
   const { requestSignIn } = useSignInSheet();
+  const { openFund } = useFundSheet();
   const [signingOut, setSigningOut] = useState(false);
   const walletAddress = auth.walletAddress ?? me.data?.walletAddress ?? null;
   const email = auth.email ?? me.data?.email ?? null;
@@ -107,7 +125,7 @@ export default function AccountScreen() {
         />
       ) : auth.authenticated ? (
         <>
-          <GradientCard gradient="lilac">
+          <GradientCard gradient="rose">
             <View style={styles.profile}>
               <View style={styles.avatar}>
                 <T variant="title1" style={styles.onGradient}>
@@ -126,9 +144,22 @@ export default function AccountScreen() {
           </GradientCard>
           <Card padded={false}>
             {walletAddress ? (
-              <CopyRow label="Solana wallet" value={walletAddress} />
+              <>
+                <CopyRow label="Solana wallet" value={walletAddress} />
+                <ListRow
+                  title="Add funds"
+                  detail="Receive USDC on Solana"
+                  icon="add-circle"
+                  onPress={openFund}
+                  trailing={<LowSolPill />}
+                />
+              </>
             ) : (
-              <ListRow title="Solana wallet" detail="Setting up your wallet…" icon="wallet" />
+              <ListRow
+                title="Solana wallet"
+                detail="Setting up your wallet…"
+                icon="wallet"
+              />
             )}
           </Card>
           {me.isError ? (
@@ -139,7 +170,7 @@ export default function AccountScreen() {
         </>
       ) : (
         <HeroState
-          gradient="lilac"
+          gradient="rose"
           icon="person"
           accents={["mail", "shield-checkmark"]}
           title="Sign in to Stockpile"
@@ -153,12 +184,27 @@ export default function AccountScreen() {
       <Disclosures />
 
       {auth.authenticated ? (
-        <PrimaryButton label="Sign out" variant="outline" icon="log-out-outline" loading={signingOut} onPress={signOut} />
+        <PrimaryButton
+          label="Sign out"
+          variant="outline"
+          icon="log-out-outline"
+          loading={signingOut}
+          onPress={signOut}
+        />
       ) : null}
 
-      <T variant="caption" tone="tertiary" align="center" style={styles.version}>
+      <T
+        variant="caption"
+        tone="tertiary"
+        align="center"
+        style={styles.version}
+      >
         Stockpile {Constants.expoConfig?.version ?? ""}
-        {__DEV__ || apiHost.startsWith("localhost") || apiHost.startsWith("127.") ? ` · ${apiHost}` : ""}
+        {__DEV__ ||
+        apiHost.startsWith("localhost") ||
+        apiHost.startsWith("127.")
+          ? ` · ${apiHost}`
+          : ""}
       </T>
     </Screen>
   );
@@ -168,7 +214,7 @@ const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1, gap: 2 },
   onGradient: { color: "#FFFFFF" },
   onGradientSoft: { color: "rgba(255,255,255,0.88)" },
-  profile: { flexDirection: "row", alignItems: "center", gap: 14 },
+  profile: { flexDirection: "row", alignItems: "center", gap: theme.density.stack },
   avatar: {
     width: 60,
     height: 60,
@@ -177,13 +223,20 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.25)",
   },
-  risk: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  bullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.ds.caution, marginTop: 7 },
+  risk: { flexDirection: "row", gap: theme.density.item, alignItems: "flex-start" },
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.ds.caution,
+    marginTop: 7,
+  },
   link: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12,
+    gap: theme.density.rowGap,
+    padding: 10,
+    minHeight: 44,
     ...theme.rounded(14),
     backgroundColor: theme.ds.canvas,
   },

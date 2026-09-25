@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useScrollToTop } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  LayoutAnimation,
   Platform,
   Pressable,
   RefreshControl,
@@ -20,6 +19,7 @@ import Animated, {
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { rounded } from "@/config/sizing";
 import { PrimaryButton } from "./primary-button";
+import { useTabBarInset } from "./tab-bar";
 import { T } from "./type";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -37,6 +37,8 @@ type ScreenProps = {
   /** Return the refetch promise so the pull spinner stops when it settles. */
   onRefresh?: () => unknown;
   footer?: React.ReactNode;
+  /** Called when the user scrolls near the end of the content (infinite lists). */
+  onEndReached?: () => void;
 };
 
 export function IconButton({
@@ -79,9 +81,15 @@ export function Screen({
   children,
   onRefresh,
   footer,
+  onEndReached,
 }: ScreenProps) {
   const { theme } = useUnistyles();
   const hasBar = back || close || !!right;
+  // Android floating tab bar draws over the content; leave room so the last item clears it.
+  const tabInset = useTabBarInset();
+  // Re-tapping the active tab scrolls back to the top (no-op outside a tab navigator).
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
   const [scrolled, setScrolled] = useState(false);
   // Only show the spinner for refreshes the user pulled. Driving iOS RefreshControl from background
   // refetches (`isRefetching`) leaves it stuck spinning when a tab mounts mid-refetch.
@@ -113,7 +121,12 @@ export function Screen({
         </View>
       ) : null}
       <ScrollView
-        contentContainerStyle={[styles.content, !hasBar && styles.contentNoBar]}
+        ref={scrollRef}
+        contentContainerStyle={[
+          styles.content,
+          !hasBar && styles.contentNoBar,
+          tabInset > 0 && !footer ? { paddingBottom: tabInset + 16 } : null,
+        ]}
         // iOS: let UIKit inset content for the status bar and the native (Liquid Glass) tab bar.
         contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : undefined}
         refreshControl={
@@ -130,10 +143,16 @@ export function Screen({
         keyboardDismissMode="on-drag"
         scrollEventThrottle={32}
         onScroll={
-          hasBar
+          hasBar || onEndReached
             ? (event) => {
-                const next = event.nativeEvent.contentOffset.y > 4;
-                if (next !== scrolled) setScrolled(next);
+                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                if (hasBar) {
+                  const next = contentOffset.y > 4;
+                  if (next !== scrolled) setScrolled(next);
+                }
+                if (onEndReached && contentOffset.y + layoutMeasurement.height >= contentSize.height - 400) {
+                  onEndReached();
+                }
               }
             : undefined
         }
@@ -159,7 +178,9 @@ export function Screen({
         {children}
       </ScrollView>
       {!hasBar ? <View style={styles.statusScrim} pointerEvents="none" /> : null}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {footer ? (
+        <View style={[styles.footer, tabInset > 0 ? { paddingBottom: tabInset + 12 } : null]}>{footer}</View>
+      ) : null}
     </View>
   );
 }
@@ -352,7 +373,7 @@ export function Collapsible({
 }: {
   title: string;
   icon: IconName;
-  tint?: "accent" | "lilac" | "coral" | "mint" | "caution";
+  tint?: "accent" | "tertiary" | "coral" | "mint" | "caution";
   summary?: string;
   count?: number;
   defaultOpen?: boolean;
@@ -362,14 +383,14 @@ export function Collapsible({
   const [open, setOpen] = useState(defaultOpen);
   const fg = {
     accent: theme.ds.accent,
-    lilac: theme.ds.lilac,
+    tertiary: theme.ds.tertiary,
     coral: theme.ds.coral,
     mint: theme.ds.mint,
     caution: theme.ds.caution,
   }[tint];
   const bg = {
     accent: theme.ds.accentSoft,
-    lilac: theme.ds.lilacSoft,
+    tertiary: theme.ds.tertiarySoft,
     coral: theme.ds.coralSoft,
     mint: theme.ds.mintSoft,
     caution: theme.ds.cautionSoft,
@@ -380,10 +401,8 @@ export function Collapsible({
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
-        onPress={() => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setOpen((value) => !value);
-        }}
+        // No LayoutAnimation: on iOS it animates the body to a fixed frame and can clip long text.
+        onPress={() => setOpen((value) => !value)}
         style={({ pressed }) => [styles.collapsibleHeader, pressed && styles.rowPressed]}
       >
         <View style={[styles.collapsibleIcon, { backgroundColor: bg }]}>
@@ -394,8 +413,9 @@ export function Collapsible({
             {title}
             {count != null ? <T variant="headline" tone="tertiary">{`  ${count}`}</T> : null}
           </T>
-          {summary ? (
-            <T variant="footnote" tone="secondary" numberOfLines={open ? undefined : 2}>
+          {/* Callers repeat the full text in the body, so once open the preview would only duplicate it. */}
+          {summary && !open ? (
+            <T variant="footnote" tone="secondary" numberOfLines={2}>
               {summary}
             </T>
           ) : null}
@@ -479,7 +499,7 @@ const styles = StyleSheet.create((theme, rt) => ({
   },
   topBar: {
     paddingTop: rt.insets.top + 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: theme.density.gutter,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "transparent",
@@ -505,17 +525,17 @@ const styles = StyleSheet.create((theme, rt) => ({
   },
   pressed: { opacity: 0.7 },
   content: {
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.density.gutter,
     paddingBottom: theme.spacing.xl,
-    gap: 16,
+    gap: theme.density.stack,
   },
-  contentNoBar: { paddingTop: Platform.OS === "ios" ? 12 : rt.insets.top + 16 },
+  contentNoBar: { paddingTop: Platform.OS === "ios" ? 8 : rt.insets.top + 12 },
   header: { gap: 4, marginBottom: 4 },
   subtitle: { maxWidth: 520 },
   footer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: Math.max(rt.insets.bottom, 12) + 4,
+    paddingHorizontal: theme.density.gutter,
+    paddingTop: theme.density.rowY,
+    paddingBottom: Math.max(rt.insets.bottom, 12),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.ds.line,
     backgroundColor: theme.ds.canvas,
@@ -524,27 +544,27 @@ const styles = StyleSheet.create((theme, rt) => ({
   card: {
     backgroundColor: theme.ds.surface,
     ...theme.rounded(24),
-    gap: 12,
+    gap: theme.density.rowGap,
     shadowColor: "#1B2250",
     shadowOpacity: 0.06,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
-  cardPadded: { padding: 18 },
-  section: { gap: 12, marginTop: 16 },
-  sectionHeader: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
+  cardPadded: { padding: theme.density.card },
+  section: { gap: theme.density.sectionHeader, marginTop: theme.density.section - theme.density.stack },
+  sectionHeader: { flexDirection: "row", alignItems: "flex-end", gap: theme.density.rowGap },
   sectionCaption: { marginTop: 2 },
   flex: { flex: 1 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: theme.ds.line },
   skeleton: { backgroundColor: theme.ds.sunken },
-  skeletonRow: { flexDirection: "row", gap: 12, alignItems: "center" },
+  skeletonRow: { flexDirection: "row", gap: theme.density.rowGap, alignItems: "center" },
   skeletonText: { gap: 8 },
-  loading: { gap: 14 },
+  loading: { gap: theme.density.stack },
   message: {
     alignItems: "center",
-    paddingVertical: 36,
-    paddingHorizontal: 20,
+    paddingVertical: theme.density.section,
+    paddingHorizontal: theme.density.gutter,
     gap: 8,
   },
   messageArt: { width: 120, height: 96, alignItems: "center", justifyContent: "center", marginBottom: 8 },
@@ -567,7 +587,7 @@ const styles = StyleSheet.create((theme, rt) => ({
   },
   messageIconError: { backgroundColor: theme.ds.dangerSoft, shadowOpacity: 0 },
   messageBody: { maxWidth: 320 },
-  messageAction: { marginTop: 12, minWidth: 180 },
+  messageAction: { marginTop: theme.density.item, minWidth: 180 },
   collapsible: {
     backgroundColor: theme.ds.surface,
     ...theme.rounded(22),
@@ -578,16 +598,23 @@ const styles = StyleSheet.create((theme, rt) => ({
     shadowOffset: { width: 0, height: 4 },
     elevation: 1,
   },
-  collapsibleHeader: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, minHeight: 64 },
-  collapsibleIcon: { width: 36, height: 36, ...theme.rounded(12), alignItems: "center", justifyContent: "center" },
-  collapsibleBody: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
-  row: {
-    minHeight: 56,
+  collapsibleHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: theme.density.rowGap,
+    paddingHorizontal: theme.density.card,
+    paddingVertical: theme.density.rowY,
+    minHeight: 56,
+  },
+  collapsibleIcon: { width: 36, height: 36, ...theme.rounded(12), alignItems: "center", justifyContent: "center" },
+  collapsibleBody: { paddingHorizontal: theme.density.card, paddingBottom: theme.density.card, gap: theme.density.item },
+  row: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.density.rowGap,
+    paddingHorizontal: theme.density.card,
+    paddingVertical: theme.density.rowY,
   },
   rowPressed: { backgroundColor: theme.ds.scrim },
   rowIcon: {
@@ -607,9 +634,9 @@ const pillStyles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 5,
+    paddingHorizontal: theme.density.pillX,
+    paddingVertical: theme.density.pillY,
     borderRadius: theme.radius.full,
     variants: {
       tone: {
@@ -627,8 +654,8 @@ const pillStyles = StyleSheet.create((theme) => ({
 const noticeStyles = StyleSheet.create((theme) => ({
   notice: {
     flexDirection: "row",
-    gap: 10,
-    padding: 14,
+    gap: theme.density.item,
+    padding: theme.density.rowY,
     ...theme.rounded(16),
     variants: {
       tone: {

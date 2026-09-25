@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { db } from "@stockpile/core/db";
 import { stories } from "@stockpile/core/db/schema";
-import { canonicalUrl, curate, editorial, safeText, storyId, type Draft } from "./story-curator";
+import { canonicalUrl, curate, editorial, safeText, stance, storyId, type Draft } from "./story-curator";
 
 /** Companies whose explicit mention in a multi-company feed maps a story to bags. Pre-IPO names map to PreStocks-backed bags. */
 export const companies = [
@@ -160,4 +160,19 @@ export async function ingestStories(options: { ai?: boolean } = {}) {
   try { await ingestDrafts(await fetchPodcastEpisodes()); }
   catch (error) { errors.push(`NVIDIA AI Podcast: ${error instanceof Error ? error.message : "unknown failure"}`); }
   return { inserted, errors };
+}
+
+/** `bun run stories:recontext`: re-derives the editorial stance for persisted editorial article/podcast stories from their stored title + summary. */
+export async function recontextStories() {
+  const { and, eq, inArray } = await import("drizzle-orm");
+  const rows = await db.select().from(stories).where(and(eq(stories.provenance, "editorial"), inArray(stories.format, ["article", "podcast"])));
+  let updated = 0;
+  for (const row of rows) {
+    const tone = stance(`${row.title} ${row.summary}`);
+    const connections = row.connections.map((connection) => ({ ...connection, context: tone.context, explanation: `${connection.explanation.replace(/ Tone (?:supporting|opposing|neutral): the source says ".*"\.$/, "")}${tone.evidence ? ` Tone ${tone.context}: the source says "${tone.evidence}".` : ""}` }));
+    if (JSON.stringify(connections) === JSON.stringify(row.connections)) continue;
+    await db.update(stories).set({ connections }).where(eq(stories.id, row.id));
+    updated++;
+  }
+  return { scanned: rows.length, updated };
 }

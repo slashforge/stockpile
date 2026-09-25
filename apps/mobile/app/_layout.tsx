@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
 import { BagSheetProvider } from "@/components/stockpile/bag-sheet";
-import { BuySheetProvider } from "@/components/stockpile/buy-sheet";
+import { FundSheetProvider } from "@/components/stockpile/fund-sheet";
 import { SignInSheetProvider } from "@/components/stockpile/sign-in-sheet";
 import { RouteTour } from "@/components/dev/route-tour";
 import { RootProvider } from "@/providers/root-provider";
@@ -16,7 +16,7 @@ function AppStack() {
 
   return (
     <SignInSheetProvider>
-      <BuySheetProvider>
+      <FundSheetProvider>
         <BagSheetProvider>
           <StatusBar style="dark" />
           <Stack
@@ -27,10 +27,18 @@ function AppStack() {
           >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="bag/[id]" />
+            <Stack.Screen
+              name="asset/[symbol]"
+              options={{ presentation: "modal" }}
+            />
+            <Stack.Screen
+              name="buy/[bagId]"
+              options={{ presentation: "modal" }}
+            />
           </Stack>
           <RouteTour />
         </BagSheetProvider>
-      </BuySheetProvider>
+      </FundSheetProvider>
     </SignInSheetProvider>
   );
 }

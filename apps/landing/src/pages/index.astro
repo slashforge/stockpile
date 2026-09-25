@@ -2,19 +2,34 @@
 import BaseHead from '../components/BaseHead.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Bags from '../components/Bags.astro';
+import Receipts from '../components/Receipts.astro';
+import Builders from '../components/Builders.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import { loadBagCatalogue } from '../lib/bags';
+
+const catalogue = await loadBagCatalogue();
+const heroBag =
+	catalogue.bags.find((b) => b.id === 'consumer-frontiers' && b.assets.length > 0) ??
+	catalogue.bags.find((b) => b.assets.length > 0) ??
+	catalogue.bags[0];
 ---
 
 <!doctype html>
 <html lang="en" class="scroll-smooth">
 	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+		<BaseHead title={`${SITE_TITLE} — Swipe the news, buy the bag`} description={SITE_DESCRIPTION} />
 	</head>
 	<body class="bg-background text-text antialiased">
 		<Nav />
 		<main>
-			<Hero />
+			<Hero bag={heroBag} />
+			<HowItWorks />
+			<Bags catalogue={catalogue} />
+			<Receipts />
+			<Builders />
 		</main>
 		<Footer />
 	</body>

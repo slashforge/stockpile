@@ -6,8 +6,9 @@ import { savedBags } from "@stockpile/core/db/schema";
 import { findBag } from "../lib/bags";
 import { syncUser, verifyIdentity, type Identity } from "../lib/identity";
 import { readPortfolio, unavailablePortfolio } from "../lib/portfolio";
+import { cursorPattern, HELIUS_MAX_LIMIT, readActivity } from "../lib/activity";
 import { prepareBag, quoteBag, toQuoteLeg, type TradeError } from "../lib/trade";
-import { ErrorSchema, MeResponseSchema, PortfolioSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema } from "../schemas";
+import { ActivityResponseSchema, ErrorSchema, MeResponseSchema, PortfolioSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema } from "../schemas";
 
 export type Variables = { identity: Identity };
 export const app = new OpenAPIHono<{ Variables: Variables }>();
@@ -22,7 +23,7 @@ const requireIdentity = createMiddleware<{ Variables: Variables }>(async (c, nex
   c.set("identity", identity);
   await next();
 });
-for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/trade/*"]) app.use(path, requireIdentity);
+for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/activity", "/trade/*"]) app.use(path, requireIdentity);
 
 async function listIds(userId: string) {
   const rows = await db.select({ bagId: savedBags.bagId }).from(savedBags).where(eq(savedBags.userId, userId));
@@ -48,6 +49,15 @@ app.openapi(createRoute({ method: "get", path: "/portfolio", operationId: "getPo
   const walletAddress = c.get("identity").walletAddress;
   if (!walletAddress) return c.json({ walletAddress, ...unavailablePortfolio("No verified Solana wallet linked to this Privy identity") }, 200);
   return c.json({ walletAddress, ...await readPortfolio(walletAddress) }, 200);
+});
+const activityQuery = z.object({ cursor: z.string().regex(cursorPattern).optional(), limit: z.coerce.number().int().min(1).max(HELIUS_MAX_LIMIT).optional() });
+app.openapi(createRoute({ method: "get", path: "/activity", operationId: "listActivity", tags: ["account"], request: { query: activityQuery }, responses: { 200: response(ActivityResponseSchema, "Parsed wallet history (newest first), or unavailable with a typed error"), 400: response(ErrorSchema, "Invalid cursor or limit"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => {
+  const { cursor, limit = 20 } = c.req.valid("query");
+  const walletAddress = c.get("identity").walletAddress;
+  const result = await readActivity(walletAddress, cursor, limit);
+  if (!result.ok && result.error.code === "INVALID_CURSOR") return c.json({ error: result.error.message }, 400);
+  if (!result.ok) return c.json({ status: "unavailable" as const, walletAddress, items: [], nextCursor: null, asOf: null, error: result.error, message: result.error.message }, 200);
+  return c.json({ status: "live" as const, walletAddress, ...result.value, error: null, message: null }, 200);
 });
 
 const tradeResponses = { 401: response(ErrorSchema, "Unauthorized"), 404: response(ErrorSchema, "Bag not found") };
