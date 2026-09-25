@@ -5,7 +5,7 @@ Expo SDK 56 / React Native 0.85 app with Expo Router, TanStack Query, Better Aut
 ## Hard rules
 
 - Do NOT start dev servers (`expo start`, `bun dev`) — user handles it.
-- Do NOT modify `apps/mobile/drizzle/` (generated) or run migrations. Schema edits only, in `src/db/schema/` (see `.agents/database.md`).
+- Edit schemas in `src/db/schema/`, then generate and apply migrations as needed (see `.agents/database.md`). Do not hand-edit generated files in `apps/mobile/drizzle/`.
 - New native modules require a dev-client rebuild — flag this to the user instead of assuming it works.
 
 ## Layout
