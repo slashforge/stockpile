@@ -4,7 +4,7 @@ import type { StoryConnection } from "@stockpile/core/db/schema";
 
 export type Draft = {
   id: string; canonicalUrl: string; title: string; excerpt: string; format: "article" | "podcast";
-  publisher: string; publishedAt: Date; bagIds: string[]; company: string;
+  publisher: string; publishedAt: Date; bagIds: string[]; company: string; imageUrl?: string | null;
 };
 export type Curated = { summary: string; connections: StoryConnection[]; provenance: "editorial" | "ai" };
 const knownBags = new Set(bags.map((bag) => bag.id));

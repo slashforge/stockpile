@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import { companies, matchCompanies, parseFeed, parsePodcastEpisodes } from "./story-ingest";
+import { companies, entryImage, matchCompanies, pageImage, parseFeed, parsePodcastEpisodes, safeImageUrl } from "./story-ingest";
 
 const source = { publisher: "Microsoft Official Blog", company: "Microsoft", host: "blogs.microsoft.com", url: "https://blogs.microsoft.com/feed/", bags: ["megacap-builders", "ai-infrastructure", "cloud-software"] } as const;
 it("parses and deduplicates only canonical approved publisher URLs and preserves source date", () => {
@@ -29,4 +29,27 @@ it("keeps only explicit company mentions from multi-company press feeds and maps
   expect(stories.map((story) => [story.company, story.bagIds])).toEqual([["OpenAI", ["frontier-ai-labs"]], ["Kalshi", ["prediction-markets"]], ["SpaceX", ["defense-space"]]]);
   expect(matchCompanies("Polymarket and Anduril in one headline").map((company) => company.name)).toEqual(["Polymarket", "Anduril"]);
   expect(matchCompanies("Amd lowercase is not the ticker; Figure AI is").map((company) => company.name)).toEqual(["Figure AI"]);
+});
+it("picks a story's lead image from Media RSS, enclosures, or the first real inline image", () => {
+  const base = `<title>Microsoft announces a new research update</title><link>https://blogs.microsoft.com/blog/example/</link><pubDate>Thu, 17 Sep 2026 14:00:05 +0000</pubDate>`;
+  const [media] = parseFeed(`<rss><channel><item>${base}<description>Microsoft announced an update to its research platform.</description><media:thumbnail url="https://cdn.example/t-500.jpg"/><media:content url="https://cdn.example/small.jpg" medium="image" width="600"/><media:content url="https://cdn.example/large.jpg" type="image/jpeg" width="1600"/><media:content url="https://cdn.example/clip.mp4" type="video/mp4"/></item></channel></rss>`, source);
+  expect(media?.imageUrl).toBe("https://cdn.example/large.jpg");
+  expect(entryImage({ enclosure: [{ "@_url": "https://cdn.example/a.mp3", "@_type": "audio/mpeg" }, { "@_url": "https://cdn.example/b.png", "@_type": "image/png" }] })).toBe("https://cdn.example/b.png");
+  const [inline] = parseFeed(`<rss><channel><item>${base}<description><![CDATA[<img src="https://s.w.org/images/core/emoji/1f600.png" width="72"><img width="1024" src="https://cdn.example/hero.jpg?fit=1024%2C576&amp;ssl=1"> Microsoft announced an update to its research platform.]]></description></item></channel></rss>`, source);
+  expect(inline?.imageUrl).toBe("https://cdn.example/hero.jpg?fit=1024%2C576&ssl=1");
+  expect(entryImage({ "media:content": { "@_url": "http://cdn.example/insecure.jpg", "@_medium": "image" } })).toBeNull();
+  expect(safeImageUrl("https://user:pass@cdn.example/x.jpg")).toBeNull();
+});
+it("reads the article page's share image", () => {
+  expect(pageImage(`<head><meta property="og:title" content="x"><meta property="og:image" content="https://cdn.example/og.jpg?v=1&amp;w=1200" /></head>`)).toBe("https://cdn.example/og.jpg?v=1&w=1200");
+  expect(pageImage(`<meta name="twitter:image" content="https://cdn.example/tw.jpg">`)).toBe("https://cdn.example/tw.jpg");
+  expect(pageImage(`<meta property="og:image" content="javascript:alert(1)">`)).toBeNull();
+});
+it("uses the podcast artwork for episodes", () => {
+  const show = { wrapperType: "track", collectionId: 1186480811, artistName: "NVIDIA", trackName: "NVIDIA AI Podcast", artworkUrl600: "https://is1-ssl.mzstatic.com/show600.jpg" };
+  const episode = { wrapperType: "podcastEpisode", collectionName: "NVIDIA AI Podcast", collectionId: 1186480811,
+    trackName: "A new NVIDIA AI Podcast episode for researchers", description: "Researchers discuss new computing methods and what they mean for scientific research.",
+    releaseDate: "2026-06-24T15:45:00Z", trackViewUrl: "https://podcasts.apple.com/us/podcast/a-new-episode/id1186480811?i=1000774058193" };
+  expect(parsePodcastEpisodes({ results: [show, episode] })[0]?.imageUrl).toBe("https://is1-ssl.mzstatic.com/show600.jpg");
+  expect(parsePodcastEpisodes({ results: [show, { ...episode, artworkUrl600: "https://is1-ssl.mzstatic.com/ep600.jpg" }] })[0]?.imageUrl).toBe("https://is1-ssl.mzstatic.com/ep600.jpg");
 });

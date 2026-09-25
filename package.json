@@ -10,6 +10,7 @@
     "db:migrate": "bunx drizzle-kit migrate",
     "stories:ingest": "bun --env-file=.env apps/api/scripts/ingest-stories.ts",
     "stories:recontext": "bun --env-file=.env apps/api/scripts/recontext-stories.ts",
+    "stories:images": "bun --env-file=.env apps/api/scripts/backfill-story-images.ts",
     "tokens:coverage": "bun --env-file=.env apps/api/scripts/check-tokens-coverage.ts",
     "xstocks:probe": "bun --env-file=.env apps/api/scripts/probe-xstocks.ts",
     "prices:snapshot": "bun --env-file=.env apps/api/scripts/snapshot-prices.ts",
