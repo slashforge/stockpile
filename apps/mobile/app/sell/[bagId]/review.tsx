@@ -10,6 +10,7 @@ import { Card, Divider, MessageState, Notice, Pill } from "@/components/stockpil
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { SlideToConfirm } from "@/components/stockpile/slide-to-confirm";
 import { T } from "@/components/stockpile/type";
+import { warningNotification } from "@/components/utils/haptics";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel } from "@/lib/trade/legs";
 import { legsToSign } from "@/lib/trade/purchase";
@@ -65,6 +66,7 @@ export default function SellReviewScreen() {
     if (isPreparedExpired(preparedAt, Date.now())) {
       flow.refreshClock();
       setSlideReset((n) => n + 1);
+      warningNotification();
       Alert.alert(
         "Prices expired",
         "This sale waited too long and would fail on Solana. Nothing was sent. Refresh and try again.",

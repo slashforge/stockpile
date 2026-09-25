@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PRIVY_CONFIGURED } from "@/config/env";
+import { successNotification } from "@/components/utils/haptics";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { NativeSheet } from "./native-sheet";
 import { T } from "./type";
@@ -67,6 +68,7 @@ export function SignInSheetProvider({ children }: { children: React.ReactNode })
   );
 
   const finish = useCallback(() => {
+    successNotification();
     setOpen(false);
     const next = pending.current;
     pending.current = null;

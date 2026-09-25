@@ -1,16 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useSonner } from "@/hooks/use-sonner";
 import { shortAddress } from "@/utils/amounts";
 import { T } from "./type";
+import { HapticPressable } from "./haptic-pressable";
 
 export function CopyRow({ label, value }: { label: string; value: string }) {
   const { theme } = useUnistyles();
   const sonner = useSonner();
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="button"
       accessibilityLabel={`Copy ${label}`}
       onPress={async () => {
@@ -31,7 +32,7 @@ export function CopyRow({ label, value }: { label: string; value: string }) {
           Copy
         </T>
       </View>
-    </Pressable>
+    </HapticPressable>
   );
 }
 

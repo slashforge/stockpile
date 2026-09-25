@@ -3,7 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useScrollToTop } from "expo-router";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, View } from "react-native";
+import { FlatList, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { LogoCluster } from "@/components/stockpile/bag-art";
@@ -13,10 +13,12 @@ import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { StoryReel } from "@/components/stockpile/story-reel";
 import { useTabBarInset } from "@/components/stockpile/tab-bar";
 import { T } from "@/components/stockpile/type";
+import { lightImpact, selection } from "@/components/utils/haptics";
 import { useBags } from "@/hooks/use-bags";
 import { collectStories, useFeed } from "@/hooks/use-feed";
 import { relatedBags, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 /** Full-screen, bright, honest state used for loading/unavailable/empty/error. */
 function FeedState({
@@ -82,7 +84,7 @@ function FeedState({
           </T>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.peekRow}>
             {bags.map((bag) => (
-              <Pressable
+              <HapticPressable
                 key={bag.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Preview ${bag.title}`}
@@ -93,7 +95,7 @@ function FeedState({
                 <T variant="subhead" numberOfLines={1}>
                   {bag.title}
                 </T>
-              </Pressable>
+              </HapticPressable>
             ))}
           </ScrollView>
         </View>
@@ -158,6 +160,8 @@ export default function FeedScreen() {
   // Re-tapping the Feed tab jumps back to the first story.
   const listRef = useRef<FlatList<Story>>(null);
   useScrollToTop(listRef);
+  // Soft tick each time a new story snaps into place.
+  const storyIndex = useRef(0);
 
   let content: React.ReactNode;
   if (feed.isPending || collected.status === "pending") {
@@ -222,8 +226,17 @@ export default function FeedScreen() {
           if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage();
         }}
         onEndReachedThreshold={1.5}
+        onMomentumScrollEnd={(event) => {
+          if (height <= 0) return;
+          const index = Math.round(event.nativeEvent.contentOffset.y / height);
+          if (index !== storyIndex.current) {
+            storyIndex.current = index;
+            selection();
+          }
+        }}
         refreshing={pulling}
         onRefresh={async () => {
+          lightImpact();
           setPulling(true);
           try {
             await feed.refetch();

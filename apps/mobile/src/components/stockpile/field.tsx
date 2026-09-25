@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, View, type KeyboardTypeOptions, type ReturnKeyTypeOptions } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { errorNotification } from "@/components/utils/haptics";
 import { SheetTextInput, type SheetTextInputHandle } from "./sheet-text-input";
 import { T } from "./type";
 
@@ -32,6 +33,9 @@ export function Field({ label, icon, error, size = "md", ...input }: Props) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<SheetTextInputHandle>(null);
   styles.useVariants({ size, state: error ? "error" : focused ? "focused" : "idle" });
+  useEffect(() => {
+    if (error) errorNotification();
+  }, [error]);
   return (
     <View style={styles.wrap} accessible={false}>
       <T variant="subhead" tone="secondary">

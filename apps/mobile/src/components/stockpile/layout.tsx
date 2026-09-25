@@ -4,7 +4,6 @@ import { router, useFocusEffect, useScrollToTop } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   View,
@@ -20,10 +19,12 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { rounded } from "@/config/sizing";
+import { lightImpact } from "@/components/utils/haptics";
 import { BarBlur, useBlurTarget } from "./bar-blur";
 import { PrimaryButton } from "./primary-button";
 import { useTabBarInset } from "./tab-bar";
 import { T } from "./type";
+import { HapticPressable } from "./haptic-pressable";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -60,7 +61,8 @@ export function IconButton({
 }) {
   const { theme } = useUnistyles();
   return (
-    <Pressable
+    <HapticPressable
+      haptic="light"
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}
@@ -68,7 +70,7 @@ export function IconButton({
       style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
     >
       <Ionicons name={icon} size={20} color={active ? theme.ds.accent : theme.ds.ink} />
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -119,6 +121,7 @@ export function Screen({
   const [pulling, setPulling] = useState(false);
   const handleRefresh = onRefresh
     ? async () => {
+        lightImpact();
         setPulling(true);
         try {
           await onRefresh();
@@ -448,7 +451,7 @@ export function Collapsible({
   }[tint];
   return (
     <View style={styles.collapsible}>
-      <Pressable
+      <HapticPressable
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
@@ -472,7 +475,7 @@ export function Collapsible({
           ) : null}
         </View>
         <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={theme.ds.inkTertiary} />
-      </Pressable>
+      </HapticPressable>
       {open ? <View style={styles.collapsibleBody}>{children}</View> : null}
     </View>
   );
@@ -525,14 +528,14 @@ export function ListRow({
   );
   if (!onPress) return <View style={styles.row}>{content}</View>;
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       {content}
-    </Pressable>
+    </HapticPressable>
   );
 }
 

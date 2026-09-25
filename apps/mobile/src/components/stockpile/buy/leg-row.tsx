@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { Pill } from "@/components/stockpile/layout";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
@@ -12,6 +12,7 @@ import type { LegDisplayStatus } from "@/lib/trade/purchase";
 import type { Bag, PreparedTransaction, QuoteLeg } from "@/services/api/types";
 import { formatMoney, formatTokenAmount } from "@/utils/amounts";
 import { ImpactLabel } from "./controls";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 /** Everything that blocks signing a leg: decode errors, unsafe instructions, label mismatches. */
 export function legBlocking(
@@ -118,7 +119,7 @@ export function LegRow({
           </T>
         )}
         {linkFailed ? (
-          <Pressable
+          <HapticPressable
             accessibilityRole="button"
             accessibilityLabel={`Couldn't link the ${tx.symbol} swap to the bag. Retry`}
             hitSlop={6}
@@ -131,7 +132,7 @@ export function LegRow({
                 Retry
               </T>
             </T>
-          </Pressable>
+          </HapticPressable>
         ) : null}
       </View>
       {status ? (
@@ -141,14 +142,14 @@ export function LegRow({
           ) : null}
           <LegStatusPill status={status} side={side} />
           {signature ? (
-            <Pressable
+            <HapticPressable
               accessibilityRole="link"
               accessibilityLabel={`View ${tx.symbol} transaction on Solscan`}
               hitSlop={8}
               onPress={() => WebBrowser.openBrowserAsync(explorerTxUrl(signature)).catch(() => {})}
             >
               <Ionicons name="open-outline" size={15} color={theme.ds.inkTertiary} />
-            </Pressable>
+            </HapticPressable>
           ) : null}
         </View>
       ) : side === "sell" ? (

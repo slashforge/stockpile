@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { CopyRow } from "@/components/stockpile/copy-row";
 import { useFundSheet } from "@/components/stockpile/fund-sheet";
@@ -22,6 +22,7 @@ import { useMe } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";
 import { useSonner } from "@/hooks/use-sonner";
 import { useStockpileAuth } from "@/providers/auth-context";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 const RISKS = [
   "Bags are Stockpile’s editorial research, not investment advice or a recommendation.",
@@ -63,7 +64,7 @@ function Disclosures() {
         </View>
       ))}
       {sources.map((source) => (
-        <Pressable
+        <HapticPressable
           key={source.url}
           accessibilityRole="link"
           accessibilityLabel={`Open ${source.title}`}
@@ -81,7 +82,7 @@ function Disclosures() {
             </T>
           </View>
           <Ionicons name="open-outline" size={16} color={theme.ds.accent} />
-        </Pressable>
+        </HapticPressable>
       ))}
     </Collapsible>
   );

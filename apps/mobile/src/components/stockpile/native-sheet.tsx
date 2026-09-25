@@ -2,6 +2,7 @@ import { BottomSheet, RNHostView, type SnapPoint } from "@expo/ui";
 import { Dimensions, Platform, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { lightImpact } from "@/components/utils/haptics";
 import { FitSheet } from "./fit-sheet";
 import { sheetModifiers } from "./sheet-modifiers";
 
@@ -31,6 +32,11 @@ export function NativeSheet({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { theme } = useUnistyles();
+  // Still presented when the callback fires = the user swiped/tapped it away (not a programmatic close).
+  const handleDismiss = () => {
+    if (isPresented) lightImpact();
+    onDismiss();
+  };
   // The universal sheet pads its content by 16pt on each side.
   const contentWidth = width - 32;
 
@@ -42,7 +48,7 @@ export function NativeSheet({
 
   if (fit && Platform.OS === "android") {
     return (
-      <FitSheet isPresented={isPresented} onDismiss={onDismiss} testID={testID}>
+      <FitSheet isPresented={isPresented} onDismiss={handleDismiss} testID={testID}>
         <RNHostView matchContents>
           <View style={{ width: contentWidth }}>{children}</View>
         </RNHostView>
@@ -53,7 +59,7 @@ export function NativeSheet({
   return (
     <BottomSheet
       isPresented={isPresented}
-      onDismiss={onDismiss}
+      onDismiss={handleDismiss}
       snapPoints={fit ? undefined : (snapPoints ?? ["full"])}
       testID={testID}
       modifiers={sheetModifiers(theme.ds.surface)}

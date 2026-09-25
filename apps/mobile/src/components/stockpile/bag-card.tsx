@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { isPreIpoBag } from "@/lib/pre-ipo";
 import { bagCurator, formatSignedPct } from "@/lib/market";
@@ -12,6 +12,7 @@ import { BagReturnsLine, CuratorLine } from "./market";
 import { SaveButton } from "./save-button";
 import { T } from "./type";
 import { density, rounded } from "@/config/sizing";
+import { HapticPressable } from "./haptic-pressable";
 
 /** Open to buy only when the server says so AND every asset has a verified mint. */
 export function bagTradable(bag: Bag) {
@@ -108,7 +109,8 @@ export function BagCard({
       }`
     : "";
   return (
-    <Pressable
+    <HapticPressable
+      haptic="light"
       accessibilityRole="button"
       accessibilityLabel={`${bag.title}. ${bag.subtitle}${returnsA11y}. ${tokenCount}. ${
         tradable ? "Open to buy" : "Research only"
@@ -152,7 +154,7 @@ export function BagCard({
           </View>
         </View>
       </BagArt>
-    </Pressable>
+    </HapticPressable>
   );
 }
 

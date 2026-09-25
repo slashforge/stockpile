@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, View } from "react-native";
+import { Platform, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { bagTradable } from "@/components/stockpile/bag-card";
@@ -38,6 +38,7 @@ import {
 } from "@/services/api/charts";
 import type { Bag, BagAsset } from "@/services/api/types";
 import { formatBps } from "@/utils/amounts";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 const RANGE_WORD: Record<ChartRange, string> = {
   "1D": "Today",
@@ -106,7 +107,8 @@ function BuyButton({ bag }: { bag: Bag }) {
   if (!configured || !bagTradable(bag)) return null;
   return (
     <View style={styles.buyWrap}>
-      <Pressable
+      <HapticPressable
+        haptic="medium"
         accessibilityRole="button"
         accessibilityLabel="Buy"
         accessibilityHint={`Buys the whole ${bag.title} bag`}
@@ -118,7 +120,7 @@ function BuyButton({ bag }: { bag: Bag }) {
         style={({ pressed }) => [styles.buyButton, pressed && styles.pressed]}
       >
         <Ionicons name="add" size={28} color={theme.ds.surface} />
-      </Pressable>
+      </HapticPressable>
       <T variant="subhead" style={styles.bold}>
         Buy
       </T>
@@ -259,7 +261,7 @@ function Details({ asset }: { asset: BagAsset }) {
           </View>
         ))}
         <Divider />
-        <Pressable
+        <HapticPressable
           accessibilityRole="link"
           accessibilityLabel="Why it's included. Opens the source"
           onPress={() => WebBrowser.openBrowserAsync(asset.sourceUrl).catch(() => {})}
@@ -269,7 +271,7 @@ function Details({ asset }: { asset: BagAsset }) {
             Why it’s included
           </T>
           <Ionicons name="open-outline" size={16} color={theme.ds.accent} />
-        </Pressable>
+        </HapticPressable>
       </View>
       {reference ? (
         <T variant="caption" tone="tertiary">
@@ -300,7 +302,8 @@ export default function AssetScreen() {
         <T variant="headline" numberOfLines={1} style={styles.headerTitle}>
           {asset?.symbol ?? symbol}
         </T>
-        <Pressable
+        <HapticPressable
+          haptic="light"
           accessibilityRole="button"
           accessibilityLabel="Close"
           hitSlop={10}
@@ -310,7 +313,7 @@ export default function AssetScreen() {
           <T variant="callout" tone="accent" style={styles.bold}>
             Close
           </T>
-        </Pressable>
+        </HapticPressable>
       </View>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}

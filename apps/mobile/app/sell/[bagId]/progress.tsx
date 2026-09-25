@@ -9,6 +9,7 @@ import { sellTotalOut, useSellFlow } from "@/components/stockpile/buy/sell-flow-
 import { Card, Divider, Notice } from "@/components/stockpile/layout";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { T } from "@/components/stockpile/type";
+import { useOutcomeHaptic } from "@/hooks/use-outcome-haptic";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { legAssetMint, tradeErrorMessage } from "@/lib/trade/legs";
 import { legDisplayStatus, legsToSign } from "@/lib/trade/purchase";
@@ -23,6 +24,7 @@ export default function SellProgressScreen() {
   const insets = useSafeAreaInsets();
   const { bag, prepared, signing, alreadyBought, request, prepare, lots } = flow;
   const [retryError, setRetryError] = useState<string | null>(null);
+  useOutcomeHaptic(flow.status);
   const ready = prepared?.status === "ready" ? prepared : null;
   const bagData = bag.data;
   if (!ready || !bagData) return null;

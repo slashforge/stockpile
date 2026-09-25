@@ -5,7 +5,7 @@ import { Pressable, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { lightImpact } from "@/components/utils/haptics";
+import { lightImpact, selection } from "@/components/utils/haptics";
 import { BarBlur, BlurTargetProvider, useBlurTarget } from "./bar-blur";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -76,7 +76,9 @@ function TabButton({
         scale.set(withSpring(1, { damping: 14, stiffness: 300 }));
       }}
       onPress={() => {
-        if (!active) lightImpact();
+        // Re-tapping the active tab scrolls to top; a softer tick acknowledges it.
+        if (active) selection();
+        else lightImpact();
         onPress();
       }}
       onLongPress={onLongPress}

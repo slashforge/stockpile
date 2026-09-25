@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import {
@@ -25,6 +25,7 @@ import { pickCardReturns } from "@/lib/returns";
 import type { BagReturnEntry } from "@/services/api/returns";
 import { Skeleton } from "./layout";
 import { T } from "./type";
+import { HapticPressable } from "./haptic-pressable";
 
 const TONE_ICON = {
   up: "caret-up",
@@ -270,7 +271,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
   if (items.length === 0) return null;
   return (
     <View style={styles.evidence}>
-      <Pressable
+      <HapticPressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((value) => !value)}
@@ -290,7 +291,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
           size={12}
           color={theme.ds.accent}
         />
-      </Pressable>
+      </HapticPressable>
       {open
         ? items.map((item, index) => (
             <View
@@ -301,7 +302,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
                 {evidenceLine(item)}
               </T>
               {item.url ? (
-                <Pressable
+                <HapticPressable
                   accessibilityRole="link"
                   accessibilityLabel={`View filing: ${evidenceLine(item)}`}
                   hitSlop={8}
@@ -310,7 +311,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
                   <T variant="caption" tone="accent" style={styles.bold}>
                     View filing
                   </T>
-                </Pressable>
+                </HapticPressable>
               ) : null}
             </View>
           ))

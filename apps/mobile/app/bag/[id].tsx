@@ -3,7 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useAssetColors } from "@/components/stockpile/allocation";
 import { bagTheme } from "@/components/stockpile/bag-art";
@@ -57,6 +57,7 @@ import {
 import type { Bag, Portfolio } from "@/services/api/types";
 import { density } from "@/config/sizing";
 import { formatBps } from "@/utils/amounts";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 function hostOf(url: string) {
   try {
@@ -336,7 +337,7 @@ function HoldingRow({
 }) {
   const color = useToneColor(pct);
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="button"
       accessibilityLabel={`${symbol}, ${name}, ${weight} of the bag${pct != null ? `, ${formatSignedPct(pct)}` : ""}${verified ? "" : ". Token mint not yet verified"}`}
       accessibilityHint="Opens the asset"
@@ -369,7 +370,7 @@ function HoldingRow({
           {formatSignedPct(pct)}
         </T>
       </View>
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -446,7 +447,7 @@ function StoryRow({ story, bagId }: { story: Story; bagId: string }) {
         ? theme.ds.coralSoft
         : theme.ds.sunken;
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="link"
       accessibilityLabel={`${stance ? `${stance.label}: ` : ""}${story.title}. ${story.publisher}${date ? `, ${date}` : ""}`}
       onPress={() => openLink(story.sourceUrl)}
@@ -474,7 +475,7 @@ function StoryRow({ story, bagId }: { story: Story; bagId: string }) {
         {story.format === "podcast" ? " · Podcast" : ""}
         {story.provenance === "ai" ? " · AI summary" : ""}
       </T>
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -726,7 +727,7 @@ export default function BagScreen() {
           }
         >
           {data.sources.map((source) => (
-            <Pressable
+            <HapticPressable
               key={source.url}
               accessibilityRole="link"
               accessibilityLabel={`Open source: ${source.title}`}
@@ -745,7 +746,7 @@ export default function BagScreen() {
                 </T>
               </View>
               <Ionicons name="open-outline" size={16} color={theme.ds.accent} />
-            </Pressable>
+            </HapticPressable>
           ))}
         </Collapsible>
 

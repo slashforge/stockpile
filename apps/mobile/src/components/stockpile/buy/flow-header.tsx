@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
 import { type ReactNode, useState } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { LogoCluster } from "@/components/stockpile/bag-art";
@@ -9,6 +9,7 @@ import { TradeSettingsButton, TradeSettingsPopover } from "@/components/stockpil
 import { T } from "@/components/stockpile/type";
 import type { PurchaseStatus } from "@/lib/trade/purchase";
 import type { Bag } from "@/services/api/types";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 type FlowShellProps = {
   bag: Bag | undefined;
@@ -83,7 +84,8 @@ export function FlowHeader({
     <View style={[styles.header, { paddingTop: top }]}>
       <View style={styles.side}>
         {showBack ? (
-          <Pressable
+          <HapticPressable
+            haptic="light"
             accessibilityRole="button"
             accessibilityLabel="Back"
             hitSlop={10}
@@ -91,9 +93,10 @@ export function FlowHeader({
             style={({ pressed }) => [styles.round, pressed && styles.pressed]}
           >
             <Ionicons name="chevron-back" size={20} color={theme.ds.inkSecondary} />
-          </Pressable>
+          </HapticPressable>
         ) : status === "running" ? null : (
-          <Pressable
+          <HapticPressable
+            haptic="light"
             accessibilityRole="button"
             accessibilityLabel="Close"
             hitSlop={10}
@@ -101,7 +104,7 @@ export function FlowHeader({
             style={({ pressed }) => [styles.round, pressed && styles.pressed]}
           >
             <Ionicons name="close" size={20} color={theme.ds.inkSecondary} />
-          </Pressable>
+          </HapticPressable>
         )}
       </View>
       <View style={styles.center}>

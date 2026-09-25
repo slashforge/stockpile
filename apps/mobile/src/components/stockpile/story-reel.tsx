@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { isPreIpoBag } from "@/lib/pre-ipo";
 import { useBagReturns } from "@/hooks/use-returns";
@@ -14,6 +14,7 @@ import { safeIconUrl } from "@/utils/token-icon";
 import { bagTheme, LogoCluster } from "./bag-art";
 import { BagReturnsLine, CuratorLine } from "./market";
 import { T } from "./type";
+import { HapticPressable } from "./haptic-pressable";
 
 export function formatStoryDate(value: string | null): string | null {
   if (!value) return null;
@@ -230,7 +231,7 @@ export function StoryReel({
         ) : null}
 
         <View style={styles.actions}>
-          <Pressable
+          <HapticPressable
             accessibilityRole="link"
             accessibilityLabel={`${
               podcast
@@ -254,11 +255,12 @@ export function StoryReel({
                 ? `View filing · ${storyHost(story.sourceUrl)}`
                 : storyHost(story.sourceUrl)}
             </T>
-          </Pressable>
+          </HapticPressable>
         </View>
 
         {bag ? (
-          <Pressable
+          <HapticPressable
+            haptic="light"
             accessibilityRole="button"
             accessibilityLabel={`Related bag: ${bag.title}${bags.length > 1 ? `, and ${bags.length - 1} more` : ""}`}
             accessibilityHint="Opens the bag summary"
@@ -280,7 +282,7 @@ export function StoryReel({
             <View style={styles.bagChevron}>
               <Ionicons name="chevron-up" size={18} color={theme.ds.accent} />
             </View>
-          </Pressable>
+          </HapticPressable>
         ) : null}
       </View>
     </View>

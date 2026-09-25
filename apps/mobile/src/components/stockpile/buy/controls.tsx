@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { T } from "@/components/stockpile/type";
 import type { ImpactLevel } from "@/lib/trade/legs";
 import { formatBps } from "@/utils/amounts";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 /** `null` = automatic: Jupiter picks the limit per swap from live market conditions. */
 export const SLIPPAGE_OPTIONS: { bps: number | null; label: string }[] = [
@@ -31,7 +32,7 @@ export function Chip({
 }) {
   chipStyles.useVariants({ selected, compact });
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -41,7 +42,7 @@ export function Chip({
       <T variant={compact ? "footnote" : "subhead"} style={chipStyles.label}>
         {label}
       </T>
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -57,7 +58,8 @@ export function TradeSettingsButton({
 }) {
   const { theme } = useUnistyles();
   return (
-    <Pressable
+    <HapticPressable
+      haptic="light"
       accessibilityRole="button"
       accessibilityLabel={`Trade settings. Price protection ${protectionLabel(value)}`}
       accessibilityState={{ expanded: open }}
@@ -67,7 +69,7 @@ export function TradeSettingsButton({
     >
       <Ionicons name="settings-outline" size={19} color={theme.ds.inkSecondary} />
       {value != null ? <View style={styles.customDot} /> : null}
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -91,7 +93,7 @@ export function TradeSettingsPopover({
   if (!open) return null;
   return (
     <View style={styles.overlay}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close settings" />
+      <HapticPressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close settings" />
       <View style={[styles.popover, { top }]} accessibilityViewIsModal>
         <T variant="subhead" style={styles.bold}>
           Price protection

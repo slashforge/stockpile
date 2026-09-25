@@ -10,6 +10,7 @@ import { Card, Divider, MessageState, Notice, Pill } from "@/components/stockpil
 import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { SlideToConfirm } from "@/components/stockpile/slide-to-confirm";
 import { T } from "@/components/stockpile/type";
+import { warningNotification } from "@/components/utils/haptics";
 import { isPreIpoBag, PRE_IPO_REVIEW_NOTE } from "@/lib/pre-ipo";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel, totalInput } from "@/lib/trade/legs";
@@ -68,6 +69,7 @@ export default function BuyReviewScreen() {
     if (isPreparedExpired(preparedAt, Date.now())) {
       flow.refreshClock();
       setSlideReset((n) => n + 1);
+      warningNotification();
       Alert.alert(
         "Prices expired",
         "This purchase waited too long and would fail on Solana. Nothing was sent. Refresh and try again.",

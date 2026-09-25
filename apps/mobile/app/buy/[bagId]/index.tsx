@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { bagTradable, researchOnlyReason } from "@/components/stockpile/bag-card";
@@ -19,6 +19,7 @@ import {
 import { tradeErrorMessage } from "@/lib/trade/legs";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { formatBaseUnits, formatMoney } from "@/utils/amounts";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 const PRESETS = ["10", "25", "50", "100"];
 
@@ -161,7 +162,7 @@ export default function BuyAmountScreen() {
                 : balanceText}
           </T>
           {balance.status === "known" && balance.raw > 0n ? (
-            <Pressable
+            <HapticPressable
               accessibilityRole="button"
               accessibilityLabel="Use full USDC balance"
               hitSlop={10}
@@ -176,7 +177,7 @@ export default function BuyAmountScreen() {
               <T variant="footnote" tone="accent" style={styles.bold}>
                 Max
               </T>
-            </Pressable>
+            </HapticPressable>
           ) : null}
         </View>
       </View>

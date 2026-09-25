@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AuthGate } from "@/components/stockpile/auth-gate";
 import { GradientCard } from "@/components/stockpile/gradient-card";
@@ -34,6 +34,7 @@ import { solBalance, spendableUsdc } from "@/lib/trade/balance";
 import { useStockpileAuth } from "@/providers/auth-context";
 import type { Activity, Bag, Portfolio } from "@/services/api/types";
 import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
+import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
 /*
  * Layout system for this screen:
@@ -163,7 +164,7 @@ function RowChip({
   const chipStyle = [styles.chip, tone === "caution" ? styles.chipCaution : styles.chipAccent];
   if (!onPress) return <View style={chipStyle}>{content}</View>;
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="link"
       accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={6}
@@ -171,7 +172,7 @@ function RowChip({
       style={({ pressed }) => [...chipStyle, pressed && styles.pressed]}
     >
       {content}
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -190,7 +191,7 @@ function StatusCard({ title, body, onRetry }: { title: string; body: string; onR
             {body}
           </T>
         </View>
-        <Pressable
+        <HapticPressable
           accessibilityRole="button"
           accessibilityLabel={`${title}. Check again`}
           hitSlop={8}
@@ -200,7 +201,7 @@ function StatusCard({ title, body, onRetry }: { title: string; body: string; onR
           <T variant="subhead" tone="accent">
             Retry
           </T>
-        </Pressable>
+        </HapticPressable>
       </View>
     </ListCard>
   );
@@ -211,7 +212,7 @@ function NoBagTokensHint() {
   const { theme } = useUnistyles();
   return (
     <ListCard>
-      <Pressable
+      <HapticPressable
         accessibilityRole="button"
         accessibilityLabel="No bag tokens yet. Browse bags"
         onPress={() => router.navigate("/bags")}
@@ -232,7 +233,7 @@ function NoBagTokensHint() {
           </T>
           <Ionicons name="chevron-forward" size={16} color={theme.ds.accent} />
         </View>
-      </Pressable>
+      </HapticPressable>
     </ListCard>
   );
 }
@@ -243,7 +244,7 @@ function PositionRow({ position, onSell }: { position: BagPosition; onSell: () =
   const tokens = `${position.legs.length} ${position.legs.length === 1 ? "token" : "tokens"}`;
   const traded = relativeTime(position.lastTradedAt);
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="button"
       accessibilityLabel={`${position.title}. ${formatUsdValue(position.valueUsd)}, ${formatSignedPct(position.pnlPct)} since buy`}
       accessibilityHint="Opens the bag"
@@ -275,7 +276,8 @@ function PositionRow({ position, onSell }: { position: BagPosition; onSell: () =
         </T>
       </View>
       {position.sellable ? (
-        <Pressable
+        <HapticPressable
+          haptic="light"
           accessibilityRole="button"
           accessibilityLabel={`Sell ${position.title}`}
           hitSlop={8}
@@ -285,9 +287,9 @@ function PositionRow({ position, onSell }: { position: BagPosition; onSell: () =
           <T variant="subhead" tone="accent" style={styles.bold}>
             Sell
           </T>
-        </Pressable>
+        </HapticPressable>
       ) : null}
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -355,7 +357,7 @@ function WalletCard({ address, portfolio }: { address: string; portfolio: Portfo
       </View>
 
       <View style={styles.walletActions}>
-        <Pressable
+        <HapticPressable
           accessibilityRole="button"
           accessibilityLabel={copied ? "Wallet address copied" : `Copy wallet address ${shortAddress(address, 4)}`}
           onPress={() => copy(address).catch(() => {})}
@@ -366,8 +368,9 @@ function WalletCard({ address, portfolio }: { address: string; portfolio: Portfo
             {copied ? "Copied" : shortAddress(address, 4)}
           </T>
           <Ionicons name={copied ? "checkmark" : "copy-outline"} size={16} color="#FFFFFF" />
-        </Pressable>
-        <Pressable
+        </HapticPressable>
+        <HapticPressable
+          haptic="light"
           accessibilityRole="button"
           accessibilityLabel="Add funds"
           onPress={openFund}
@@ -377,7 +380,7 @@ function WalletCard({ address, portfolio }: { address: string; portfolio: Portfo
           <T variant="subhead" tone="accent" style={styles.pillText}>
             Add funds
           </T>
-        </Pressable>
+        </HapticPressable>
       </View>
     </GradientCard>
   );
@@ -541,7 +544,7 @@ function ActivityRow({ item, bagsById, assets }: { item: Activity; bagsById: Map
         ? "positive"
         : "accent";
   return (
-    <Pressable
+    <HapticPressable
       accessibilityRole="link"
       accessibilityLabel={`${item.summary}${when ? `, ${when}` : ""}${failed ? ", failed" : ""}. Opens in explorer`}
       onPress={() => WebBrowser.openBrowserAsync(item.explorerUrl).catch(() => {})}
@@ -575,7 +578,7 @@ function ActivityRow({ item, bagsById, assets }: { item: Activity; bagsById: Map
           </T>
         ) : null}
       </View>
-    </Pressable>
+    </HapticPressable>
   );
 }
 
@@ -639,7 +642,7 @@ function ActivitySection({ bagsById, assets }: { bagsById: Map<string, Bag>; ass
             <ActivityIndicator color={theme.ds.inkTertiary} />
           </View>
         ) : isFetchNextPageError ? (
-          <Pressable
+          <HapticPressable
             accessibilityRole="button"
             onPress={() => fetchNextPage()}
             style={({ pressed }) => [styles.more, pressed && styles.rowPressed]}
@@ -647,7 +650,7 @@ function ActivitySection({ bagsById, assets }: { bagsById: Map<string, Bag>; ass
             <T variant="footnote" tone="accent">
               Couldn’t load more · Try again
             </T>
-          </Pressable>
+          </HapticPressable>
         ) : null}
       </View>
     );
