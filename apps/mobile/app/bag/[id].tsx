@@ -146,6 +146,7 @@ const RANGE_WORD: Record<ChartRange, string> = {
   "1D": "today",
   "1W": "past week",
   "1M": "past month",
+  "1Y": "past year",
   ALL: "all time",
 };
 
@@ -156,7 +157,7 @@ function formatPointDate(timestamp: number, range: ChartRange) {
     : date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
-        ...(range === "ALL" ? { year: "numeric" } : {}),
+        ...(range === "ALL" || range === "1Y" ? { year: "numeric" } : {}),
       });
 }
 
@@ -548,7 +549,7 @@ function DetailSkeleton() {
 export default function BagScreen() {
   const { id, buy } = useLocalSearchParams<{ id: string; buy?: string }>();
   const bag = useBag(id);
-  const [range, setRange] = useState<ChartRange>("1W");
+  const [range, setRange] = useState<ChartRange>("1M");
   const chart = useBagChart(id, range);
   const portfolio = usePortfolio();
   const auth = useStockpileAuth();

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
-import { assetChart, bagChart, bagIndex, rangeConfig, resetChartCache, sparklines } from "./charts";
+import { assetChart, bagChart, bagIndex, bagReturns, rangeConfig, resetChartCache, sparklines } from "./charts";
 import { bags } from "./bags";
 import { resetTokensApiCache, type Candle } from "./tokens-api";
 
@@ -8,7 +8,10 @@ const now = new Date("2026-09-25T12:00:00Z");
 const nowSec = Math.floor(now.getTime() / 1000);
 const originalFetch = globalThis.fetch;
 const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
-const megacap = bags.find((bag) => bag.id === "megacap-builders")!;
+// Three-leg fixture with the classic 35/35/30 weights; bagChart takes the bag object, so index maths below stays exact.
+const real = bags.find((bag) => bag.id === "megacap-builders")!;
+const megacap = { ...real, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
+const weightOf = (symbol: string) => real.assets.find((asset) => asset.symbol === symbol)!.weightBps;
 const candle = (t: number, c: number): Candle => ({ t, o: c, h: c, l: c, c, v: null });
 const steps = { "15m": 900, "1H": 3600, "4H": 14400, "1D": 86400 } as Record<string, number>;
 
@@ -42,8 +45,8 @@ afterEach(() => {
 });
 
 describe("asset chart", () => {
-  it("maps ranges like riven-cash (1D->15m/24h, 1W->1H/7d, 1M->4H/30d, ALL->1D over two years) and returns sorted closes with abs/pct change", async () => {
-    expect(rangeConfig).toEqual({ "1D": { interval: "15m", seconds: 86400 }, "1W": { interval: "1H", seconds: 7 * 86400 }, "1M": { interval: "4H", seconds: 30 * 86400 }, ALL: { interval: "1D", seconds: 730 * 86400 } });
+  it("maps ranges like riven-cash (1D->15m/24h, 1W->1H/7d, 1M->4H/30d, 1Y->1D/365d, ALL->1D over two years) and returns sorted closes with abs/pct change", async () => {
+    expect(rangeConfig).toEqual({ "1D": { interval: "15m", seconds: 86400 }, "1W": { interval: "1H", seconds: 7 * 86400 }, "1M": { interval: "4H", seconds: 30 * 86400 }, "1Y": { interval: "1D", seconds: 365 * 86400, requireAllLegs: true }, ALL: { interval: "1D", seconds: 730 * 86400, requireAllLegs: true } });
     const requests = tokens({ [NVDAX]: (i) => 10 + i });
     const chart = await assetChart(NVDAX, "NVDAx", "1D", now);
     expect(chart).toMatchObject({ mint: NVDAX, symbol: "NVDAx", range: "1D", interval: "15m", source: "tokens.xyz", reason: null });
@@ -87,6 +90,14 @@ describe("bag index", () => {
     expect(points).toEqual([{ t: 3600, value: 100 }, { t: 7200, value: 100 }, { t: 10800, value: 25 * 1.5 + 25 + 50 * 1.1 }]);
     expect(bagIndex([{ weightBps: 5000, candles: [candle(3600, 1)] }, { weightBps: 2500, candles: [candle(7200, 1)] }, { weightBps: 2500, candles: [candle(7200, 1)] }], "1H")).toEqual([{ t: 7200, value: 100 }]);
     expect(bagIndex([], "1H")).toEqual([]); expect(bagIndex([{ weightBps: 0, candles: [candle(1, 1)] }], "1H")).toEqual([]);
+  });
+  it("with requireAllLegs starts the index at the first bucket where every leg has a close (late listings shorten the window instead of counting flat)", () => {
+    const legs = [
+      { weightBps: 5000, candles: [candle(86400, 10), candle(2 * 86400, 20), candle(3 * 86400, 30)] },
+      { weightBps: 5000, candles: [candle(2 * 86400, 100), candle(3 * 86400, 50)] }, // listed a day later
+    ];
+    expect(bagIndex(legs, "1D")).toEqual([{ t: 86400, value: 100 }, { t: 2 * 86400, value: 150 }, { t: 3 * 86400, value: 175 }]); // tolerant: leg 2 flat 100 on day 1
+    expect(bagIndex(legs, "1D", { requireAllLegs: true })).toEqual([{ t: 2 * 86400, value: 100 }, { t: 3 * 86400, value: 0.5 * 150 + 0.5 * 50 }]);
   });
 });
 
@@ -144,7 +155,9 @@ describe("sparklines", () => {
     expect(result).toMatchObject({ range: "1D", interval: "1H", source: "tokens.xyz", reason: null });
     expect(Object.keys(result.sparklines).sort()).toEqual(bags.map((bag) => bag.id).sort());
     expect(result.sparklines["megacap-builders"]).toHaveLength(25);
-    expect(result.sparklines["megacap-builders"]![24]!.value).toBeCloseTo(0.35 * 124 + 0.35 * 100 + 0.3 * 100, 3);
+    // Only the three allowlisted legs chart; research-only legs get weight 0 so the index renormalises over the rest.
+    const total = weightOf("AAPLx") + weightOf("MSFTx") + weightOf("NVDAx");
+    expect(result.sparklines["megacap-builders"]![24]!.value).toBeCloseTo((weightOf("AAPLx") * 124 + weightOf("MSFTx") * 100 + weightOf("NVDAx") * 100) / total, 3);
     expect(result.sparklines["frontier-ai-labs"]).toEqual([]); // PreStocks disabled -> research-only
     expect(new Set(requests.map((request) => request.params.interval).filter(Boolean))).toEqual(new Set(["1H"]));
     const before = requests.length;
@@ -152,5 +165,59 @@ describe("sparklines", () => {
     expect(requests.length).toBe(before);
     delete process.env.TOKENS_API_KEY;
     expect(await sparklines(now)).toMatchObject({ reason: "unconfigured", sparklines: { "megacap-builders": [] } });
+  });
+});
+
+describe("bag returns", () => {
+  const SPYX = "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", QQQX = "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ", GLDX = "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re";
+  const indexBasics = bags.find((bag) => bag.id === "index-basics")!;
+  // The mock emits one candle per interval step from the requested window start; SPY rises 0.1 per step, the others are flat.
+  const prices = { [SPYX]: (i: number) => 100 + i * 0.1, [QQQX]: () => 200, [GLDX]: () => 50 };
+  it("reports exactly bagChart's change for 1M / 1Y / ALL (same candles, interval, window and leg rule as the detail screen)", async () => {
+    process.env.STOCKPILE_ALLOWED_MINTS = `SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`;
+    const requests = tokens(prices);
+    const result = await bagReturns(now);
+    expect(result).toMatchObject({ source: "tokens.xyz", interval: "1D", reason: null });
+    expect(Object.keys(result.returns).sort()).toEqual(bags.map((bag) => bag.id).sort());
+    const index = result.returns["index-basics"]!;
+    const [month, year, all] = await Promise.all([bagChart(indexBasics, "1M", now), bagChart(indexBasics, "1Y", now), bagChart(indexBasics, "ALL", now)]);
+    expect(index["1M"]).toBe(month.change!.pct);
+    expect(index["1Y"]).toBe(year.change!.pct);
+    expect(index.ALL).toBe(all.change!.pct);
+    expect(index.since).toBe(new Date(all.points[0]!.t * 1000).toISOString());
+    // 1M chart: 4H candles over 30 days, SPY +0.1 per step for 180 steps; half the bag is SPY, the rest flat.
+    expect(index["1M"]).toBeCloseTo(0.5 * ((100 + 180 * 0.1) / 100 - 1) * 100, 3);
+    expect(month.interval).toBe("4H");
+    // 1Y and ALL both come from the two-year daily fetch (clipped), so 1Y starts 365 days in: SPY 136.5 -> 172.9.
+    expect(index["1Y"]).toBeCloseTo(0.5 * (172.9 / 136.5 - 1) * 100, 3);
+    expect(index.ALL).toBeCloseTo(0.5 * (172.9 / 100 - 1) * 100, 3);
+    expect(year.points[0]!.t).toBe(Math.ceil((nowSec - 365 * 86400) / 86400) * 86400);
+    // Sparkline is the 1M index thinned to one point per day (first 4H bucket of each day, plus the final point).
+    expect(index.sparkline1M).toHaveLength(32); // window 12:00 -> 12:00 touches 31 calendar days, plus the final 12:00 point
+    expect(index.sparkline1M[0]).toEqual(month.points[0]);
+    expect(index.sparkline1M[31]).toEqual(month.points[month.points.length - 1]);
+    expect(new Set(index.sparkline1M.slice(0, 31).map((point) => Math.floor(point.t / 86400))).size).toBe(31);
+    // Upstream: one 4H/30d call and one 1D/2y call per distinct mint; 1Y never fetches its own window.
+    const charts = requests.filter((request) => request.path.endsWith("/price-chart") && [SPYX, QQQX, GLDX].includes(request.params.mint!));
+    expect(charts.map((request) => [request.params.interval, request.params.from]).sort()).toEqual([["1D", String(nowSec - 730 * 86400)], ["1D", String(nowSec - 730 * 86400)], ["1D", String(nowSec - 730 * 86400)], ["4H", String(nowSec - 30 * 86400)], ["4H", String(nowSec - 30 * 86400)], ["4H", String(nowSec - 30 * 86400)]]);
+    const before = requests.length;
+    expect(await bagReturns(now)).toEqual(result);
+    expect(requests.length).toBe(before);
+  });
+  it("shortens a window with a late-listed leg exactly like the chart does, and fails soft like the chart", async () => {
+    process.env.STOCKPILE_ALLOWED_MINTS = `SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`;
+    tokens({ ...prices, [GLDX]: (i) => (i < 700 ? 0 : 50) }); // close 0 -> candle dropped: on the daily series GLD has 30 days of history
+    const result = await bagReturns(now);
+    const index = result.returns["index-basics"]!;
+    const [year, all] = await Promise.all([bagChart(indexBasics, "1Y", now), bagChart(indexBasics, "ALL", now)]);
+    const listed = Math.ceil((nowSec - 730 * 86400) / 86400) * 86400 + 700 * 86400;
+    expect(index.since).toBe(new Date(listed * 1000).toISOString());
+    expect(index["1Y"]).toBe(year.change!.pct); expect(index.ALL).toBe(all.change!.pct);
+    expect(year.points[0]!.t).toBe(listed); expect(index["1Y"]).toBe(index.ALL); // requireAllLegs: both start on GLD's first day
+    resetChartCache(); resetTokensApiCache();
+    tokens({}, { fail: [SPYX, QQQX, GLDX] });
+    expect(await bagReturns(now)).toMatchObject({ reason: "unavailable", returns: { "index-basics": { "1M": null, "1Y": null, ALL: null, since: null, sparkline1M: [] } } });
+    delete process.env.TOKENS_API_KEY; resetChartCache();
+    expect(await bagReturns(now)).toMatchObject({ reason: "unconfigured", asOf: null, returns: { "index-basics": { "1M": null, "1Y": null, ALL: null } } });
   });
 });

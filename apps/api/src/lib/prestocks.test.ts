@@ -129,6 +129,6 @@ describe("PreStocks Jupiter verification and tradability gating", () => {
     globalThis.fetch = mock(async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch;
     process.env.STOCKPILE_ALLOWED_MINTS = "AAPLx:XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
     const bag = bags[0]!;
-    expect(await resolveAsset(bag, bag.assets[0]!)).toMatchObject({ mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8, uiAmountMultiplier: 1, issuer: "xstocks", assetClass: "public-equity", reference: null });
+    expect(await resolveAsset(bag, bag.assets.find((asset) => asset.symbol === "AAPLx")!)).toMatchObject({ mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8, uiAmountMultiplier: 1, issuer: "xstocks", assetClass: "public-equity", reference: null });
   });
 });

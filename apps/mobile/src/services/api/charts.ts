@@ -11,7 +11,7 @@ import {
 import { unwrap } from "./stockpile";
 
 export type { ChartRange };
-export const CHART_RANGES: ChartRange[] = ["1D", "1W", "1M", "ALL"];
+export const CHART_RANGES: ChartRange[] = ["1D", "1W", "1M", "1Y", "ALL"];
 
 /** Chart-ready point: epoch ms + value, as react-native-wagmi-charts expects. */
 export type ChartPoint = { timestamp: number; value: number };

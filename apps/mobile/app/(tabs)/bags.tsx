@@ -4,16 +4,21 @@ import { HeroState } from "@/components/stockpile/hero-state";
 import { CardSkeleton, Screen } from "@/components/stockpile/layout";
 import { T } from "@/components/stockpile/type";
 import { useBags } from "@/hooks/use-bags";
+import { useBagReturns } from "@/hooks/use-returns";
 
 export default function BagsScreen() {
   const bags = useBags();
+  const returns = useBagReturns();
   const count = bags.data?.length ?? 0;
 
   return (
     <Screen
       title="Bags"
       subtitle={count > 0 ? `${count} themed ${count === 1 ? "bag" : "bags"} of tokenized stocks and pre-IPO tokens` : undefined}
-      onRefresh={() => bags.refetch()}
+      onRefresh={() => {
+        returns.refetch();
+        return bags.refetch();
+      }}
     >
       {bags.isPending ? (
         <>
@@ -42,7 +47,12 @@ export default function BagsScreen() {
       ) : (
         <>
           {bags.data.map((bag) => (
-            <BagCard key={bag.id} bag={bag} />
+            <BagCard
+              key={bag.id}
+              bag={bag}
+              returns={returns.data?.[bag.id]}
+              returnsLoading={returns.isPending}
+            />
           ))}
           <T variant="caption" tone="tertiary" align="center" style={styles.footnote}>
             Editorial research, not investment advice.

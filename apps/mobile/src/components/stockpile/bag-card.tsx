@@ -3,10 +3,12 @@ import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { isPreIpoBag } from "@/lib/pre-ipo";
-import { bagCurator, bagMarket } from "@/lib/market";
+import { bagCurator, formatSignedPct } from "@/lib/market";
+import { pickCardReturns } from "@/lib/returns";
+import type { BagReturnEntry } from "@/services/api/returns";
 import type { Bag } from "@/services/api/types";
 import { BagArt } from "./bag-art";
-import { ChangeBadge, CuratorLine } from "./market";
+import { BagReturnsLine, CuratorLine } from "./market";
 import { SaveButton } from "./save-button";
 import { T } from "./type";
 import { density, rounded } from "@/config/sizing";
@@ -86,16 +88,29 @@ export function TradeStatus({
 export function BagCard({
   bag,
   compact = false,
+  returns,
+  returnsLoading = false,
 }: {
   bag: Bag;
   compact?: boolean;
+  /** This bag's entry from `useBagReturns()`; fetched once at list level. */
+  returns?: BagReturnEntry | null;
+  returnsLoading?: boolean;
 }) {
   const tradable = bagTradable(bag);
   const tokenCount = `${bag.assets.length} ${bag.assets.length === 1 ? "token" : "tokens"}`;
+  const picked = pickCardReturns(returns);
+  const returnsA11y = picked
+    ? `. ${formatSignedPct(picked.primary.pct)} ${picked.primary.label === "1M" ? "past month" : picked.primary.label}${
+        picked.secondary
+          ? `, ${formatSignedPct(picked.secondary.pct)} ${picked.secondary.label === "1Y" ? "past year" : picked.secondary.label}`
+          : ""
+      }`
+    : "";
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${bag.title}. ${bag.subtitle}. ${tokenCount}. ${
+      accessibilityLabel={`${bag.title}. ${bag.subtitle}${returnsA11y}. ${tokenCount}. ${
         tradable ? "Open to buy" : "Research only"
       }`}
       accessibilityHint="Opens the bag"
@@ -126,14 +141,11 @@ export function BagCard({
             {bag.subtitle}
           </T>
           <CuratorLine curator={bagCurator(bag)} onArt />
+          <View style={styles.returns}>
+            <BagReturnsLine entry={returns} loading={returnsLoading} onArt />
+          </View>
           <View style={styles.meta}>
             <TradeStatus bag={bag} onArt />
-            <ChangeBadge
-              pct={bagMarket(bag)?.change24hPct}
-              coverage={bagMarket(bag)?.coverage}
-              source={bagMarket(bag)?.change24hSource}
-              onArt
-            />
             <T variant="caption" style={styles.count}>
               {tokenCount}
             </T>
@@ -159,6 +171,7 @@ const styles = StyleSheet.create({
   overlay: { paddingHorizontal: density.card, paddingBottom: density.rowY, gap: 2 },
   title: { color: "#FFFFFF" },
   subtitle: { color: "rgba(255,255,255,0.9)" },
+  returns: { marginTop: 6 },
   meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: density.item, rowGap: 6, marginTop: 6 },
   count: { color: "rgba(255,255,255,0.9)", fontWeight: "600" },
 });

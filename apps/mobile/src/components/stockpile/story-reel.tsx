@@ -6,13 +6,14 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { isPreIpoBag } from "@/lib/pre-ipo";
-import { bagCurator, bagMarket, isDisclosureStory } from "@/lib/market";
+import { useBagReturns } from "@/hooks/use-returns";
+import { bagCurator, isDisclosureStory } from "@/lib/market";
 import { connectionFor, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
 import { safeIconUrl } from "@/utils/token-icon";
 import { bagTheme, LogoCluster } from "./bag-art";
 import { PreIpoChip } from "./bag-card";
-import { ChangeBadge, CuratorLine } from "./market";
+import { BagReturnsLine, CuratorLine } from "./market";
 import { T } from "./type";
 
 export function formatStoryDate(value: string | null): string | null {
@@ -128,6 +129,7 @@ export function StoryReel({
 }) {
   const { theme } = useUnistyles();
   const bag = bags[0];
+  const returns = useBagReturns();
   const date = formatStoryDate(story.publishedAt);
   const hasImage = !!safeIconUrl(story.imageUrl);
   const connection = bag ? connectionFor(story, bag.id) : undefined;
@@ -236,7 +238,7 @@ export function StoryReel({
             onPress={() => onOpenBag(bag.id)}
             style={({ pressed }) => [styles.bagCard, pressed && styles.pressed]}
           >
-            <LogoCluster assets={bag.assets} size={34} limit={4} />
+            <LogoCluster assets={bag.assets} size={34} limit={3} />
             <View style={styles.flex}>
               <View style={styles.bagTitleRow}>
                 {isPreIpoBag(bag) ? <PreIpoChip /> : null}
@@ -255,16 +257,12 @@ export function StoryReel({
               <T variant="headline" numberOfLines={1}>
                 {bag.title}
               </T>
-              {bagMarket(bag) || bagCurator(bag) ? (
-                <View style={styles.bagTitleRow}>
-                  <ChangeBadge
-                    pct={bagMarket(bag)?.change24hPct}
-                    coverage={bagMarket(bag)?.coverage}
-                    source={bagMarket(bag)?.change24hSource}
-                  />
-                  <CuratorLine curator={bagCurator(bag)} />
-                </View>
-              ) : null}
+              <BagReturnsLine
+                entry={returns.data?.[bag.id]}
+                loading={returns.isPending}
+                compact
+              />
+              <CuratorLine curator={bagCurator(bag)} />
             </View>
             <View style={styles.bagChevron}>
               <Ionicons name="chevron-up" size={18} color={theme.ds.accent} />

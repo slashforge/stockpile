@@ -1,8 +1,7 @@
 export const queryKeys = {
   bags: ["bags"] as const,
   bag: (id: string) => ["bags", id] as const,
-  bagHistory: (id: string, range: string) =>
-    ["bags", id, "history", range] as const,
+  bagReturns: ["bag-returns"] as const,
   bagChart: (id: string, range: string) =>
     ["bags", id, "chart", range] as const,
   assetChart: (mint: string, range: string) =>

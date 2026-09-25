@@ -12,7 +12,8 @@ const { bags } = await import("./bags");
 const { resetTokensApiCache } = await import("./tokens-api");
 const originalFetch = globalThis.fetch;
 const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
-const megacap = bags.find((bag) => bag.id === "megacap-builders")!;
+// Three-leg fixture with the classic 35/35/30 weights; bagHistory takes the bag object, so index maths below stays exact.
+const megacap = { ...bags.find((bag) => bag.id === "megacap-builders")!, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
 const hour = 3600;
 
 /** tokens.xyz mock: every mint resolves to `<mint>-asset`; candles are hourly closes from `prices[mint]` over the requested window. */

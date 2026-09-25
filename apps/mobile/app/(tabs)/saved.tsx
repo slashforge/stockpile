@@ -5,11 +5,13 @@ import { HeroState } from "@/components/stockpile/hero-state";
 import { CardSkeleton, Screen } from "@/components/stockpile/layout";
 import { useSavedBagIds } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";
+import { useBagReturns } from "@/hooks/use-returns";
 import { useStockpileAuth } from "@/providers/auth-context";
 
 function SavedList() {
   const saved = useSavedBagIds();
   const bags = useBags();
+  const returns = useBagReturns();
 
   if (saved.isPending || bags.isPending) return <CardSkeleton />;
   if (saved.isError || bags.isError) {
@@ -49,7 +51,13 @@ function SavedList() {
   return (
     <>
       {items.map((bag) => (
-        <BagCard key={bag.id} bag={bag} compact />
+        <BagCard
+          key={bag.id}
+          bag={bag}
+          compact
+          returns={returns.data?.[bag.id]}
+          returnsLoading={returns.isPending}
+        />
       ))}
     </>
   );

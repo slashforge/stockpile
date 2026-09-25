@@ -1,6 +1,5 @@
 import {
   getBag as sdkGetBag,
-  getBagHistory as sdkGetBagHistory,
   getMe as sdkGetMe,
   getPortfolio as sdkGetPortfolio,
   listActivity as sdkListActivity,
@@ -14,8 +13,6 @@ import {
 import type {
   ActivityPage,
   Bag,
-  BagHistory,
-  HistoryRange,
   Me,
   Portfolio,
   PreparedTrade,
@@ -96,13 +93,6 @@ export async function fetchBags(): Promise<Bag[]> {
 export async function fetchBag(id: string): Promise<Bag> {
   const data = await unwrap(sdkGetBag({ path: { id } }));
   return data.bag;
-}
-
-export async function fetchBagHistory(
-  id: string,
-  range: HistoryRange,
-): Promise<BagHistory> {
-  return unwrap(sdkGetBagHistory({ path: { id }, query: { range } }));
 }
 
 export async function fetchMe(): Promise<Me> {

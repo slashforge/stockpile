@@ -123,6 +123,33 @@ export type Evidence = {
     url: string;
 };
 
+export type BagReturnsResponse = {
+    source: ChartSource;
+    interval: '1D';
+    asOf: string | null;
+    reason: ChartReason;
+    returns: {
+        [key: string]: BagReturns;
+    };
+};
+
+export type ChartSource = 'tokens.xyz';
+
+export type ChartReason = 'unconfigured' | 'unresolved' | 'unavailable' | 'not_tradable' | 'insufficient_data' | null;
+
+export type BagReturns = {
+    '1M': number | null;
+    '1Y': number | null;
+    ALL: number | null;
+    since: string | null;
+    sparkline1M: Array<IndexPoint>;
+};
+
+export type IndexPoint = {
+    t: number;
+    value: number;
+};
+
 export type BagSparklinesResponse = {
     range: '1D';
     interval: '1H';
@@ -131,15 +158,6 @@ export type BagSparklinesResponse = {
     sparklines: {
         [key: string]: Array<IndexPoint>;
     };
-};
-
-export type ChartSource = 'tokens.xyz';
-
-export type ChartReason = 'unconfigured' | 'unresolved' | 'unavailable' | 'not_tradable' | 'insufficient_data' | null;
-
-export type IndexPoint = {
-    t: number;
-    value: number;
 };
 
 export type BagResponse = {
@@ -164,7 +182,7 @@ export type BagChartResponse = {
     asOf: string | null;
 };
 
-export type ChartRange = '1D' | '1W' | '1M' | 'ALL';
+export type ChartRange = '1D' | '1W' | '1M' | '1Y' | 'ALL';
 
 export type CandleInterval = '1m' | '5m' | '15m' | '1H' | '4H' | '1D' | '1W';
 
@@ -440,6 +458,22 @@ export type ListBagsResponses = {
 };
 
 export type ListBagsResponse = ListBagsResponses[keyof ListBagsResponses];
+
+export type GetBagReturnsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/bags/returns';
+};
+
+export type GetBagReturnsResponses = {
+    /**
+     * 1M / 1Y / ALL bag-index returns (%) and a 30-day daily sparkline per bag, from one daily tokens.xyz series per mint; nulls when a window is not fully covered
+     */
+    200: BagReturnsResponse;
+};
+
+export type GetBagReturnsResponse = GetBagReturnsResponses[keyof GetBagReturnsResponses];
 
 export type GetBagSparklinesData = {
     body?: never;

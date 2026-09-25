@@ -25,6 +25,7 @@ const DATETIME_OPTIONS: Record<ChartRange, Intl.DateTimeFormatOptions> = {
   "1D": { hour: "numeric", minute: "2-digit" },
   "1W": { weekday: "short", hour: "numeric" },
   "1M": { month: "short", day: "numeric" },
+  "1Y": { month: "short", day: "numeric", year: "numeric" },
   ALL: { month: "short", day: "numeric", year: "numeric" },
 };
 

@@ -11,6 +11,7 @@ import {
   changeTone,
   type Curator,
   type DisclosureEvidence,
+  EM_DASH,
   evidenceLine,
   formatAsOf,
   formatImpactPct,
@@ -21,6 +22,8 @@ import {
   LOW_COVERAGE,
   underlyingCaption,
 } from "@/lib/market";
+import { pickCardReturns } from "@/lib/returns";
+import type { BagReturnEntry } from "@/services/api/returns";
 import { T } from "./type";
 
 const TONE_ICON = {
@@ -369,15 +372,102 @@ export function CuratorHeader({ curator }: { curator: Curator | null }) {
 /** Fewer points than this reads as a flat/stepped line rather than a trend. */
 export const SPARKLINE_MIN_POINTS = 8;
 
+/**
+ * Card performance row: 1M (or since-listing) figure, a quieter 1Y/all-time line and the 1M
+ * sparkline. "—" while loading; "No history yet" when there is nothing (or the fetch failed).
+ */
+export function BagReturnsLine({
+  entry,
+  loading = false,
+  onArt = false,
+  compact = false,
+}: {
+  entry: BagReturnEntry | null | undefined;
+  loading?: boolean;
+  onArt?: boolean;
+  /** Narrow rows (story footer): figures only, no sparkline. */
+  compact?: boolean;
+}) {
+  const { theme } = useUnistyles();
+  const picked = pickCardReturns(entry);
+  if (!picked) {
+    return (
+      <View style={styles.returns}>
+        <T
+          variant="caption"
+          tone={onArt ? undefined : "tertiary"}
+          style={[styles.bold, onArt && styles.onArtMuted]}
+        >
+          {loading ? EM_DASH : "No history yet"}
+        </T>
+      </View>
+    );
+  }
+  const { primary, secondary } = picked;
+  const tone = changeTone(primary.pct) ?? "flat";
+  const color =
+    tone === "up"
+      ? theme.ds.positive
+      : tone === "down"
+        ? theme.ds.danger
+        : theme.ds.inkSecondary;
+  const secondaryText = secondary
+    ? secondary.label === "1Y"
+      ? `${formatSignedPct(secondary.pct)} past year`
+      : `${formatSignedPct(secondary.pct)} ${secondary.label}`
+    : null;
+  const primaryWord = primary.label === "1M" ? "past month" : primary.label;
+  return (
+    <View
+      style={styles.returns}
+      accessible
+      accessibilityLabel={`${formatSignedPct(primary.pct)} ${primaryWord}${secondaryText ? `, ${secondaryText}` : ""}`}
+    >
+      <View style={[styles.returnPill, onArt && styles.returnPillOnArt]}>
+        <Ionicons name={TONE_ICON[tone]} size={10} color={color} />
+        <T variant="caption" style={[styles.badgeValue, { color }]}>
+          {formatSignedPct(primary.pct)}
+        </T>
+        <T variant="caption" tone="tertiary" style={styles.badgeLabel}>
+          {primary.label}
+        </T>
+      </View>
+      {secondaryText ? (
+        <T
+          variant="caption"
+          tone={onArt ? undefined : "tertiary"}
+          numberOfLines={1}
+          style={[styles.returnSecondary, onArt && styles.onArtMuted]}
+        >
+          {secondaryText}
+        </T>
+      ) : (
+        <View style={styles.flexSpacer} />
+      )}
+      {entry && primary.label === "1M" && !compact ? (
+        <Sparkline
+          values={entry.sparkline}
+          width={60}
+          height={20}
+          color={onArt ? "rgba(255,255,255,0.95)" : undefined}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 /** Minimal line chart for list cards; renders nothing below `SPARKLINE_MIN_POINTS` finite points. */
 export function Sparkline({
   values,
   width = 120,
   height = 32,
+  color,
 }: {
   values: number[];
   width?: number;
   height?: number;
+  /** Overrides the up/down tone, e.g. white on artwork. */
+  color?: string;
 }) {
   const { theme } = useUnistyles();
   const points = values.filter(Number.isFinite);
@@ -402,7 +492,7 @@ export function Sparkline({
       <Polyline
         points={coords}
         fill="none"
-        stroke={up ? theme.ds.positive : theme.ds.danger}
+        stroke={color ?? (up ? theme.ds.positive : theme.ds.danger)}
         strokeWidth={2}
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -425,6 +515,29 @@ const styles = StyleSheet.create((theme) => ({
   muted: { opacity: 0.7 },
   badgeLabel: { fontWeight: "600" },
   badgeValue: { fontWeight: "700", fontVariant: ["tabular-nums"] },
+  returns: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 22,
+  },
+  returnPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.ds.sunken,
+  },
+  returnPillOnArt: { backgroundColor: theme.ds.surface },
+  returnSecondary: {
+    flex: 1,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  flexSpacer: { flex: 1 },
+  onArtMuted: { color: "rgba(255,255,255,0.85)" },
   stripWrap: { gap: 6 },
   strip: {
     flexDirection: "row",

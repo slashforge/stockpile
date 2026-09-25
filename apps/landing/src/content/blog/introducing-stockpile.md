@@ -11,10 +11,13 @@ stocks (xStocks) and pre-IPO tokens (PreStocks), with the evidence behind each h
 ## What a bag is
 
 A bag is a weighted list of tokens with a thesis, a curator, a disclosure paragraph, and a list of risks. Right now
-there are eight:
+there are twelve:
 
-- **Editorial xStocks bags** — Megacap Builders, AI Infrastructure, Consumer Frontiers. Hand-picked by Stockpile
-  Editorial from the issuer's product directory. Tokens: AAPLx, MSFTx, NVDAx, AMDx, GOOGLx, AMZNx, TSLAx, NFLXx.
+- **Editorial xStocks bags** — Megacap Builders, AI Infrastructure, Consumer Frontiers, Crypto & Fintech Rails,
+  Cloud & Software, Everyday Brands, Index Basics. Hand-picked by Stockpile Editorial from the issuer's product directory and
+  gated by live Jupiter liquidity (a 10 USDC quote must route with at most 2.5% price impact). Tokens: NVDAx, AAPLx,
+  MSFTx, GOOGLx, AMZNx, METAx, TSLAx, NFLXx, AMDx, AVGOx, PLTRx, ORCLx, INTCx, COINx, HOODx, MSTRx, CRCLx, BACx,
+  MCDx, WMTx, KOx, PGx, PEPx, SPYx, QQQx, GLDx.
 - **Editorial PreStocks bags** — Frontier AI Labs, Prediction Markets, Defense & Space. Pre-IPO exposure to OpenAI,
   Anthropic, Figure AI, Neuralink, Kalshi, Polymarket, SpaceX, and Anduril via PreStocks tokens.
 - **Disclosure bags** — Pelosi Tracker and Congress Consensus, computed from periodic transaction reports filed under

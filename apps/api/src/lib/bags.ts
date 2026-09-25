@@ -52,40 +52,68 @@ const disclosureRisks = [
 const clerk = { title: "House Clerk financial disclosures (PTR search)", url: "https://disclosures-clerk.house.gov/FinancialDisclosure" };
 const efd = { title: "Senate electronic financial disclosures (eFD)", url: "https://efdsearch.senate.gov/search/" };
 const congressInvests = { title: "CongressInvests API (normalised STOCK Act filings)", url: "https://congressinvests.com" };
+// xStocks asset definitions. Every symbol here passed `apps/api/scripts/probe-xstocks.ts` on 2026-09-25 (10 USDC Jupiter quote
+// routes with <= 2.5% price impact, Tokens V2 verified, pool TVL >= $500, implied price within 10% of Jupiter's usdPrice).
+// Re-run the probe before adding a symbol; ARMx, V/MA/PYPL and every defense/pharma/pure-software name failed that gate on that date.
+// AMDx, AVGOx and NFLXx sit at ~2% impact (borderline, admitted under the 2.5% gate).
+const xs = (ticker: string, company: string, weightBps: number): BagAssetDefinition => ({ symbol: `${ticker}x`, underlyingTicker: ticker, name: `${company} xStock`, weightBps, sourceUrl: xstocks });
 
 export const bags: Bag[] = [
   {
     id: "megacap-builders", title: "Megacap Builders", subtitle: "Platforms behind everyday computing",
-    description: "An editorial look at large technology companies represented by xStocks tokens.",
-    thesis: "Stockpile editorial inference: these companies span devices, software, and compute infrastructure. Inclusion and weights are not supplied by the issuer.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
-    assets: [
-      { symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: xstocks },
-    ],
+    description: "An editorial look at the seven largest U.S. technology companies represented by xStocks tokens: Apple, Microsoft, NVIDIA, Alphabet, Amazon, Meta, and Tesla.",
+    thesis: "Stockpile editorial inference: these companies span devices, software, advertising, cloud, and compute infrastructure, and their tokens are the deepest xStocks pools on Solana. Weights lean toward the most liquid tokens; inclusion and weights are not supplied by the issuer.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "Nasdaq-100 index constituents", url: "https://www.nasdaq.com/market-activity/quotes/nasdaq-ndx-index" }],
+    assets: [xs("NVDA", "NVIDIA", 2000), xs("AAPL", "Apple", 1800), xs("MSFT", "Microsoft", 1800), xs("GOOGL", "Alphabet", 1400), xs("AMZN", "Amazon", 1200), xs("META", "Meta Platforms", 1200), xs("TSLA", "Tesla", 600)],
   },
   {
     id: "ai-infrastructure", title: "AI Infrastructure", subtitle: "Hardware, platforms, and compute",
-    description: "A thematic editorial bag of tokenized technology exposures.",
-    thesis: "Stockpile editorial inference: hardware and platform companies may be exposed to demand for AI infrastructure. This is not an issuer view.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
-    assets: [
-      { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 4000, sourceUrl: xstocks },
-      { symbol: "AMDx", underlyingTicker: "AMD", name: "AMD xStock", weightBps: 3000, sourceUrl: xstocks },
-      { symbol: "GOOGLx", underlyingTicker: "GOOGL", name: "Alphabet xStock", weightBps: 3000, sourceUrl: xstocks },
-    ],
+    description: "A thematic editorial bag of tokenized companies that sell the chips, networking silicon, cloud capacity, and data platforms behind AI workloads.",
+    thesis: "Stockpile editorial inference: GPU, CPU, and custom-silicon makers (NVIDIA, AMD, Broadcom, Intel) plus the hyperscalers and Palantir may be exposed to demand for AI infrastructure. AMD and Broadcom tokens quote around 2% price impact on a 10 USDC buy, so they carry moderate weights; TSMC, Micron, and Oracle were left out to keep the bag at eight liquid names. This is not an issuer view.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "NVIDIA newsroom", url: "https://nvidianews.nvidia.com/" }, { title: "Microsoft Official Blog", url: "https://blogs.microsoft.com/" }],
+    assets: [xs("NVDA", "NVIDIA", 2400), xs("MSFT", "Microsoft", 1400), xs("GOOGL", "Alphabet", 1200), xs("AMZN", "Amazon", 1000), xs("PLTR", "Palantir", 1000), xs("AVGO", "Broadcom", 1000), xs("AMD", "AMD", 1000), xs("INTC", "Intel", 1000)],
   },
   {
-    id: "consumer-frontiers", title: "Consumer Frontiers", subtitle: "Commerce, mobility, and entertainment",
-    description: "A cross-sector editorial selection of tokenized consumer companies.",
-    thesis: "Stockpile editorial inference: these companies serve different facets of consumer demand. Bag composition and weights are our own, not sourced financial recommendations.",
-    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks, sources: [xstocksSource],
-    assets: [
-      { symbol: "AMZNx", underlyingTicker: "AMZN", name: "Amazon xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "TSLAx", underlyingTicker: "TSLA", name: "Tesla xStock", weightBps: 3500, sourceUrl: xstocks },
-      { symbol: "NFLXx", underlyingTicker: "NFLX", name: "Netflix xStock", weightBps: 3000, sourceUrl: xstocks },
-    ],
+    id: "consumer-frontiers", title: "Consumer Frontiers", subtitle: "Commerce, mobility, media, and consumer finance",
+    description: "A cross-sector editorial selection of tokenized companies that sell directly to consumers: Amazon, Tesla, Meta, Netflix, McDonald's, Walmart, and Robinhood.",
+    thesis: "Stockpile editorial inference: these companies serve different facets of consumer demand, from e-commerce and vehicles to social media, streaming, fast food, groceries, and retail investing. Netflix's token quotes around 2% price impact on a 10 USDC buy and uses a 10x scaled-UI multiplier after the 2025 stock split. Bag composition and weights are our own, not sourced financial recommendations.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "Amazon News", url: "https://www.aboutamazon.com/news" }, { title: "CNBC Retail coverage", url: "https://www.cnbc.com/retail/" }],
+    assets: [xs("AMZN", "Amazon", 2200), xs("TSLA", "Tesla", 2200), xs("META", "Meta Platforms", 1600), xs("NFLX", "Netflix", 1200), xs("MCD", "McDonald's", 1200), xs("WMT", "Walmart", 800), xs("HOOD", "Robinhood", 800)],
+  },
+  {
+    id: "crypto-fintech-rails", title: "Crypto & Fintech Rails", subtitle: "Exchanges, stablecoins, treasuries, and consumer fintech",
+    description: "An editorial bag of tokenized public companies whose businesses run on crypto or digital-asset rails: Coinbase, Robinhood, Strategy (MicroStrategy), Circle, and Bank of America.",
+    thesis: "Stockpile editorial inference: exchange volume, stablecoin issuance, and corporate bitcoin treasuries tie these equities to crypto-market activity, while a large bank anchors the payments side. Visa, Mastercard, and PayPal tokens were excluded because their pools failed our liquidity gate; Bank of America is a small weight for the same reason. This is not an issuer view.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "Coinbase blog", url: "https://www.coinbase.com/blog" }, { title: "Circle newsroom", url: "https://www.circle.com/pressroom" }],
+    assets: [xs("COIN", "Coinbase", 2600), xs("HOOD", "Robinhood", 2400), xs("MSTR", "Strategy", 2200), xs("CRCL", "Circle", 2200), xs("BAC", "Bank of America", 600)],
+  },
+  {
+    id: "cloud-software", title: "Cloud & Software", subtitle: "Hyperscale cloud and enterprise data platforms",
+    description: "An editorial bag of tokenized cloud and enterprise-software companies: Microsoft, Alphabet, Amazon, Palantir, and Oracle.",
+    thesis: "Stockpile editorial inference: the three hyperscalers plus Oracle and Palantir capture enterprise cloud and data-platform spend. Pure-play software names such as Salesforce, ServiceNow, Snowflake, CrowdStrike, Datadog, and MongoDB have xStocks tokens but no routable on-chain liquidity today, so they are excluded. This is not an issuer view.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "Microsoft Official Blog", url: "https://blogs.microsoft.com/" }, { title: "Google Cloud blog", url: "https://cloud.google.com/blog" }],
+    assets: [xs("MSFT", "Microsoft", 2800), xs("GOOGL", "Alphabet", 2200), xs("AMZN", "Amazon", 2200), xs("PLTR", "Palantir", 2000), xs("ORCL", "Oracle", 800)],
+  },
+  {
+    id: "everyday-brands", title: "Everyday Brands", subtitle: "Consumer staples: food, drinks, and household goods",
+    description: "An editorial bag of tokenized consumer-staples companies: McDonald's, Walmart, Coca-Cola, Procter & Gamble, and PepsiCo.",
+    thesis: "Stockpile editorial inference: these businesses sell low-ticket, repeat-purchase goods and have historically been less cyclical than technology. McDonald's and Coca-Cola carry the larger weights because their tokens have the deepest pools; PepsiCo and P&G pools are thin. This is not an issuer view.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "Consumer Staples Select Sector (XLP) holdings", url: "https://www.ssga.com/us/en/intermediary/etfs/the-consumer-staples-select-sector-spdr-fund-xlp" }, { title: "CNBC Retail coverage", url: "https://www.cnbc.com/retail/" }],
+    assets: [xs("MCD", "McDonald's", 2800), xs("WMT", "Walmart", 2400), xs("KO", "Coca-Cola", 2400), xs("PG", "Procter & Gamble", 1400), xs("PEP", "PepsiCo", 1000)],
+  },
+  {
+    id: "index-basics", title: "Index Basics", subtitle: "The market in three tokens",
+    description: "An editorial bag of the three broadest xStocks ETF tokens: SPYx (S&P 500), QQQx (Nasdaq-100), and GLDx (gold bullion).",
+    thesis: "Stockpile editorial inference: a large-cap U.S. equity index, a technology-heavy index, and physical gold are the simplest building blocks for broad exposure, and their tokens are among the deepest xStocks pools on Solana. Three names is deliberately fewer than our other bags; the ETFs themselves hold hundreds of stocks or bullion. This is not an issuer view or a recommendation.",
+    disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
+    sources: [xstocksSource, { title: "SPDR S&P 500 ETF Trust (SPY)", url: "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy" }, { title: "Invesco QQQ Trust (QQQ)", url: "https://www.invesco.com/qqq-etf/en/home.html" }, { title: "SPDR Gold Shares (GLD)", url: "https://www.spdrgoldshares.com/" }],
+    assets: [xs("SPY", "SPDR S&P 500 ETF", 5000), xs("QQQ", "Invesco QQQ", 3000), xs("GLD", "SPDR Gold Shares", 2000)],
   },
   {
     id: "frontier-ai-labs", title: "Frontier AI Labs", subtitle: "Pre-IPO exposure to model, robotics, and neural-interface labs",

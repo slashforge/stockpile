@@ -560,6 +560,119 @@
           "url"
         ]
       },
+      "BagReturnsResponse": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/ChartSource"
+          },
+          "interval": {
+            "type": "string",
+            "enum": [
+              "1D"
+            ]
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/ChartReason"
+          },
+          "returns": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BagReturns"
+            }
+          }
+        },
+        "required": [
+          "source",
+          "interval",
+          "asOf",
+          "reason",
+          "returns"
+        ]
+      },
+      "ChartSource": {
+        "type": "string",
+        "enum": [
+          "tokens.xyz"
+        ]
+      },
+      "ChartReason": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "unconfigured",
+          "unresolved",
+          "unavailable",
+          "not_tradable",
+          "insufficient_data",
+          null
+        ]
+      },
+      "BagReturns": {
+        "type": "object",
+        "properties": {
+          "1M": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "1Y": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ALL": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "since": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sparkline1M": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IndexPoint"
+            }
+          }
+        },
+        "required": [
+          "1M",
+          "1Y",
+          "ALL",
+          "since",
+          "sparkline1M"
+        ]
+      },
+      "IndexPoint": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "t",
+          "value"
+        ]
+      },
       "BagSparklinesResponse": {
         "type": "object",
         "properties": {
@@ -597,41 +710,6 @@
           "source",
           "reason",
           "sparklines"
-        ]
-      },
-      "ChartSource": {
-        "type": "string",
-        "enum": [
-          "tokens.xyz"
-        ]
-      },
-      "ChartReason": {
-        "type": [
-          "string",
-          "null"
-        ],
-        "enum": [
-          "unconfigured",
-          "unresolved",
-          "unavailable",
-          "not_tradable",
-          "insufficient_data",
-          null
-        ]
-      },
-      "IndexPoint": {
-        "type": "object",
-        "properties": {
-          "t": {
-            "type": "number"
-          },
-          "value": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "t",
-          "value"
         ]
       },
       "BagResponse": {
@@ -725,6 +803,7 @@
           "1D",
           "1W",
           "1M",
+          "1Y",
           "ALL"
         ]
       },
@@ -1878,6 +1957,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BagsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bags/returns": {
+      "get": {
+        "operationId": "getBagReturns",
+        "tags": [
+          "bags"
+        ],
+        "responses": {
+          "200": {
+            "description": "1M / 1Y / ALL bag-index returns (%) and a 30-day daily sparkline per bag, from one daily tokens.xyz series per mint; nulls when a window is not fully covered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagReturnsResponse"
                 }
               }
             }

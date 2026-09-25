@@ -98,8 +98,14 @@ export default function BuyAmountScreen() {
   };
   const pressKey = (key: AmountKey) => setAmount(applyAmountKey(amountInput, key));
 
-  const review = () => {
+  const review = async () => {
     if (!request || insufficient) return;
+    // The bag may still be the list's placeholder (possibly from an older catalogue). The review
+    // screen validates every swap against the bag's assets, so always build against a fresh copy.
+    if (bag.isPlaceholderData || bag.isError) {
+      const fresh = await bag.refetch();
+      if (!fresh.data) return;
+    }
     flow.runPrepare(request, {
       onDone: (data) => {
         if (data.status === "ready" && data.transactions.length > 0) {
@@ -120,7 +126,11 @@ export default function BuyAmountScreen() {
     prepared.slippageBps === flow.slippageBps
       ? tradeErrorMessage(prepared.error, prepared.message ?? "The swaps couldn’t be built right now.")
       : null;
-  const error = prepare.isError ? prepare.error.message : unavailable;
+  const error = prepare.isError
+    ? prepare.error.message
+    : bag.isError && bag.isPlaceholderData
+      ? "Couldn’t refresh this bag. Check your connection and try again."
+      : unavailable;
 
   const heroText = amountPending ? "—" : `$${formatAmountInput(amountInput)}`;
 
@@ -197,7 +207,12 @@ export default function BuyAmountScreen() {
       {needsFunds ? (
         <PrimaryButton label="Add USDC" icon="add-circle" onPress={flow.addFunds} />
       ) : (
-        <PrimaryButton label="Review" onPress={review} disabled={!request} loading={prepare.isPending} />
+        <PrimaryButton
+          label="Review"
+          onPress={review}
+          disabled={!request}
+          loading={prepare.isPending || (bag.isPlaceholderData && bag.isFetching)}
+        />
       )}
     </View>
   );

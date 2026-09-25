@@ -9,7 +9,6 @@ export type {
   ActivityResponse as ActivityPage,
   Bag,
   BagAsset,
-  BagHistoryResponse as BagHistory,
   Balance,
   Holding,
   PreparedTransaction,

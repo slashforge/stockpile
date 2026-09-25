@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
 import { fakeTransaction } from "../lib/solana-tx.fixture";
 import { resetActivityCache } from "../lib/activity";
@@ -39,6 +39,16 @@ mock.module("@stockpile/core/db", () => ({
 
 let currentUser = "user-a";
 const { default: account } = await import("./account");
+// Trade expectations below assume the classic three-leg 35/35/30 Megacap Builders; pin that composition for this file only.
+const { findBag } = await import("../lib/bags");
+const megacap = findBag("megacap-builders")!;
+const catalogueAssets = megacap.assets;
+megacap.assets = [
+  { symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" },
+  { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" },
+  { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" },
+];
+afterAll(() => { megacap.assets = catalogueAssets; });
 const app = new Hono();
 app.route("/", account);
 const originalFetch = globalThis.fetch;

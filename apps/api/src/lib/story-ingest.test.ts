@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
 import { companies, matchCompanies, parseFeed, parsePodcastEpisodes } from "./story-ingest";
 
-const source = { publisher: "Microsoft Official Blog", company: "Microsoft", host: "blogs.microsoft.com", url: "https://blogs.microsoft.com/feed/", bags: ["megacap-builders", "ai-infrastructure"] } as const;
+const source = { publisher: "Microsoft Official Blog", company: "Microsoft", host: "blogs.microsoft.com", url: "https://blogs.microsoft.com/feed/", bags: ["megacap-builders", "ai-infrastructure", "cloud-software"] } as const;
 it("parses and deduplicates only canonical approved publisher URLs and preserves source date", () => {
   const item = (url: string) => `<item><title>Microsoft announces a new research update</title><link>${url}</link><description>Microsoft announced an update to its research platform for users.</description><pubDate>Thu, 17 Sep 2026 14:00:05 +0000</pubDate></item>`;
   const stories = parseFeed(`<rss><channel>${item("https://blogs.microsoft.com/blog/example/?utm_source=rss")}${item("https://blogs.microsoft.com/blog/example/")}${item("https://evil.example/blog/example/")}</channel></rss>`, source);

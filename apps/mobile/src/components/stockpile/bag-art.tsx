@@ -63,12 +63,13 @@ export function LogoCluster({
 }: {
   assets: Bag["assets"];
   size?: number;
+  /** Total slots including the "+N" badge: 3 assets → 3 logos; 7 assets with limit 3 → 2 logos + "+5". */
   limit?: number;
   /** No drop shadow: for small clusters sitting on flat canvas (headers, list rows). */
   flat?: boolean;
 }) {
   const { theme } = useUnistyles();
-  const shown = assets.slice(0, limit);
+  const shown = assets.length > limit ? assets.slice(0, Math.max(1, limit - 1)) : assets;
   const rest = assets.length - shown.length;
   const overlap = size * 0.28;
   // Ring and shadow scale with the avatar so 16px clusters don't wear a 3px ring and a 8px blur.

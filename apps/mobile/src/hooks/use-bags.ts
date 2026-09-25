@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchBag, fetchBagHistory, fetchBags } from "@/services/api/stockpile";
-import type { Bag, HistoryRange } from "@/services/api/types";
+import { fetchBag, fetchBags } from "@/services/api/stockpile";
+import type { Bag } from "@/services/api/types";
 import { queryKeys } from "./query-keys";
 
 export function useBags() {
@@ -8,20 +8,6 @@ export function useBags() {
     queryKey: queryKeys.bags,
     queryFn: fetchBags,
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-/** Price history for the detail sparkline. Failures just hide the chart. */
-export function useBagHistory(
-  id: string | undefined,
-  range: HistoryRange = "7d",
-) {
-  return useQuery({
-    queryKey: queryKeys.bagHistory(id ?? "", range),
-    queryFn: () => fetchBagHistory(id as string, range),
-    enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
   });
 }
 

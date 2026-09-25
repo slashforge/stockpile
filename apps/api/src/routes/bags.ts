@@ -1,13 +1,14 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { bags, configuredSymbol, findBag, publicBag } from "../lib/bags";
-import { assetChart, bagChart, sparklines } from "../lib/charts";
+import { assetChart, bagChart, bagReturns, sparklines } from "../lib/charts";
 import { base58Mint } from "../lib/constants";
 import { bagHistory } from "../lib/history";
-import { AssetChartSchema, BagChartSchema, BagResponseSchema, BagsSchema, ChartRangeSchema, ErrorSchema, HistoryRangeSchema, HistorySchema, SparklinesSchema } from "../schemas";
+import { AssetChartSchema, BagChartSchema, BagResponseSchema, BagReturnsResponseSchema, BagsSchema, ChartRangeSchema, ErrorSchema, HistoryRangeSchema, HistorySchema, SparklinesSchema } from "../schemas";
 
 const app = new OpenAPIHono();
 app.openapi(createRoute({ method: "get", path: "/", operationId: "listBags", tags: ["bags"], responses: { 200: { description: "Editorial bags", content: { "application/json": { schema: BagsSchema } } } } }), async (c) => c.json({ bags: await Promise.all(bags.map(publicBag)) }, 200));
-// Static path before `/{id}` so "sparklines" is never treated as a bag id.
+// Static paths before `/{id}` so "sparklines" / "returns" are never treated as bag ids.
+app.openapi(createRoute({ method: "get", path: "/returns", operationId: "getBagReturns", tags: ["bags"], responses: { 200: { description: "1M / 1Y / ALL bag-index returns (%) and a 30-day daily sparkline per bag, from one daily tokens.xyz series per mint; nulls when a window is not fully covered", content: { "application/json": { schema: BagReturnsResponseSchema } } } } }), async (c) => c.json(await bagReturns(), 200));
 app.openapi(createRoute({ method: "get", path: "/sparklines", operationId: "getBagSparklines", tags: ["bags"], request: { query: z.object({ range: z.literal("1D").default("1D") }) }, responses: { 200: { description: "Last 24h hourly bag index (base 100) per bag for list mini charts; empty arrays when unavailable", content: { "application/json": { schema: SparklinesSchema } } } } }), async (c) => c.json(await sparklines(), 200));
 app.openapi(createRoute({ method: "get", path: "/{id}", operationId: "getBag", tags: ["bags"], request: { params: z.object({ id: z.string() }) }, responses: { 200: { description: "Editorial bag", content: { "application/json": { schema: BagResponseSchema } } }, 404: { description: "Not found", content: { "application/json": { schema: ErrorSchema } } } } }), async (c) => {
   const bag = findBag(c.req.valid("param").id);

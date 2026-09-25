@@ -43,6 +43,7 @@ const RANGE_WORD: Record<ChartRange, string> = {
   "1D": "Today",
   "1W": "Past week",
   "1M": "Past month",
+  "1Y": "Past year",
   ALL: "All time",
 };
 
