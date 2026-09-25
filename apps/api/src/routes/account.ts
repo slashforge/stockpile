@@ -8,9 +8,9 @@ import { syncUser, verifyIdentity, type Identity } from "../lib/identity";
 import { readPortfolio, unavailablePortfolio } from "../lib/portfolio";
 import { cursorPattern, HELIUS_MAX_LIMIT, readActivity } from "../lib/activity";
 import { applyBagLinks, readPositions, recordLeg } from "../lib/positions";
-import { prepareBag, quoteBag, toQuoteLeg, tradeSide, type TradeError, type TradeRequest } from "../lib/trade";
+import { prepareBag, prepareTokenSell, quoteBag, quoteTokenSell, toQuoteLeg, tradeSide, type TokenSellRequest, type TradeError, type TradeRequest } from "../lib/trade";
 import { readStatuses, submitSigned } from "../lib/broadcast";
-import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema, SubmitTransactionRequestSchema, SubmitTransactionSchema, TransactionStatusRequestSchema, TransactionStatusesSchema } from "../schemas";
+import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema, SubmitTransactionRequestSchema, SubmitTransactionSchema, TokenSellPrepareSchema, TokenSellQuoteSchema, TokenSellRequestSchema, TransactionStatusRequestSchema, TransactionStatusesSchema } from "../schemas";
 
 export type Variables = { identity: Identity };
 export const app = new OpenAPIHono<{ Variables: Variables }>();
@@ -125,6 +125,29 @@ app.openapi(createRoute({ method: "post", path: "/trade/submit", operationId: "s
     try { c.executionCtx.waitUntil(task); } catch { /* no execution context outside Workers */ }
   }
   return c.json({ signature: result.signature }, 200);
+});
+
+const tokenEchoOf = (request: TokenSellRequest) => ({ mints: request.mints, portionBps: request.portionBps, slippageBps: request.slippageBps ?? null });
+app.openapi(createRoute({ method: "post", path: "/trade/tokens/quote", operationId: "quoteTokenSell", tags: ["trade"], request: { body: { content: { "application/json": { schema: TokenSellRequestSchema } } } }, responses: { 200: response(TokenSellQuoteSchema, "Indicative quote per token -> USDC leg, sized from balances held outside every bag, or unavailable with a typed error"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => {
+  const request = c.req.valid("json");
+  const identity = c.get("identity");
+  const echo = tokenEchoOf(request);
+  const result = await quoteTokenSell(request, { userId: identity.id, walletAddress: identity.walletAddress });
+  if (!result.ok) return c.json({ status: "unavailable" as const, ...echo, totalOutAmount: null, legs: [], error: result.error, message: result.error.message }, 200);
+  const legs = result.value.legs.map((leg, i) => toQuoteLeg(leg, result.value.quotes[i]!));
+  return c.json({ status: "available" as const, ...echo, totalOutAmount: totalOut("sell", legs), legs, error: null, message: "Indicative quote only; routes and output amounts can change before you sign." }, 200);
+});
+
+app.openapi(createRoute({ method: "post", path: "/trade/tokens/prepare", operationId: "prepareTokenSell", tags: ["trade"], request: { body: { content: { "application/json": { schema: TokenSellRequestSchema } } } }, responses: { 200: response(TokenSellPrepareSchema, "Unsigned sponsored token -> USDC transactions, or unavailable with a typed error"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => {
+  const request = c.req.valid("json");
+  const identity = c.get("identity");
+  const walletAddress = identity.walletAddress;
+  const echo = { ...tokenEchoOf(request), walletAddress };
+  const unavailable = (error: TradeError) => c.json({ status: "unavailable" as const, ...echo, totalOutAmount: null, transactions: [], error, message: error.message }, 200);
+  if (!walletAddress) return unavailable({ code: "NO_WALLET", message: "No verified Solana wallet linked to this Privy identity", legIndex: null, symbol: null });
+  const result = await prepareTokenSell(request, walletAddress, { userId: identity.id, walletAddress });
+  if (!result.ok) return unavailable(result.error);
+  return c.json({ status: "ready" as const, ...echo, totalOutAmount: totalOut("sell", result.value), transactions: result.value, error: null, message: "Unsigned transactions only. Review and sign each leg in your wallet; quotes can expire and fills are not guaranteed." }, 200);
 });
 
 const LINK_DELAYS_MS = [1_500, 2_500, 4_000, 6_000, 8_000, 8_000];

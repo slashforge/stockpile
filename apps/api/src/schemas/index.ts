@@ -48,6 +48,14 @@ export const PreparedTransactionSchema = QuoteLegSchema.extend({
   feePayer: z.string().openapi({ description: "Stockpile paymaster that pays the network fee and token-account rent." }),
 }).openapi("PreparedTransaction");
 export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tradeEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
+export const TokenSellRequestSchema = z.object({
+  mints: z.array(z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/)).min(1).max(12).openapi({ description: "Token mints to sell to USDC. Only the balance held outside every bag position is sold." }),
+  portionBps: z.number().int().min(1).max(10000).openapi({ description: "Share of each mint's loose balance to sell, 1..10000 bps." }),
+  slippageBps: z.number().int().min(1).max(500).nullable().optional().openapi({ description: "Advanced override. Omit or null for automatic protection." }),
+}).openapi("TokenSellRequest");
+const tokenSellEcho = { mints: z.array(z.string()), portionBps: z.number(), slippageBps: z.number().nullable(), totalOutAmount: z.string().nullable().openapi({ description: "Sum of leg outAmount in USDC base units." }) };
+export const TokenSellQuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), ...tokenSellEcho, legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("TokenSellQuoteResponse");
+export const TokenSellPrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tokenSellEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("TokenSellPrepareResponse");
 export const SubmitTransactionRequestSchema = z.object({
   transaction: z.string().min(1).max(4096).openapi({ description: "Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored)." }),
   bagId: z.string().min(1).optional().openapi({ description: "Bag this swap belongs to. The server links the leg to the bag once it confirms, even if the app closes first." }),

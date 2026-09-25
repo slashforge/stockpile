@@ -1,4 +1,42 @@
-import type { Activity } from "@/services/api/types";
+import type { BagPositions } from "@/services/api/positions";
+import type { Activity, Holding } from "@/services/api/types";
+
+/**
+ * Wallet holdings minus what bag positions claim, so tokens that belong to a bag are only shown in
+ * that bag. Mirrors the server's loose balance (balance − Σ held), the only amount a direct token
+ * sell may touch. `positions` undefined means still loading: bag-member tokens are held back rather
+ * than flashing in and out. `null` means positions are unavailable: nothing is hidden.
+ */
+export function looseHoldings(holdings: Holding[], positions: BagPositions | null | undefined): Holding[] {
+  if (positions === undefined) return holdings.filter((holding) => holding.bagIds.length === 0);
+  const claimed = new Map<string, bigint>();
+  for (const bag of positions?.bags ?? []) {
+    for (const leg of bag.legs) {
+      if (/^\d+$/.test(leg.held)) claimed.set(leg.mint, (claimed.get(leg.mint) ?? 0n) + BigInt(leg.held));
+    }
+  }
+  const out: Holding[] = [];
+  for (const holding of holdings) {
+    if (!/^\d+$/.test(holding.amount)) continue;
+    const total = BigInt(holding.amount);
+    const taken = claimed.get(holding.mint) ?? 0n;
+    const loose = total - taken;
+    if (loose <= 0n) continue;
+    if (taken === 0n) {
+      out.push(holding);
+      continue;
+    }
+    const share = Number(loose) / Number(total);
+    const ui = holding.uiAmount != null ? Number(holding.uiAmount) * share : null;
+    out.push({
+      ...holding,
+      amount: loose.toString(),
+      uiAmount: ui != null && Number.isFinite(ui) ? String(ui) : null,
+      usdValue: holding.usdValue != null ? holding.usdValue * share : null,
+    });
+  }
+  return out;
+}
 
 function groupThousands(integer: string) {
   return integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");

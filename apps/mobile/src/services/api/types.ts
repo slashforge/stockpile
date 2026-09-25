@@ -21,6 +21,9 @@ export type {
   PortfolioResponse as Portfolio,
   QuoteResponse as TradeQuote,
   PrepareResponse as PreparedTrade,
+  TokenSellRequest,
+  TokenSellQuoteResponse as TokenSellQuote,
+  TokenSellPrepareResponse as TokenSellPrepared,
 } from "@stockpile/api-client";
 
 export type BagSource = Bag["sources"][number];

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LegendList } from "@legendapp/list/react-native";
 import { router } from "expo-router";
 import {
   createContext,
@@ -7,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useBag } from "@/hooks/use-bags";
@@ -39,37 +40,46 @@ function BagSheetBody({
   bagId,
   onOpenDetail,
   onBuy,
+  bottomInset,
 }: {
   bagId: string;
   onOpenDetail: () => void;
   onBuy: () => void;
+  bottomInset: number;
 }) {
   const { authenticated } = useStockpileAuth();
   const bag = useBag(bagId);
-  const colors = useAssetColors(bag.data?.assets ?? []);
+  const assets = bag.data?.assets ?? [];
+  const colors = useAssetColors(assets);
   const { theme } = useUnistyles();
 
   if (!bag.data) {
-    return bag.isError ? (
-      <MessageState
-        tone="error"
-        icon="alert-circle-outline"
-        title="Bag unavailable"
-        body={bag.error.message}
-      />
-    ) : (
-      <View style={styles.loading}>
-        <Skeleton height={120} radius={22} />
-        <Skeleton height={20} width="60%" />
-        <Skeleton height={160} radius={18} />
+    return (
+      <View style={[styles.fill, styles.content]}>
+        {bag.isError ? (
+          <MessageState
+            tone="error"
+            icon="alert-circle-outline"
+            title="Bag unavailable"
+            body={bag.error.message}
+          />
+        ) : (
+          <View style={styles.loading}>
+            <Skeleton height={120} radius={22} />
+            <Skeleton height={20} width="60%" />
+            <Skeleton height={160} radius={18} />
+          </View>
+        )}
       </View>
     );
   }
 
   const data = bag.data;
   const tradable = bagTradable(data);
-  return (
-    <>
+  const last = data.assets.length - 1;
+
+  const header = (
+    <View style={styles.header}>
       <BagArt bag={data} height={120} logoSize={44} style={styles.art}>
         <View style={styles.artStatus}>
           <TradeStatus bag={data} onArt />
@@ -86,11 +96,30 @@ function BagSheetBody({
         </View>
         <SaveButton bagId={data.id} title={data.title} variant="circle" />
       </View>
-
       <AllocationBar assets={data.assets} height={10} />
-      <View style={styles.list}>
-        {data.assets.map((asset, index) => (
-          <View key={`${asset.symbol}-${index}`}>
+    </View>
+  );
+
+  return (
+    <View style={styles.fill}>
+      <LegendList
+        data={data.assets}
+        keyExtractor={(asset, index) => `${asset.symbol}-${index}`}
+        estimatedItemSize={64}
+        recycleItems
+        ListHeaderComponent={header}
+        style={styles.fill}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        accessibilityLabel="Bag summary"
+        renderItem={({ item: asset, index }) => (
+          <View
+            style={[
+              styles.listRow,
+              index === 0 && styles.listFirst,
+              index === last && styles.listLast,
+            ]}
+          >
             {index > 0 ? <Divider inset={56} /> : null}
             <View style={styles.row}>
               <TokenAvatar
@@ -115,36 +144,38 @@ function BagSheetBody({
               </T>
             </View>
           </View>
-        ))}
-      </View>
-
-      {!tradable ? (
-        <View style={styles.note}>
-          <Ionicons
-            name="lock-closed"
-            size={13}
-            color={theme.ds.inkSecondary}
-          />
-          <T variant="footnote" tone="secondary" style={styles.flex}>
-            {researchOnlyReason(data)}
-          </T>
-        </View>
-      ) : null}
-      {tradable ? (
-        <PrimaryButton
-          label={authenticated ? "Put money in the bag" : "Sign in to buy"}
-          icon={authenticated ? "add-circle" : "mail"}
-          onPress={onBuy}
-        />
-      ) : null}
-      <PrimaryButton
-        label="See details"
-        icon="arrow-forward"
-        variant={tradable ? "ghost" : "solid"}
-        size={tradable ? "md" : "lg"}
-        onPress={onOpenDetail}
+        )}
       />
-    </>
+
+      <View style={[styles.footer, { paddingBottom: bottomInset + 12 }]}>
+        {!tradable ? (
+          <View style={styles.note}>
+            <Ionicons
+              name="lock-closed"
+              size={13}
+              color={theme.ds.inkSecondary}
+            />
+            <T variant="footnote" tone="secondary" style={styles.flex}>
+              {researchOnlyReason(data)}
+            </T>
+          </View>
+        ) : null}
+        {tradable ? (
+          <PrimaryButton
+            label={authenticated ? "Put money in the bag" : "Sign in to buy"}
+            icon={authenticated ? "add-circle" : "mail"}
+            onPress={onBuy}
+          />
+        ) : null}
+        <PrimaryButton
+          label="See details"
+          icon="arrow-forward"
+          variant={tradable ? "ghost" : "solid"}
+          size={tradable ? "md" : "lg"}
+          onPress={onOpenDetail}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -186,16 +217,11 @@ export function BagSheetProvider({ children }: { children: React.ReactNode }) {
     <BagSheetContext.Provider value={value}>
       {children}
       <NativeSheet isPresented={open && !!bagId} onDismiss={dismiss} testID="bag-sheet">
-        <ScrollView
-          style={styles.fill}
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 12 }]}
-          showsVerticalScrollIndicator={false}
-          accessibilityLabel="Bag summary"
-        >
-          {bagId ? (
-            <BagSheetBody bagId={bagId} onOpenDetail={openDetail} onBuy={buy} />
-          ) : null}
-        </ScrollView>
+        {bagId ? (
+          <BagSheetBody bagId={bagId} onOpenDetail={openDetail} onBuy={buy} bottomInset={insets.bottom} />
+        ) : (
+          <View style={styles.fill} />
+        )}
       </NativeSheet>
     </BagSheetContext.Provider>
   );
@@ -207,16 +233,23 @@ const styles = StyleSheet.create((theme) => ({
     paddingTop: theme.density.sheetTop,
     gap: theme.density.stack,
   },
+  header: { gap: theme.density.stack, paddingBottom: theme.density.stack },
+  listContent: { paddingTop: theme.density.sheetTop, paddingBottom: theme.density.stack },
+  // Rows are separate list cells, so the card background and its rounded ends live on each row.
+  listRow: { backgroundColor: theme.ds.canvas },
+  listFirst: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderCurve: "continuous", paddingTop: 4 },
+  listLast: { borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderCurve: "continuous", paddingBottom: 4 },
+  footer: {
+    gap: 8,
+    paddingTop: theme.density.rowY,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.ds.line,
+  },
   loading: { gap: theme.density.stack },
   art: { ...theme.rounded(22) },
   artStatus: { position: "absolute", top: 10, right: 10 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: theme.density.rowGap },
   flex: { flex: 1, gap: 2 },
-  list: {
-    backgroundColor: theme.ds.canvas,
-    ...theme.rounded(20),
-    paddingVertical: 4,
-  },
   row: {
     flexDirection: "row",
     alignItems: "center",

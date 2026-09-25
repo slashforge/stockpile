@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Color from "color";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -29,11 +29,36 @@ export function floatingTabBarInset(bottomSafeArea: number) {
 
 const TabBarInsetContext = createContext(0);
 
+type TabBarVisibility = { hidden: boolean; setHidden: (hidden: boolean) => void };
+const TabBarVisibilityContext = createContext<TabBarVisibility>({ hidden: false, setHidden: () => {} });
+
+/** Lets a tab screen hide the tab bar (e.g. while it shows its own selection toolbar). */
+export function TabBarVisibilityProvider({ children }: { children: (hidden: boolean) => React.ReactNode }) {
+  const [hidden, setHidden] = useState(false);
+  const value = useMemo(() => ({ hidden, setHidden }), [hidden]);
+  return <TabBarVisibilityContext.Provider value={value}>{children(hidden)}</TabBarVisibilityContext.Provider>;
+}
+
+export function useTabBarHidden() {
+  return useContext(TabBarVisibilityContext).hidden;
+}
+
+/** Hides the tab bar while `hide` is true; restores it when false or on unmount. */
+export function useHideTabBar(hide: boolean) {
+  const { setHidden } = useContext(TabBarVisibilityContext);
+  useEffect(() => {
+    if (!hide) return;
+    setHidden(true);
+    return () => setHidden(false);
+  }, [hide, setHidden]);
+}
+
 /** Provides the floating bar's footprint to screens rendered under it. */
 export function TabBarInsetProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
+  const hidden = useTabBarHidden();
   return (
-    <TabBarInsetContext.Provider value={floatingTabBarInset(insets.bottom)}>
+    <TabBarInsetContext.Provider value={hidden ? 0 : floatingTabBarInset(insets.bottom)}>
       <BlurTargetProvider>{children}</BlurTargetProvider>
     </TabBarInsetContext.Provider>
   );

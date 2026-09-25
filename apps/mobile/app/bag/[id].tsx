@@ -31,7 +31,6 @@ import { FullText, T } from "@/components/stockpile/type";
 import { useOpenBuy } from "@/hooks/use-open-buy";
 import { useOpenSell } from "@/hooks/use-open-sell";
 import { useBagPosition } from "@/hooks/use-positions";
-import { usePortfolio } from "@/hooks/use-account";
 import { useBag } from "@/hooks/use-bags";
 import { useBagChart } from "@/hooks/use-charts";
 import { collectStories, useBagStories } from "@/hooks/use-feed";
@@ -47,14 +46,15 @@ import {
   formatSignedPct,
   formatUsdCompact,
 } from "@/lib/market";
-import { formatUsdValue } from "@/lib/portfolio";
+import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
+import type { BagPosition } from "@/services/api/positions";
 import {
   type BagChart,
   type ChartPoint,
   type ChartRange,
   isDrawable,
 } from "@/services/api/charts";
-import type { Bag, Portfolio } from "@/services/api/types";
+import type { Bag } from "@/services/api/types";
 import { density } from "@/config/sizing";
 import { formatBps } from "@/utils/amounts";
 import { HapticPressable } from "@/components/stockpile/haptic-pressable";
@@ -74,17 +74,6 @@ function openLink(url: string) {
 function categoryLabel(bag: Bag) {
   const issuer = bag.issuer === "prestocks" ? "PreStocks" : "xStocks";
   return bag.assetClass === "pre-ipo" ? `${issuer} · Pre-IPO` : issuer;
-}
-
-/** USD value of the wallet's tokens attributed to this bag; null when nothing priced is held. */
-function bagHoldingUsd(portfolio: Portfolio | undefined, bagId: string) {
-  if (!portfolio || portfolio.status !== "live") return null;
-  const held = portfolio.holdings.filter((holding) =>
-    holding.bagIds.includes(bagId),
-  );
-  const priced = held.filter((holding) => holding.usdValue != null);
-  if (priced.length === 0) return null;
-  return priced.reduce((sum, holding) => sum + (holding.usdValue ?? 0), 0);
 }
 
 function pctBetween(from: number, to: number) {
@@ -423,6 +412,58 @@ function Facts({ bag }: { bag: Bag }) {
   );
 }
 
+/** What the signed-in user holds of this bag, token by token. Bag tokens only show here, not in Portfolio. */
+function YourTokens({ position, bag }: { position: BagPosition; bag: Bag }) {
+  const pnl = changeTone(position.pnlPct);
+  const pnlTone = pnl === "up" ? "positive" : pnl === "down" ? "danger" : "secondary";
+  const legs = position.legs.filter((leg) => leg.held !== "0");
+  return (
+    <View style={styles.block}>
+      <View style={styles.blockHeader}>
+        <T variant="title3" accessibilityRole="header">
+          Your tokens
+        </T>
+        <T variant="footnote" tone={pnlTone} style={styles.tabular}>
+          {formatUsdValue(position.valueUsd)}
+          {position.pnlPct != null ? ` · ${formatSignedPct(position.pnlPct)}` : ""}
+        </T>
+      </View>
+      {legs.map((leg, index) => {
+        const asset = bag.assets.find((candidate) => candidate.mint === leg.mint);
+        const amount = `${formatHoldingAmount(String(leg.heldUi))} ${leg.symbol}`;
+        return (
+          <View key={leg.mint}>
+            {index > 0 ? <Divider inset={40 + density.rowGap} /> : null}
+            <View
+              style={styles.row}
+              accessible
+              accessibilityLabel={`${leg.symbol}. ${formatUsdValue(leg.usdValue)}, ${amount}`}
+            >
+              <TokenAvatar symbol={leg.symbol} mint={leg.mint} iconUrl={leg.iconUrl ?? asset?.iconUrl ?? null} size={40} />
+              <View style={styles.flex}>
+                <T variant="headline" numberOfLines={1}>
+                  {leg.symbol}
+                </T>
+                <T variant="footnote" tone="secondary" style={styles.tabular} numberOfLines={1}>
+                  {amount}
+                </T>
+              </View>
+              <T variant="headline" style={styles.tabular}>
+                {formatUsdValue(leg.usdValue)}
+              </T>
+            </View>
+          </View>
+        );
+      })}
+      {!position.reconciled ? (
+        <T variant="caption" tone="caution">
+          Some of this bag’s tokens moved out of your wallet, so it shows what’s still there.
+        </T>
+      ) : null}
+    </View>
+  );
+}
+
 const STANCE = {
   supporting: { label: "Supports", icon: "trending-up" },
   opposing: { label: "Challenges", icon: "trending-down" },
@@ -554,7 +595,6 @@ export default function BagScreen() {
   const bag = useBag(id);
   const [range, setRange] = useState<ChartRange>("1M");
   const chart = useBagChart(id, range);
-  const portfolio = usePortfolio();
   const auth = useStockpileAuth();
   const { theme } = useUnistyles();
   const openBuy = useOpenBuy();
@@ -609,7 +649,8 @@ export default function BagScreen() {
 
   const data = bag.data;
   const tradable = bagTradable(data);
-  const holdingUsd = bagHoldingUsd(portfolio.data, data.id);
+  // Only what this bag's position holds; tokens outside it show as loose holdings in Portfolio.
+  const holdingUsd = position?.valueUsd ?? null;
   const heldChange = changeTone(position?.pnlPct);
   const heldTone = heldChange === "up" ? "positive" : heldChange === "down" ? "danger" : "secondary";
 
@@ -692,6 +733,8 @@ export default function BagScreen() {
         loading={chart.isFetching}
         holdingUsd={holdingUsd}
       />
+
+      {position ? <YourTokens position={position} bag={data} /> : null}
 
       <Holdings bag={data} chart={chart.isError ? undefined : chart.data} />
 

@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { ActivityIndicator, View } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, BackHandler, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AuthGate } from "@/components/stockpile/auth-gate";
 import { GradientCard } from "@/components/stockpile/gradient-card";
 import { useFundSheet } from "@/components/stockpile/fund-sheet";
 import { HeroState } from "@/components/stockpile/hero-state";
 import { CardSkeleton, Divider, Screen, Skeleton } from "@/components/stockpile/layout";
+import { useHideTabBar } from "@/components/stockpile/tab-bar";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { UsdcLogo } from "@/components/stockpile/token-logos";
 import { T } from "@/components/stockpile/type";
@@ -15,6 +17,7 @@ import { density } from "@/config/sizing";
 import { useActivity, usePortfolio } from "@/hooks/use-account";
 import { indexAssetsByMint, useBags } from "@/hooks/use-bags";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { useLooseHoldings } from "@/hooks/use-loose-holdings";
 import { useOpenSell } from "@/hooks/use-open-sell";
 import { usePositions } from "@/hooks/use-positions";
 import { changeTone, formatSignedPct } from "@/lib/market";
@@ -32,7 +35,8 @@ import {
 import { USDC_MINT } from "@/lib/solana/transaction";
 import { solBalance, spendableUsdc } from "@/lib/trade/balance";
 import { useStockpileAuth } from "@/providers/auth-context";
-import type { Activity, Bag, Portfolio } from "@/services/api/types";
+import type { Activity, Bag, Holding, Portfolio } from "@/services/api/types";
+import { PrimaryButton } from "@/components/stockpile/primary-button";
 import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
 import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
@@ -397,14 +401,41 @@ type Row = {
   bagIds: string[];
 };
 
+type HoldingSelectionValue = {
+  active: boolean;
+  selected: ReadonlySet<string>;
+  start: (mint: string) => void;
+  toggle: (mint: string) => void;
+};
+
+const HoldingSelection = createContext<HoldingSelectionValue>({
+  active: false,
+  selected: new Set(),
+  start: () => {},
+  toggle: () => {},
+});
+
+/** USDC and SOL stay in the wallet: USDC is what you sell into and SOL covers fees outside Stockpile. */
+function isSellable(row: Row) {
+  return row.mint != null && row.key !== "usdc" && row.key !== "sol";
+}
+
 function HoldingRow({ row }: { row: Row }) {
+  const { theme } = useUnistyles();
+  const selection = useContext(HoldingSelection);
   const amountLine = `${row.amount} ${row.symbol}`;
-  return (
-    <View
-      style={styles.row}
-      accessible
-      accessibilityLabel={`${row.symbol}, ${row.name}. ${formatUsdValue(row.usdValue)}, ${amountLine}`}
-    >
+  const sellable = isSellable(row);
+  const selected = sellable && selection.selected.has(row.mint!);
+  const label = `${row.symbol}, ${row.name}. ${formatUsdValue(row.usdValue)}, ${amountLine}`;
+  const content = (
+    <>
+      {selection.active ? (
+        <Ionicons
+          name={selected ? "checkmark-circle" : sellable ? "ellipse-outline" : "remove-circle-outline"}
+          size={22}
+          color={selected ? theme.ds.accent : theme.ds.inkTertiary}
+        />
+      ) : null}
       <TokenAvatar symbol={row.symbol} mint={row.mint} iconUrl={row.iconUrl} size={AVATAR} />
       <View style={styles.textCol}>
         <View style={styles.titleLine}>
@@ -424,11 +455,34 @@ function HoldingRow({ row }: { row: Row }) {
           {amountLine}
         </T>
       </View>
-    </View>
+    </>
+  );
+  if (!sellable) {
+    return (
+      <View style={[styles.row, selection.active && styles.rowMuted]} accessible accessibilityLabel={label}>
+        {content}
+      </View>
+    );
+  }
+  return (
+    <HapticPressable
+      accessibilityRole={selection.active ? "checkbox" : "button"}
+      accessibilityLabel={label}
+      accessibilityState={selection.active ? { checked: selected } : undefined}
+      accessibilityHint={selection.active ? "Adds or removes it from the sale" : "Long-press to select tokens to sell"}
+      onPress={selection.active ? () => selection.toggle(row.mint!) : undefined}
+      // Keep a long-press handler in both modes: the row re-renders into selection mode mid-press, and
+      // without one Pressability treats the release as a tap and immediately unticks the row.
+      onLongPress={selection.active ? () => selection.toggle(row.mint!) : () => selection.start(row.mint!)}
+      delayLongPress={300}
+      style={({ pressed }) => [styles.row, (pressed || selected) && styles.rowPressed]}
+    >
+      {content}
+    </HapticPressable>
   );
 }
 
-function holdingRows(data: Portfolio, assets: ReturnType<typeof indexAssetsByMint>): Row[] {
+function holdingRows(data: Portfolio, loose: Holding[], assets: ReturnType<typeof indexAssetsByMint>): Row[] {
   const rows: Row[] = [];
   if (data.usdc && data.usdc.amount !== "0") {
     rows.push({
@@ -454,7 +508,8 @@ function holdingRows(data: Portfolio, assets: ReturnType<typeof indexAssetsByMin
       bagIds: [],
     });
   }
-  for (const holding of data.holdings) {
+  // Bag tokens live in their bag; only what's held outside every bag position is listed here.
+  for (const holding of loose) {
     if (holding.amount === "0" || holding.mint === USDC_MINT) continue;
     const asset = assets.get(holding.mint);
     const symbol = holding.symbol ?? asset?.symbol ?? shortAddress(holding.mint);
@@ -660,7 +715,7 @@ function ActivitySection({ bagsById, assets }: { bagsById: Map<string, Bag>; ass
 }
 
 function PortfolioBody() {
-  const portfolio = usePortfolio();
+  const { holdings: loose, portfolio, positions, settled } = useLooseHoldings();
   const bags = useBags();
   const { walletAddress: embeddedWallet } = useStockpileAuth();
   const bagsById = new Map((bags.data ?? []).map((bag) => [bag.id, bag]));
@@ -683,8 +738,9 @@ function PortfolioBody() {
   const data = portfolio.data;
   const walletAddress = data.walletAddress ?? embeddedWallet;
   const assets = indexAssetsByMint(bags.data);
-  const rows = holdingRows(data, assets);
+  const rows = holdingRows(data, loose, assets);
   const hasTokens = rows.some((row) => row.key !== "usdc" && row.key !== "sol");
+  const hasBags = heldPositions(positions.data).length > 0;
   const asOf = formatAsOf(data.asOf);
 
   return (
@@ -702,13 +758,16 @@ function PortfolioBody() {
           />
         </PortfolioSection>
       ) : (
-        <PortfolioSection title="Holdings" trailing={asOf ? `Updated ${asOf}` : null}>
+        <PortfolioSection
+          title="Holdings"
+          trailing={hasTokens ? "Hold to select and sell" : asOf ? `Updated ${asOf}` : null}
+        >
           {rows.length > 0 ? (
             <ListCard>
               <Rows items={rows} keyOf={(row) => row.key} render={(row) => <HoldingRow row={row} />} />
             </ListCard>
           ) : null}
-          {!hasTokens ? <NoBagTokensHint /> : null}
+          {settled && !hasTokens && !hasBags ? <NoBagTokensHint /> : null}
         </PortfolioSection>
       )}
 
@@ -722,34 +781,100 @@ export default function PortfolioScreen() {
   const activity = useActivity();
   const positions = usePositions();
   const { authenticated } = useStockpileAuth();
+  const { holdings: loose } = useLooseHoldings();
+  const [picks, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  // Only picks still listed count: anything sold or moved into a bag drops out on its own.
+  const selected = useMemo<ReadonlySet<string>>(() => {
+    const present = new Set(loose.map((holding) => holding.mint));
+    return new Set([...picks].filter((mint) => present.has(mint)));
+  }, [picks, loose]);
+  const active = selected.size > 0;
+  const clear = useCallback(() => setSelected(new Set()), []);
+  const selection = useMemo<HoldingSelectionValue>(
+    () => ({
+      active,
+      selected,
+      start: (mint) => setSelected(new Set([mint])),
+      toggle: (mint) =>
+        setSelected((current) => {
+          const next = new Set(current);
+          if (next.has(mint)) next.delete(mint);
+          else next.add(mint);
+          return next;
+        }),
+    }),
+    [active, selected],
+  );
+
+  // Leaving the tab ends selection.
+  useFocusEffect(useCallback(() => clear, [clear]));
+  // The selection toolbar replaces the tab bar, like Photos/Files.
+  useHideTabBar(active);
+  useEffect(() => {
+    if (!active) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      clear();
+      return true;
+    });
+    return () => sub.remove();
+  }, [active, clear]);
+
+  const picked = loose.filter((holding) => selected.has(holding.mint));
+  const pickedUsd = picked.every((holding) => holding.usdValue != null)
+    ? picked.reduce((sum, holding) => sum + (holding.usdValue ?? 0), 0)
+    : null;
+  const sellPicked = () => {
+    const mints = picked.map((holding) => holding.mint);
+    clear();
+    router.push({ pathname: "/sell-tokens", params: { mints: mints.join(",") } });
+  };
+
   return (
-    <Screen
-      title="Portfolio"
-      onRefresh={
-        authenticated
-          ? () => Promise.all([portfolio.refetch(), activity.refetch(), positions.refetch()])
-          : undefined
-      }
-      onEndReached={
-        authenticated
-          ? () => {
-              if (activity.hasNextPage && !activity.isFetchingNextPage && !activity.isFetchNextPageError) {
-                activity.fetchNextPage();
+    <HoldingSelection.Provider value={selection}>
+      <Screen
+        title="Portfolio"
+        footer={
+          active ? (
+            <View style={styles.selectionBar}>
+              <PrimaryButton label="Cancel" variant="ghost" size="md" onPress={clear} />
+              <View style={styles.flex}>
+                <PrimaryButton
+                  label={`Sell ${picked.length} ${picked.length === 1 ? "token" : "tokens"}${pickedUsd != null ? ` · ≈ ${formatUsdValue(pickedUsd)}` : ""}`}
+                  icon="swap-horizontal"
+                  size="md"
+                  onPress={sellPicked}
+                  disabled={picked.length === 0}
+                />
+              </View>
+            </View>
+          ) : undefined
+        }
+        onRefresh={
+          authenticated
+            ? () => Promise.all([portfolio.refetch(), activity.refetch(), positions.refetch()])
+            : undefined
+        }
+        onEndReached={
+          authenticated
+            ? () => {
+                if (activity.hasNextPage && !activity.isFetchingNextPage && !activity.isFetchNextPageError) {
+                  activity.fetchNextPage();
+                }
               }
-            }
-          : undefined
-      }
-    >
-      <AuthGate
-        gradient="blue"
-        icon="pie-chart"
-        accents={["wallet", "layers"]}
-        title="Your bags, on-chain"
-        body="Sign in to see your wallet balance, the tokens you hold and your activity."
+            : undefined
+        }
       >
-        <PortfolioBody />
-      </AuthGate>
-    </Screen>
+        <AuthGate
+          gradient="blue"
+          icon="pie-chart"
+          accents={["wallet", "layers"]}
+          title="Your bags, on-chain"
+          body="Sign in to see your wallet balance, the tokens you hold and your activity."
+        >
+          <PortfolioBody />
+        </AuthGate>
+      </Screen>
+    </HoldingSelection.Provider>
   );
 }
 
@@ -759,6 +884,8 @@ const styles = StyleSheet.create((theme) => ({
   tabular: { fontVariant: ["tabular-nums"] },
   shrink: { flexShrink: 1 },
   pressed: { opacity: 0.7 },
+  flex: { flex: 1 },
+  selectionBar: { flexDirection: "row", alignItems: "center", gap: theme.density.item },
 
   section: { gap: theme.density.sectionHeader, marginTop: theme.density.section - theme.density.stack },
   sectionHeader: {
@@ -807,6 +934,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.density.rowY,
   },
   rowPressed: { backgroundColor: theme.ds.sunken },
+  rowMuted: { opacity: 0.45 },
   textCol: { flex: 1, minWidth: 0, gap: 2 },
   titleLine: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 21 },
   rightCol: { maxWidth: "50%", flexShrink: 0, alignItems: "flex-end", gap: 2 },

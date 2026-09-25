@@ -19,6 +19,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@hookform/resolvers": "^5.2.2",
+    "@legendapp/list": "^3.4.0",
     "@noble/curves": "^2.0.1",
     "@privy-io/expo": "0.63.0",
     "@privy-io/expo-native-extensions": "0.0.6",

@@ -7,7 +7,9 @@ import {
   listBags as sdkListBags,
   listSavedBags as sdkListSavedBags,
   prepareBagTrade as sdkPrepareBagTrade,
+  prepareTokenSell as sdkPrepareTokenSell,
   quoteBagTrade as sdkQuoteBagTrade,
+  quoteTokenSell as sdkQuoteTokenSell,
   removeSavedBag as sdkRemoveSavedBag,
   saveBag as sdkSaveBag,
   submitTransaction as sdkSubmitTransaction,
@@ -18,6 +20,9 @@ import type {
   Me,
   Portfolio,
   PreparedTrade,
+  TokenSellPrepared,
+  TokenSellQuote,
+  TokenSellRequest,
   TradeQuote,
   TradeRequest,
 } from "./types";
@@ -131,6 +136,15 @@ export async function quoteTrade(body: TradeRequest): Promise<TradeQuote> {
 
 export async function prepareTrade(body: TradeRequest): Promise<PreparedTrade> {
   return unwrap(sdkPrepareBagTrade({ body }));
+}
+
+/** Quotes selling tokens held outside every bag (the server sizes each leg from the loose balance). */
+export async function quoteTokenSell(body: TokenSellRequest): Promise<TokenSellQuote> {
+  return unwrap(sdkQuoteTokenSell({ body }));
+}
+
+export async function prepareTokenSell(body: TokenSellRequest): Promise<TokenSellPrepared> {
+  return unwrap(sdkPrepareTokenSell({ body }));
 }
 
 /** Broadcasts a wallet-signed transaction through Stockpile (Helius RPC + Sender); returns its signature. */

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { Activity } from "@/services/api/types";
 import {
+  looseHoldings,
   activityVisual,
   activityDayLabel,
   describeActivity,
@@ -139,5 +140,35 @@ describe("flattenActivity", () => {
     const pages = [{ items: [item("a"), item("b")] }, { items: [item("b"), item("c")] }];
     expect(flattenActivity(pages).map((entry) => entry.signature)).toEqual(["a", "b", "c"]);
     expect(flattenActivity(undefined)).toEqual([]);
+  });
+});
+
+describe("looseHoldings", () => {
+  const holding = (mint: string, amount: string, bagIds: string[] = []) => ({
+    mint, symbol: mint, name: null, iconUrl: null, amount, decimals: 6, uiAmount: String(Number(amount) / 1e6),
+    program: "token" as const, usdPrice: 1, usdValue: Number(amount) / 1e6, bagIds,
+  });
+  const leg = (mint: string, held: string) => ({
+    mint, symbol: mint, iconUrl: null, decimals: 6, tracked: held, trackedUi: 0, walletBalance: null, held, heldUi: 0,
+    usdPrice: null, usdValue: null, costUsdc: 0,
+  });
+  const positions = (legs: ReturnType<typeof leg>[]) => ({
+    walletAddress: null, status: "live" as const,
+    bags: [{ bagId: "b", title: "B", legs, costUsdc: 0, valueUsd: null, pnlUsd: null, pnlPct: null, reconciled: true, sellable: true, lotCount: 1, lastTradedAt: null }],
+  });
+
+  test("drops fully claimed tokens and scales partly claimed ones", () => {
+    const out = looseHoldings(
+      [holding("A", "1000000", ["b"]), holding("B", "400000", ["b"]), holding("C", "5")],
+      positions([leg("A", "1000000"), leg("B", "100000")]),
+    );
+    expect(out.map((h) => [h.mint, h.amount])).toEqual([["B", "300000"], ["C", "5"]]);
+    expect(out[0].usdValue).toBeCloseTo(0.3);
+  });
+
+  test("holds back bag tokens while positions load, hides nothing when unavailable", () => {
+    const list = [holding("A", "10", ["b"]), holding("C", "5")];
+    expect(looseHoldings(list, undefined).map((h) => h.mint)).toEqual(["C"]);
+    expect(looseHoldings(list, null).map((h) => h.mint)).toEqual(["A", "C"]);
   });
 });

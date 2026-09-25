@@ -1,8 +1,9 @@
-import { bagAssets, findBag, resolveAsset, trackerBlocked, type Bag } from "./bags";
+import { bagAssets, findBag, knownSymbol, resolveAsset, trackerBlocked, type Bag } from "./bags";
 import { scaledUiMultiplier } from "./market";
-import { bagPosition } from "./positions";
+import { bagPosition, looseBalances } from "./positions";
 import { inspectTransaction } from "./solana-tx";
 import { type BuildResponse, compileSponsored, paymaster, rpcUrl } from "./sponsor";
+import { tokenMetadata } from "./token-meta";
 
 import { USDC } from "./constants";
 export { USDC };
@@ -18,6 +19,8 @@ export type TradeSide = "buy" | "sell";
  * `slippageBps` is an advanced override; when absent Jupiter's real-time slippage estimator (RTSE) picks the limit per leg.
  */
 export type TradeRequest = { bagId: string; side?: TradeSide; inputMint?: string; amount?: string; portionBps?: number; slippageBps?: number | null };
+/** Direct sell of tokens held outside every bag position: `portionBps` of each mint's loose balance, swapped to USDC. */
+export type TokenSellRequest = { mints: string[]; portionBps: number; slippageBps?: number | null };
 export type TradeContext = { userId: string; walletAddress: string | null };
 export type JupiterQuote = { inputMint: string; outputMint: string; inAmount: string; outAmount: string; otherAmountThreshold?: string; slippageBps?: number; priceImpactPct?: string; routePlan?: unknown[]; [key: string]: unknown };
 export type QuoteLeg = { index: number; symbol: string; weightBps: number; inputMint: string; outputMint: string; outputDecimals: number | null; uiAmountMultiplier: number; inputAmount: string; outAmount: string; minOutAmount: string | null; priceImpactPct: string | null; routeSteps: number };
@@ -117,15 +120,57 @@ async function tradeLegs(request: TradeRequest, context: TradeContext | null): P
 export async function quoteBag(request: TradeRequest, context: TradeContext | null = null): Promise<Result<{ legs: Leg[]; quotes: JupiterQuote[] }>> {
   const split = await tradeLegs(request, context);
   if (!split.ok) return split;
-  const auto = request.slippageBps == null;
+  return quoteLegs(split.value, request.slippageBps ?? null);
+}
+
+async function quoteLegs(legs: Leg[], slippageBps: number | null): Promise<Result<{ legs: Leg[]; quotes: JupiterQuote[] }>> {
+  const auto = slippageBps == null;
   const quotes: JupiterQuote[] = [];
-  for (const leg of split.value) {
-    const quoted = await quoteLeg(leg, request.slippageBps ?? INDICATIVE_SLIPPAGE_BPS);
+  for (const leg of legs) {
+    const quoted = await quoteLeg(leg, slippageBps ?? INDICATIVE_SLIPPAGE_BPS);
     if (!quoted.ok) return quoted;
     // With automatic protection the real minimum is only known once the swap is built.
     quotes.push(auto ? { ...quoted.value, otherAmountThreshold: undefined } : quoted.value);
   }
-  return { ok: true, value: { legs: split.value, quotes } };
+  return { ok: true, value: { legs, quotes } };
+}
+
+/**
+ * Token sell legs: one token -> USDC leg per requested mint, sized from what the wallet holds outside every bag position
+ * (`looseBalances`), so a direct sell can never eat into a bag. All-or-nothing like bag trades.
+ */
+export async function tokenSellLegs(request: TokenSellRequest, context: TradeContext): Promise<Result<Leg[]>> {
+  if (!context.walletAddress) return fail("NO_WALLET", "No verified Solana wallet linked to this Privy identity");
+  if (!(Number.isInteger(request.portionBps) && request.portionBps >= 1 && request.portionBps <= 10000)) return fail("AMOUNT_TOO_SMALL", "A sell needs portionBps between 1 and 10000");
+  const mints = [...new Set(request.mints)];
+  if (!mints.length) return fail("NO_POSITION", "Pick at least one token to sell");
+  if (mints.includes(USDC)) return fail("UNSUPPORTED_INPUT_MINT", "USDC is what you sell into, so it can't be sold here");
+  if (!process.env.JUPITER_API_KEY) return fail("PROVIDER_NOT_CONFIGURED", "Jupiter is not configured");
+  const loose = await looseBalances({ id: context.userId, walletAddress: context.walletAddress });
+  if (!loose.ok) return fail("PROVIDER_ERROR", `${loose.message}; try again`);
+  const meta = await tokenMetadata(mints).catch(() => new Map<string, { symbol: string | null }>());
+  const legs: Leg[] = [];
+  for (const mint of mints) {
+    const symbol = knownSymbol(mint) ?? meta.get(mint)?.symbol ?? `${mint.slice(0, 4)}…${mint.slice(-4)}`;
+    const held = loose.balances.get(mint)?.amount ?? 0n;
+    const entry: Leg = { index: legs.length, asset: { symbol, weightBps: 0 }, inputMint: mint, outputMint: USDC, outputDecimals: 6, uiAmountMultiplier: await scaledUiMultiplier(mint), amount: held * BigInt(request.portionBps) / 10000n };
+    if (held === 0n) return fail("NO_POSITION", `You hold no ${symbol} outside your bags`, at(entry));
+    if (entry.amount <= 0n) return fail("AMOUNT_TOO_SMALL", `${symbol} portion rounds to zero; sell a larger share`, at(entry));
+    legs.push(entry);
+  }
+  return { ok: true, value: legs };
+}
+
+export async function quoteTokenSell(request: TokenSellRequest, context: TradeContext): Promise<Result<{ legs: Leg[]; quotes: JupiterQuote[] }>> {
+  const split = await tokenSellLegs(request, context);
+  if (!split.ok) return split;
+  return quoteLegs(split.value, request.slippageBps ?? null);
+}
+
+export async function prepareTokenSell(request: TokenSellRequest, walletAddress: string, context: TradeContext): Promise<Result<PreparedLeg[]>> {
+  const split = await tokenSellLegs(request, context);
+  if (!split.ok) return split;
+  return prepareLegs(split.value, walletAddress, request.slippageBps ?? null);
 }
 
 async function buildLeg(leg: Leg, walletAddress: string, payer: string, slippageBps: number | null): Promise<Result<BuildResponse>> {
@@ -147,13 +192,17 @@ async function buildLeg(leg: Leg, walletAddress: string, payer: string, slippage
 export async function prepareBag(request: TradeRequest, walletAddress: string, context: TradeContext | null = null): Promise<Result<PreparedLeg[]>> {
   const split = await tradeLegs(request, context);
   if (!split.ok) return split;
+  return prepareLegs(split.value, walletAddress, request.slippageBps ?? null);
+}
+
+async function prepareLegs(legs: Leg[], walletAddress: string, slippageBps: number | null): Promise<Result<PreparedLeg[]>> {
   const payer = paymaster();
   const url = rpcUrl();
   if (!payer || !url) return fail("PROVIDER_NOT_CONFIGURED", "Sponsored network fees are not configured on this server");
   const payerKey = payer.publicKey.toBase58();
   const prepared: PreparedLeg[] = [];
-  for (const leg of split.value) {
-    const built = await buildLeg(leg, walletAddress, payerKey, request.slippageBps ?? null);
+  for (const leg of legs) {
+    const built = await buildLeg(leg, walletAddress, payerKey, slippageBps);
     if (!built.ok) return built;
     const build = built.value;
     let sponsored: Awaited<ReturnType<typeof compileSponsored>>;

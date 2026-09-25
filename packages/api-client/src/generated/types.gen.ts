@@ -562,6 +562,50 @@ export type SubmitTransactionRequest = {
     bagId?: string;
 };
 
+export type TokenSellQuoteResponse = {
+    status: 'available' | 'unavailable';
+    mints: Array<string>;
+    portionBps: number;
+    slippageBps: number | null;
+    /**
+     * Sum of leg outAmount in USDC base units.
+     */
+    totalOutAmount: string | null;
+    legs: Array<QuoteLeg>;
+    error: TradeError;
+    message: string | null;
+};
+
+export type TokenSellRequest = {
+    /**
+     * Token mints to sell to USDC. Only the balance held outside every bag position is sold.
+     */
+    mints: Array<string>;
+    /**
+     * Share of each mint's loose balance to sell, 1..10000 bps.
+     */
+    portionBps: number;
+    /**
+     * Advanced override. Omit or null for automatic protection.
+     */
+    slippageBps?: number | null;
+};
+
+export type TokenSellPrepareResponse = {
+    status: 'ready' | 'unavailable';
+    mints: Array<string>;
+    portionBps: number;
+    slippageBps: number | null;
+    /**
+     * Sum of leg outAmount in USDC base units.
+     */
+    totalOutAmount: string | null;
+    walletAddress: string | null;
+    transactions: Array<PreparedTransaction>;
+    error: TradeError;
+    message: string | null;
+};
+
 export type TransactionStatusesResponse = {
     statuses: Array<TransactionStatus>;
 };
@@ -1147,6 +1191,56 @@ export type SubmitTransactionResponses = {
 };
 
 export type SubmitTransactionResponse2 = SubmitTransactionResponses[keyof SubmitTransactionResponses];
+
+export type QuoteTokenSellData = {
+    body?: TokenSellRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/tokens/quote';
+};
+
+export type QuoteTokenSellErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type QuoteTokenSellError = QuoteTokenSellErrors[keyof QuoteTokenSellErrors];
+
+export type QuoteTokenSellResponses = {
+    /**
+     * Indicative quote per token -> USDC leg, sized from balances held outside every bag, or unavailable with a typed error
+     */
+    200: TokenSellQuoteResponse;
+};
+
+export type QuoteTokenSellResponse = QuoteTokenSellResponses[keyof QuoteTokenSellResponses];
+
+export type PrepareTokenSellData = {
+    body?: TokenSellRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/tokens/prepare';
+};
+
+export type PrepareTokenSellErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type PrepareTokenSellError = PrepareTokenSellErrors[keyof PrepareTokenSellErrors];
+
+export type PrepareTokenSellResponses = {
+    /**
+     * Unsigned sponsored token -> USDC transactions, or unavailable with a typed error
+     */
+    200: TokenSellPrepareResponse;
+};
+
+export type PrepareTokenSellResponse = PrepareTokenSellResponses[keyof PrepareTokenSellResponses];
 
 export type GetTransactionStatusesData = {
     body?: TransactionStatusRequest;

@@ -15,6 +15,8 @@ export const queryKeys = {
   positions: ["private", "positions"] as const,
   sellQuote: (bagId: string, portionBps: number, slippageBps: number | null) =>
     ["private", "sell-quote", bagId, portionBps, slippageBps] as const,
+  tokenSellQuote: (mints: string[], portionBps: number, slippageBps: number | null) =>
+    ["private", "token-sell-quote", mints.join(","), portionBps, slippageBps] as const,
   mintDecimals: (mints: string[]) =>
     ["solana", "mint-decimals", ...mints] as const,
 };

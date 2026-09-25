@@ -73,7 +73,8 @@ export function LegRow({
   onRetryLink,
 }: {
   tx: QuoteLeg;
-  bag: Bag;
+  /** Supplies token icons; any list of assets with mints works (a bag, or picked holdings). */
+  bag: { assets: { mint: string | null; iconUrl: string | null }[] };
   /** Progress mode when set; review mode shows the estimated tokens out instead. */
   status?: LegDisplayStatus;
   error?: string;

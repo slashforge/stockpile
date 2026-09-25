@@ -30,6 +30,19 @@ export function legLabelProblems(
   return problems;
 }
 
+/**
+ * Same guard for a direct token sell: every leg must sell one of the picked mints for USDC, in
+ * quote order, with a positive amount.
+ */
+export function tokenSellLabelProblems(leg: QuoteLeg, mints: readonly string[], index: number, total: number): string[] {
+  const problems: string[] = [];
+  if (!mints.includes(leg.inputMint)) problems.push("This transaction sells a token you didn’t pick.");
+  if (leg.outputMint !== USDC_MINT) problems.push("This transaction doesn’t pay out USDC.");
+  if (leg.index !== index || index >= total) problems.push("Transaction order doesn’t match the quote.");
+  if (!/^\d+$/.test(leg.inputAmount) || BigInt(leg.inputAmount) <= 0n) problems.push("Invalid input amount.");
+  return problems;
+}
+
 export type TradeSide = "buy" | "sell";
 
 /** The bag token a leg trades: bought into on a buy, sold out of on a sell. */

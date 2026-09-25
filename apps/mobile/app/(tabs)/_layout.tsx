@@ -2,7 +2,13 @@ import { Tabs, type BottomTabBarProps } from "expo-router/tabs";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { Platform } from "react-native";
 import { useUnistyles } from "react-native-unistyles";
-import { FloatingTabBar, TabBarInsetProvider, type TabBarItem } from "@/components/stockpile/tab-bar";
+import {
+  FloatingTabBar,
+  TabBarInsetProvider,
+  TabBarVisibilityProvider,
+  useTabBarHidden,
+  type TabBarItem,
+} from "@/components/stockpile/tab-bar";
 
 /** Route names double as keys; keep in the same order as the iOS triggers. */
 const ITEMS: TabBarItem[] = [
@@ -14,10 +20,10 @@ const ITEMS: TabBarItem[] = [
 ];
 
 /** iOS: system tab bar via Expo Router native tabs (Liquid Glass on iOS 26+). */
-function IosTabs() {
+function IosTabs({ hidden }: { hidden: boolean }) {
   const { theme } = useUnistyles();
   return (
-    <NativeTabs tintColor={theme.ds.accent}>
+    <NativeTabs tintColor={theme.ds.accent} hidden={hidden}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon sf={{ default: "play.rectangle", selected: "play.rectangle.fill" }} />
         <NativeTabs.Trigger.Label>Feed</NativeTabs.Trigger.Label>
@@ -43,6 +49,7 @@ function IosTabs() {
 }
 
 function AndroidTabBar({ state, navigation }: BottomTabBarProps) {
+  const hidden = useTabBarHidden();
   const focused = state.routes[state.index];
   const emitPress = (key: string) => {
     const route = state.routes.find((candidate) => candidate.name === key);
@@ -50,6 +57,7 @@ function AndroidTabBar({ state, navigation }: BottomTabBarProps) {
     const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
     return { route, event };
   };
+  if (hidden) return null;
   return (
     <FloatingTabBar
       items={ITEMS}
@@ -82,5 +90,9 @@ function AndroidTabs() {
 }
 
 export default function TabsLayout() {
-  return Platform.OS === "ios" ? <IosTabs /> : <AndroidTabs />;
+  return (
+    <TabBarVisibilityProvider>
+      {(hidden) => (Platform.OS === "ios" ? <IosTabs hidden={hidden} /> : <AndroidTabs />)}
+    </TabBarVisibilityProvider>
+  );
 }

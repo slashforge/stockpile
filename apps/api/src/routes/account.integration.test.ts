@@ -491,6 +491,34 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     lots.length = 0; resetActivityCache();
     expect(await json(app.request("/activity?limit=1", { headers: auth() }))).toMatchObject({ items: [{ signature, bagId: "megacap-builders", bagLinked: false }] });
   });
+  it("sells only token balances held outside every bag position", async () => {
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    const loose = "55555555555555555555555555555555";
+    // 660000 NVDAx tracked by Megacap Builders; the wallet holds 1000000 -> 340000 is loose. `loose` isn't in any bag.
+    lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
+    const quotes: URL[] = []; const builds: URL[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(init?.body))) ?? Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [tokenAccount(loose, "9000", 6)] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "1000000", 8)] } }]);
+      if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([{ id: loose, symbol: "LOOSE", decimals: 6 }]);
+      if (url.pathname.endsWith("/quote")) { quotes.push(url); return quoteFor(url, { outAmount: "500000" }); }
+      if (url.pathname.endsWith("/build")) { builds.push(url); return buildFor(url, { outAmount: "500000" }); }
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    const quote = await json(post("/trade/tokens/quote", { mints: [mints.NVDAx, loose], portionBps: 10000 }));
+    expect(quote).toMatchObject({ status: "available", mints: [mints.NVDAx, loose], portionBps: 10000, slippageBps: null, totalOutAmount: "1000000", error: null });
+    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount")])).toEqual([[mints.NVDAx, USDC, "340000"], [loose, USDC, "9000"]]);
+    expect(quote.legs.map((leg: { symbol: string }) => leg.symbol)).toEqual(["NVDAx", "LOOSE"]);
+    const prepared = await json(post("/trade/tokens/prepare", { mints: [mints.NVDAx], portionBps: 5000 }));
+    expect(prepared).toMatchObject({ status: "ready", walletAddress: WALLET, totalOutAmount: "500000", transactions: [{ inputMint: mints.NVDAx, outputMint: USDC, inputAmount: "170000", feePayer: PAYER }] });
+    expect(builds.map((url) => url.searchParams.get("amount"))).toEqual(["170000"]);
+    // Nothing loose (fully claimed by a bag), USDC itself, and malformed requests are refused.
+    lots[0]!.tokenAmount = "1000000";
+    expect(await json(post("/trade/tokens/quote", { mints: [mints.NVDAx], portionBps: 10000 }))).toMatchObject({ status: "unavailable", legs: [], error: { code: "NO_POSITION", symbol: "NVDAx" } });
+    expect(await json(post("/trade/tokens/quote", { mints: [USDC], portionBps: 10000 }))).toMatchObject({ status: "unavailable", error: { code: "UNSUPPORTED_INPUT_MINT" } });
+    expect((await post("/trade/tokens/quote", { mints: [], portionBps: 10000 })).status).toBe(400);
+    expect((await post("/trade/tokens/quote", { mints: [loose], portionBps: 0 })).status).toBe(400);
+  });
   function buyTx(sig: string) {
     return { slot: 1, blockTime: 1790388000, transaction: { signatures: [sig], message: { accountKeys: [{ pubkey: WALLET }, { pubkey: OTHER_WALLET }, { pubkey: "11111111111111111111111111111111" }, { pubkey: "22222222222222222222222222222222" }], instructions: [] } },
       meta: { err: null, fee: 5000, preBalances: [1_000_000_000, 0, 0, 0], postBalances: [999_995_000, 0, 0, 0], preTokenBalances: [tokenBalance(2, WALLET, USDC, "5000000", 6), tokenBalance(3, WALLET, mints.NVDAx, "0", 8)], postTokenBalances: [tokenBalance(2, WALLET, USDC, "3500000", 6), tokenBalance(3, WALLET, mints.NVDAx, "660000", 8)] } };

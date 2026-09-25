@@ -8,11 +8,14 @@ import { LogoCluster } from "@/components/stockpile/bag-art";
 import { TradeSettingsButton, TradeSettingsPopover } from "@/components/stockpile/buy/controls";
 import { T } from "@/components/stockpile/type";
 import type { PurchaseStatus } from "@/lib/trade/purchase";
-import type { Bag } from "@/services/api/types";
+import type { BagAsset } from "@/services/api/types";
 import { HapticPressable } from "@/components/stockpile/haptic-pressable";
 
+/** What the flow trades: a bag, or a hand-picked set of tokens. */
+type FlowSubject = { title: string; assets: Pick<BagAsset, "symbol" | "iconUrl">[] };
+
 type FlowShellProps = {
-  bag: Bag | undefined;
+  bag: FlowSubject | undefined;
   status: PurchaseStatus;
   close: () => void;
   titles: { amount: string; review: string; progress: string };
@@ -65,7 +68,7 @@ export function FlowHeader({
   titles,
   settings,
 }: {
-  bag: Bag | undefined;
+  bag: FlowSubject | undefined;
   status: PurchaseStatus;
   close: () => void;
   titles: { amount: string; review: string; progress: string };

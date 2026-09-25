@@ -2342,6 +2342,165 @@
           "transaction"
         ]
       },
+      "TokenSellQuoteResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "mints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "portionBps": {
+            "type": "number"
+          },
+          "slippageBps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "totalOutAmount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sum of leg outAmount in USDC base units."
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLeg"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/TradeError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "mints",
+          "portionBps",
+          "slippageBps",
+          "totalOutAmount",
+          "legs",
+          "error",
+          "message"
+        ]
+      },
+      "TokenSellRequest": {
+        "type": "object",
+        "properties": {
+          "mints": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            },
+            "minItems": 1,
+            "maxItems": 12,
+            "description": "Token mints to sell to USDC. Only the balance held outside every bag position is sold."
+          },
+          "portionBps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Share of each mint's loose balance to sell, 1..10000 bps."
+          },
+          "slippageBps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 500,
+            "description": "Advanced override. Omit or null for automatic protection."
+          }
+        },
+        "required": [
+          "mints",
+          "portionBps"
+        ]
+      },
+      "TokenSellPrepareResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable"
+            ]
+          },
+          "mints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "portionBps": {
+            "type": "number"
+          },
+          "slippageBps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "totalOutAmount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sum of leg outAmount in USDC base units."
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreparedTransaction"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/TradeError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "mints",
+          "portionBps",
+          "slippageBps",
+          "totalOutAmount",
+          "walletAddress",
+          "transactions",
+          "error",
+          "message"
+        ]
+      },
       "TransactionStatusesResponse": {
         "type": "object",
         "properties": {
@@ -3342,6 +3501,84 @@
           },
           "503": {
             "description": "Transaction provider not configured or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/tokens/quote": {
+      "post": {
+        "operationId": "quoteTokenSell",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenSellRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Indicative quote per token -> USDC leg, sized from balances held outside every bag, or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSellQuoteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/tokens/prepare": {
+      "post": {
+        "operationId": "prepareTokenSell",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenSellRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned sponsored token -> USDC transactions, or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSellPrepareResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {

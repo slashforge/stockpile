@@ -9,7 +9,7 @@ import { bagAssets, bags, knownSymbol, findBag, resolveAsset, type Bag } from ".
 import { USDC } from "./constants";
 import { findLotBySignature, hasBuyLot, insertLot, listLots, lotLinks, type LotRow } from "./lots-store";
 import { scaledUiMultiplier } from "./market";
-import { atomicToUi, readRawHoldings, usdValueOf } from "./portfolio";
+import { atomicToUi, readRawHoldings, usdValueOf, type RawHoldings } from "./portfolio";
 import { tokenMetadata, type TokenMeta } from "./token-meta";
 
 export const legErrorCodes = ["NOT_YOUR_TRANSACTION", "NOT_A_SWAP", "MINT_NOT_IN_BAG", "TRANSACTION_FAILED", "PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE"] as const;
@@ -130,14 +130,14 @@ export function aggregateLots(rows: LotRow[]): Map<string, Map<string, Tracked>>
  * false when any leg's held < tracked. Bags whose every leg is zero are omitted. With balances unavailable, status is "unavailable",
  * held = tracked and walletBalance is null (no invented values); valueUsd is null when any leg is unpriced.
  */
-export async function readPositions(identity: { id: string; walletAddress: string | null }): Promise<PositionsResponse> {
+export async function readPositions(identity: { id: string; walletAddress: string | null }, balancesRead?: RawHoldings): Promise<PositionsResponse> {
   const rows = await listLots(identity.id);
   const byBag = aggregateLots(rows);
   const walletAddress = identity.walletAddress;
   if (!walletAddress) return { walletAddress, status: "unavailable", message: "No verified Solana wallet linked to this Privy identity", bags: [] };
   const active = [...byBag.entries()].filter(([, legs]) => [...legs.values()].some((leg) => leg.tracked > 0n));
   if (!active.length) return { walletAddress, status: "live", bags: [] };
-  const raw = await readRawHoldings(walletAddress);
+  const raw = balancesRead ?? await readRawHoldings(walletAddress);
   const balances = new Map<string, bigint>();
   if (raw.ok) for (const holding of raw.holdings) balances.set(holding.mint, (balances.get(holding.mint) ?? 0n) + BigInt(holding.amount));
   const mints = [...new Set(active.flatMap(([, legs]) => [...legs.keys()]))];
@@ -174,6 +174,32 @@ export async function readPositions(identity: { id: string; walletAddress: strin
 export async function bagPosition(identity: { id: string; walletAddress: string | null }, bagId: string): Promise<{ position: BagPosition | null; status: "live" | "unavailable"; message?: string }> {
   const result = await readPositions(identity);
   return { position: result.bags.find((bag) => bag.bagId === bagId) ?? null, status: result.status, message: result.message };
+}
+
+export type LooseBalance = { mint: string; amount: bigint; decimals: number };
+export type LooseBalances = { ok: true; balances: Map<string, LooseBalance> } | { ok: false; message: string };
+
+/**
+ * What the wallet holds of each SPL mint outside every bag position: live balance minus the sum of `held` across the user's
+ * bags (never below zero). This is the only amount a direct token sell may touch, so bag positions stay intact.
+ */
+export async function looseBalances(identity: { id: string; walletAddress: string | null }): Promise<LooseBalances> {
+  if (!identity.walletAddress) return { ok: false, message: "No verified Solana wallet linked to this Privy identity" };
+  const raw = await readRawHoldings(identity.walletAddress);
+  if (!raw.ok) return { ok: false, message: raw.message };
+  const positions = await readPositions(identity, raw);
+  const claimed = new Map<string, bigint>();
+  for (const bag of positions.bags) for (const leg of bag.legs) claimed.set(leg.mint, (claimed.get(leg.mint) ?? 0n) + BigInt(leg.held));
+  const balances = new Map<string, LooseBalance>();
+  for (const holding of raw.holdings) {
+    const current = balances.get(holding.mint);
+    balances.set(holding.mint, { mint: holding.mint, amount: (current?.amount ?? 0n) + BigInt(holding.amount), decimals: holding.decimals });
+  }
+  for (const entry of balances.values()) {
+    const loose = entry.amount - (claimed.get(entry.mint) ?? 0n);
+    entry.amount = loose > 0n ? loose : 0n;
+  }
+  return { ok: true, balances };
 }
 
 /** Overrides the guessed `bagId` on activity items with the user's own lot for that signature. */
