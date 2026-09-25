@@ -35,7 +35,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
   const background = '#fffffc';
   const path = normalize(pathname);
   const label = getPageLabel(path);
-  const url = path === '/' ? 'stockpile.nitish.sh' : `stockpile.nitish.sh${path}`;
+  const url = path === '/' ? 'stockpile.cash' : `stockpile.cash${path}`;
 
   return Promise.resolve(
     h(

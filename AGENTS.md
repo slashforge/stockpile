@@ -6,13 +6,13 @@ Bun workspace monorepo (template) deployed with SST on Cloudflare. Package manag
 
 Read the doc(s) matching your task before editing. Multi-layer tasks (e.g. new API route consumed by mobile) require multiple docs.
 
-| Task touches | Read |
-|---|---|
-| API routes, auth (Better Auth), OpenAPI, generated SDK | `.agents/api.md` |
-| Mobile app (Expo / React Native) | `.agents/mobile.md` |
-| Postgres schema, Drizzle, mobile SQLite schema, migrations | `.agents/database.md` |
-| SST infra, secrets, deployment, landing page, dev-mcp | `.agents/infra.md` |
-| Cross-cutting (API + mobile, schema + API, etc.) | All relevant docs above |
+| Task touches                                               | Read                    |
+| ---------------------------------------------------------- | ----------------------- |
+| API routes, auth (Better Auth), OpenAPI, generated SDK     | `.agents/api.md`        |
+| Mobile app (Expo / React Native)                           | `.agents/mobile.md`     |
+| Postgres schema, Drizzle, mobile SQLite schema, migrations | `.agents/database.md`   |
+| SST infra, secrets, deployment, landing page, dev-mcp      | `.agents/infra.md`      |
+| Cross-cutting (API + mobile, schema + API, etc.)           | All relevant docs above |
 
 ## Repo map
 
@@ -33,9 +33,8 @@ scripts/setup.ts    Template rename script (`bun run setup`)
 ## Hard rules (repo norms)
 
 1. **Do NOT start dev servers.** No `sst dev`, no `bun dev`, no `expo start`. The user runs them. `apps/api` and `apps/landing` cannot run standalone anyway — they need SST-linked secrets/config.
-2. **Do NOT generate or run database migrations.** Only edit schema files (`packages/core/db/schema/`, `apps/mobile/src/db/schema/`). The user runs `drizzle-kit generate`/`migrate`. Never touch `apps/mobile/drizzle/`.
-3. **After changing API routes or zod schemas**, regenerate the SDK: `bun run generate:sdk` (root). This runs the API's OpenAPI export then `openapi-ts` in `packages/api-client`. Never hand-edit `packages/api-client/src/generated/` or `openapi.json`.
-4. **Secrets** are SST secrets (`infra/secrets.ts`), accessed via `Resource.*` from `sst`. Never hardcode credentials or URLs — env-dependent values live in `infra/config.ts` (`AppConfig`) and `infra/domains.ts`.
+2. **After changing API routes or zod schemas**, regenerate the SDK: `bun run generate:sdk` (root). This runs the API's OpenAPI export then `openapi-ts` in `packages/api-client`. Never hand-edit `packages/api-client/src/generated/` or `openapi.json`.
+3. **Secrets** are SST secrets (`infra/secrets.ts`), accessed via `Resource.*` from `sst`. Never hardcode credentials or URLs — env-dependent values live in `infra/config.ts` (`AppConfig`) and `infra/domains.ts`.
 
 ## Commands
 

@@ -1,10 +1,9 @@
-import { Resource } from "sst";
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
   dialect: "postgresql",
   schema: ["./packages/core/db/schema"],
   dbCredentials: {
-    url: Resource.DatabaseUrl.value!,
+    url: process.env.DATABASE_URL ?? (() => { throw new Error("DATABASE_URL is required in root .env"); })(),
   },
 });

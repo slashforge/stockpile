@@ -31,7 +31,10 @@ export const ThemeContextProvider = ({
   // Initialize theme from saved preference
   useEffect(() => {
     const initializeTheme = async () => {
-      const resolvedTheme = await themeService.getResolvedTheme();
+      // Never block rendering on storage: if the keychain/keystore read fails, use the system scheme.
+      const resolvedTheme = await themeService
+        .getResolvedTheme()
+        .catch((): "light" | "dark" => (Appearance.getColorScheme() === "dark" ? "dark" : "light"));
       setCurrentTheme(resolvedTheme);
 
       // Apply theme to Unistyles

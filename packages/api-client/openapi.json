@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Stackforge API",
+    "title": "Stockpile API",
     "version": "1.0.0"
   },
   "components": {
@@ -17,46 +17,233 @@
           "status"
         ]
       },
-      "SyncResponse": {
+      "BagsResponse": {
         "type": "object",
         "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
+          "bags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bag"
+            }
           }
         },
         "required": [
-          "success",
-          "user"
+          "bags"
         ]
       },
-      "User": {
+      "Bag": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
-          "email": {
+          "title": {
             "type": "string"
           },
-          "walletAddress": {
+          "subtitle": {
             "type": "string"
           },
-          "authUserId": {
+          "description": {
             "type": "string"
           },
-          "createdAt": {
+          "thesis": {
             "type": "string"
+          },
+          "disclosure": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "editorial"
+            ]
+          },
+          "issuer": {
+            "$ref": "#/components/schemas/Issuer"
+          },
+          "assetClass": {
+            "$ref": "#/components/schemas/AssetClass"
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tradable": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "url"
+              ]
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BagAsset"
+            }
           }
         },
         "required": [
           "id",
-          "email",
-          "walletAddress",
-          "authUserId",
-          "createdAt"
+          "title",
+          "subtitle",
+          "description",
+          "thesis",
+          "disclosure",
+          "sourceType",
+          "issuer",
+          "assetClass",
+          "risks",
+          "tradable",
+          "sources",
+          "assets"
+        ]
+      },
+      "Issuer": {
+        "type": "string",
+        "enum": [
+          "xstocks",
+          "prestocks"
+        ]
+      },
+      "AssetClass": {
+        "type": "string",
+        "enum": [
+          "public-equity",
+          "pre-ipo"
+        ]
+      },
+      "BagAsset": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "weightBps": {
+            "type": "number"
+          },
+          "mint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decimals": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uiAmountMultiplier": {
+            "type": "number"
+          },
+          "issuer": {
+            "$ref": "#/components/schemas/Issuer"
+          },
+          "assetClass": {
+            "$ref": "#/components/schemas/AssetClass"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/IssuerReference"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "iconUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "iconSource": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "jupiter-token",
+              "issuer-token",
+              "underlying-brand",
+              null
+            ]
+          },
+          "brandColor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^#[0-9a-f]{6}$"
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "weightBps",
+          "mint",
+          "decimals",
+          "uiAmountMultiplier",
+          "issuer",
+          "assetClass",
+          "reference",
+          "sourceUrl",
+          "iconUrl",
+          "iconSource",
+          "brandColor"
+        ]
+      },
+      "IssuerReference": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "markPrice": {
+            "type": "number"
+          },
+          "tokenPrice": {
+            "type": "number"
+          },
+          "impliedValuation": {
+            "type": "number"
+          },
+          "asOf": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "markPrice",
+          "tokenPrice",
+          "impliedValuation",
+          "asOf"
+        ]
+      },
+      "BagResponse": {
+        "type": "object",
+        "properties": {
+          "bag": {
+            "$ref": "#/components/schemas/Bag"
+          }
+        },
+        "required": [
+          "bag"
         ]
       },
       "Error": {
@@ -70,6 +257,141 @@
           "error"
         ]
       },
+      "StoriesResponse": {
+        "type": "object",
+        "properties": {
+          "stories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Story"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "stories",
+          "nextCursor"
+        ]
+      },
+      "Story": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "article",
+              "podcast"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageCredit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bagIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bagConnections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoryBagConnection"
+            }
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "editorial",
+              "ai"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "format",
+          "summary",
+          "publisher",
+          "sourceUrl",
+          "publishedAt",
+          "imageUrl",
+          "imageCredit",
+          "bagIds",
+          "bagConnections",
+          "provenance",
+          "status"
+        ]
+      },
+      "StoryBagConnection": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "inferred"
+            ]
+          },
+          "context": {
+            "type": "string",
+            "enum": [
+              "supporting",
+              "opposing",
+              "neutral"
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bagId",
+          "relationship",
+          "context",
+          "explanation"
+        ]
+      },
       "MeResponse": {
         "type": "object",
         "properties": {
@@ -79,6 +401,438 @@
         },
         "required": [
           "user"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "walletAddress",
+          "createdAt"
+        ]
+      },
+      "SavedBagsResponse": {
+        "type": "object",
+        "properties": {
+          "bagIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "bagIds"
+        ]
+      },
+      "SaveBagRequest": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bagId"
+        ]
+      },
+      "PortfolioResponse": {
+        "type": "object",
+        "properties": {
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "unavailable"
+            ]
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Holding"
+            }
+          },
+          "sol": {
+            "$ref": "#/components/schemas/Balance"
+          },
+          "usdc": {
+            "$ref": "#/components/schemas/Balance"
+          },
+          "asOf": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "walletAddress",
+          "status",
+          "holdings",
+          "sol",
+          "usdc",
+          "asOf",
+          "message"
+        ]
+      },
+      "Holding": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "amount": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "number"
+          },
+          "uiAmount": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "program": {
+            "type": "string",
+            "enum": [
+              "token",
+              "token-2022"
+            ]
+          }
+        },
+        "required": [
+          "mint",
+          "symbol",
+          "amount",
+          "decimals",
+          "uiAmount",
+          "program"
+        ]
+      },
+      "Balance": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "amount",
+          "decimals"
+        ]
+      },
+      "QuoteResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "bagId": {
+            "type": "string"
+          },
+          "inputMint": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "slippageBps": {
+            "type": "number"
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLeg"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/TradeError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "bagId",
+          "inputMint",
+          "amount",
+          "slippageBps",
+          "legs",
+          "error",
+          "message"
+        ]
+      },
+      "QuoteLeg": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "number"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "weightBps": {
+            "type": "number"
+          },
+          "inputMint": {
+            "type": "string"
+          },
+          "outputMint": {
+            "type": "string"
+          },
+          "outputDecimals": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uiAmountMultiplier": {
+            "type": "number"
+          },
+          "inputAmount": {
+            "type": "string"
+          },
+          "outAmount": {
+            "type": "string"
+          },
+          "minOutAmount": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priceImpactPct": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "routeSteps": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "index",
+          "symbol",
+          "weightBps",
+          "inputMint",
+          "outputMint",
+          "outputDecimals",
+          "uiAmountMultiplier",
+          "inputAmount",
+          "outAmount",
+          "minOutAmount",
+          "priceImpactPct",
+          "routeSteps"
+        ]
+      },
+      "TradeError": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NO_WALLET",
+              "UNSUPPORTED_INPUT_MINT",
+              "PROVIDER_NOT_CONFIGURED",
+              "BAG_NOT_TRADABLE",
+              "AMOUNT_TOO_SMALL",
+              "NO_ROUTE",
+              "TOKEN_NOT_TRADABLE",
+              "SLIPPAGE_REJECTED",
+              "QUOTE_MISMATCH",
+              "PROVIDER_ERROR",
+              "PROVIDER_TIMEOUT",
+              "INVALID_TRANSACTION"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "legIndex": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "symbol": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "legIndex",
+          "symbol"
+        ]
+      },
+      "TradeRequest": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "inputMint": {
+            "type": "string",
+            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+          },
+          "amount": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "slippageBps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 50
+          }
+        },
+        "required": [
+          "bagId",
+          "inputMint",
+          "amount"
+        ]
+      },
+      "PrepareResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable"
+            ]
+          },
+          "bagId": {
+            "type": "string"
+          },
+          "inputMint": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "slippageBps": {
+            "type": "number"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreparedTransaction"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/TradeError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "bagId",
+          "inputMint",
+          "amount",
+          "slippageBps",
+          "walletAddress",
+          "transactions",
+          "error",
+          "message"
+        ]
+      },
+      "PreparedTransaction": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/QuoteLeg"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "transaction": {
+                "type": "string"
+              },
+              "lastValidBlockHeight": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "transaction",
+              "lastValidBlockHeight"
+            ]
+          }
         ]
       }
     },
@@ -93,7 +847,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Service health status",
+            "description": "Service health",
             "content": {
               "application/json": {
                 "schema": {
@@ -105,25 +859,55 @@
         }
       }
     },
-    "/auth/sync": {
-      "post": {
-        "operationId": "syncUser",
+    "/bags": {
+      "get": {
+        "operationId": "listBags",
         "tags": [
-          "auth"
+          "bags"
         ],
         "responses": {
           "200": {
-            "description": "User synced with the backend",
+            "description": "Editorial bags",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SyncResponse"
+                  "$ref": "#/components/schemas/BagsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bags/{id}": {
+      "get": {
+        "operationId": "getBag",
+        "tags": [
+          "bags"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Editorial bag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagResponse"
                 }
               }
             }
           },
-          "401": {
-            "description": "Not authenticated",
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -135,15 +919,159 @@
         }
       }
     },
-    "/auth/me": {
+    "/bags/{id}/stories": {
       "get": {
-        "operationId": "getMe",
+        "operationId": "listBagStories",
         "tags": [
-          "auth"
+          "stories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "article",
+                "podcast"
+              ]
+            },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
         ],
         "responses": {
           "200": {
-            "description": "Current authenticated user",
+            "description": "Persisted sourced stories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stories": {
+      "get": {
+        "operationId": "listStories",
+        "tags": [
+          "stories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "article",
+                "podcast"
+              ]
+            },
+            "required": false,
+            "name": "format",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Persisted sourced stories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "tags": [
+          "account"
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated profile",
             "content": {
               "application/json": {
                 "schema": {
@@ -153,7 +1081,262 @@
             }
           },
           "401": {
-            "description": "Not authenticated",
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Provider not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/saved-bags": {
+      "get": {
+        "operationId": "listSavedBags",
+        "tags": [
+          "account"
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved bag IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedBagsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "saveBag",
+        "tags": [
+          "account"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved bag IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedBagsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/saved-bags/{bagId}": {
+      "delete": {
+        "operationId": "removeSavedBag",
+        "tags": [
+          "account"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bagId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved bag IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedBagsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/portfolio": {
+      "get": {
+        "operationId": "getPortfolio",
+        "tags": [
+          "account"
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified live balances and holdings, or explicitly unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/quote": {
+      "post": {
+        "operationId": "quoteBagTrade",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Indicative Jupiter quote per leg, or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/prepare": {
+      "post": {
+        "operationId": "prepareBagTrade",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Unsigned per-leg transactions, or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrepareResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bag not found",
             "content": {
               "application/json": {
                 "schema": {

@@ -64,11 +64,11 @@ const HoldingCard: React.FC<HoldingCardProps> = ({
     return { opacity };
   });
 
-  const CardWrapper = width ? Animated.View : Box;
-  const cardProps = width ? { style: animatedStyle } : {};
+  const CardWrapper = ({ children }: { children: React.ReactNode }) =>
+    width ? <Animated.View style={animatedStyle}>{children}</Animated.View> : <Box>{children}</Box>;
 
   return (
-    <CardWrapper {...cardProps}>
+    <CardWrapper>
       <Box
         background="base"
         mode={getCardMode()}

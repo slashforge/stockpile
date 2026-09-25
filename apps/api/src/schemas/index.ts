@@ -1,36 +1,28 @@
 import { z } from "@hono/zod-openapi";
+import { tradeErrorCodes } from "../lib/trade";
 
-export const ErrorSchema = z
-  .object({
-    error: z.string(),
-  })
-  .openapi("Error");
-
-export const UserSchema = z
-  .object({
-    id: z.string(),
-    email: z.string(),
-    walletAddress: z.string(),
-    authUserId: z.string(),
-    createdAt: z.string(),
-  })
-  .openapi("User");
-
-export const SyncResponseSchema = z
-  .object({
-    success: z.boolean(),
-    user: UserSchema,
-  })
-  .openapi("SyncResponse");
-
-export const MeResponseSchema = z
-  .object({
-    user: UserSchema,
-  })
-  .openapi("MeResponse");
-
-export const HealthResponseSchema = z
-  .object({
-    status: z.string(),
-  })
-  .openapi("HealthResponse");
+export const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
+export const HealthResponseSchema = z.object({ status: z.string() }).openapi("HealthResponse");
+export const IssuerSchema = z.enum(["xstocks", "prestocks"]).openapi("Issuer");
+export const AssetClassSchema = z.enum(["public-equity", "pre-ipo"]).openapi("AssetClass");
+export const ReferenceSchema = z.object({ markPrice: z.number(), tokenPrice: z.number(), impliedValuation: z.number(), asOf: z.string() }).openapi("IssuerReference");
+export const AssetSchema = z.object({ symbol: z.string(), name: z.string(), weightBps: z.number(), mint: z.string().nullable(), decimals: z.number().nullable(), uiAmountMultiplier: z.number(), issuer: IssuerSchema, assetClass: AssetClassSchema, reference: ReferenceSchema.nullable(), sourceUrl: z.string(), iconUrl: z.string().nullable(), iconSource: z.enum(["jupiter-token", "issuer-token", "underlying-brand"]).nullable(), brandColor: z.string().regex(/^#[0-9a-f]{6}$/).nullable() }).openapi("BagAsset");
+export const BagSchema = z.object({ id: z.string(), title: z.string(), subtitle: z.string(), description: z.string(), thesis: z.string(), disclosure: z.string(), sourceType: z.literal("editorial"), issuer: IssuerSchema, assetClass: AssetClassSchema, risks: z.array(z.string()), tradable: z.boolean(), sources: z.array(z.object({ title: z.string(), url: z.string() })), assets: z.array(AssetSchema) }).openapi("Bag");
+export const BagsSchema = z.object({ bags: z.array(BagSchema) }).openapi("BagsResponse");
+export const BagResponseSchema = z.object({ bag: BagSchema }).openapi("BagResponse");
+export const UserSchema = z.object({ id: z.string(), email: z.string().nullable(), walletAddress: z.string().nullable(), createdAt: z.string() }).openapi("User");
+export const MeResponseSchema = z.object({ user: UserSchema }).openapi("MeResponse");
+export const SavedSchema = z.object({ bagIds: z.array(z.string()) }).openapi("SavedBagsResponse");
+export const SaveBagRequestSchema = z.object({ bagId: z.string() }).openapi("SaveBagRequest");
+export const TradeRequestSchema = z.object({ bagId: z.string(), inputMint: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/), amount: z.string().max(20).regex(/^[1-9][0-9]*$/), slippageBps: z.number().int().min(1).max(500).default(50) }).openapi("TradeRequest");
+export const TradeErrorSchema = z.object({ code: z.enum(tradeErrorCodes), message: z.string(), legIndex: z.number().nullable(), symbol: z.string().nullable() }).openapi("TradeError");
+export const QuoteLegSchema = z.object({ index: z.number(), symbol: z.string(), weightBps: z.number(), inputMint: z.string(), outputMint: z.string(), outputDecimals: z.number().nullable(), uiAmountMultiplier: z.number(), inputAmount: z.string(), outAmount: z.string(), minOutAmount: z.string().nullable(), priceImpactPct: z.string().nullable(), routeSteps: z.number() }).openapi("QuoteLeg");
+export const QuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), bagId: z.string(), inputMint: z.string(), amount: z.string(), slippageBps: z.number(), legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("QuoteResponse");
+export const PreparedTransactionSchema = QuoteLegSchema.extend({ transaction: z.string(), lastValidBlockHeight: z.number().nullable() }).openapi("PreparedTransaction");
+export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), bagId: z.string(), inputMint: z.string(), amount: z.string(), slippageBps: z.number(), walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
+export const BalanceSchema = z.object({ amount: z.string(), decimals: z.number() }).openapi("Balance");
+export const HoldingSchema = z.object({ mint: z.string(), symbol: z.string().nullable(), amount: z.string(), decimals: z.number(), uiAmount: z.string().nullable(), program: z.enum(["token", "token-2022"]) }).openapi("Holding");
+export const PortfolioSchema = z.object({ walletAddress: z.string().nullable(), status: z.enum(["live", "unavailable"]), holdings: z.array(HoldingSchema), sol: BalanceSchema.nullable(), usdc: BalanceSchema.nullable(), asOf: z.string().nullable(), message: z.string().nullable() }).openapi("PortfolioResponse");
+export const StoryConnectionSchema = z.object({ bagId: z.string(), relationship: z.enum(["direct", "inferred"]), context: z.enum(["supporting", "opposing", "neutral"]), explanation: z.string() }).openapi("StoryBagConnection");
+export const StorySchema = z.object({ id: z.string(), title: z.string(), format: z.enum(["article", "podcast"]), summary: z.string(), publisher: z.string(), sourceUrl: z.string(), publishedAt: z.string(), imageUrl: z.string().nullable(), imageCredit: z.string().nullable(), bagIds: z.array(z.string()), bagConnections: z.array(StoryConnectionSchema), provenance: z.enum(["editorial", "ai"]), status: z.literal("published") }).openapi("Story");
+export const StoriesResponseSchema = z.object({ stories: z.array(StorySchema), nextCursor: z.string().nullable() }).openapi("StoriesResponse");

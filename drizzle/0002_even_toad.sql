@@ -1,0 +1,1 @@
+ALTER TABLE "stories" ADD COLUMN "format" text DEFAULT 'article' NOT NULL;

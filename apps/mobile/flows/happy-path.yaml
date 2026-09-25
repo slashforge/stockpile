@@ -1,0 +1,161 @@
+executionPrerequisite: >-
+  Full happy path, generated from the fragments in this folder (edit those, then re-concatenate).
+  Starts signed out with the dev client on Metro; needs STOCKPILE_TEST_EMAIL and
+  STOCKPILE_TEST_CODE in ~/.argent/secrets.env. Never signs or submits a transaction.
+steps:
+  - echo: "== browse-to-detail"
+  - echo: Open the story feed
+  - tool: open-url
+    args:
+      url: "stockpile://"
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Related bag"
+      timeoutMs: 15000
+  - echo: Open the bag preview from the story's bag card
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.85
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Bag summary"
+  - echo: Dismiss the preview via the backdrop (after the open animation settles)
+  - tool: gesture-tap
+    delayMs: 1000
+    args:
+      x: 0.5
+      y: 0.12
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Bag summary"
+  - echo: Go to the Bags tab
+  - tool: gesture-tap
+    args:
+      x: 0.33
+      y: 0.94
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "AI Infrastructure. Hardware"
+      timeoutMs: 10000
+  - echo: Open the AI Infrastructure bag detail
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.6
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "inside"
+      timeoutMs: 10000
+  - echo: "== sign-in"
+  - echo: Tap "Sign in to buy"
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.925
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Send code"
+      timeoutMs: 10000
+  - echo: Enter the test email
+  - tool: gesture-tap
+    args:
+      x: 0.53
+      y: 0.777
+  - tool: keyboard
+    delayMs: 500
+    args:
+      text: "{{secret:STOCKPILE_TEST_EMAIL}}"
+  - tool: gesture-tap
+    delayMs: 500
+    args:
+      x: 0.5
+      y: 0.855
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Verification code"
+      timeoutMs: 15000
+  - echo: Enter the one-time code
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.785
+  - tool: keyboard
+    delayMs: 500
+    args:
+      text: "{{secret:STOCKPILE_TEST_CODE}}"
+      key: enter
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Get quote"
+      timeoutMs: 30000
+  - echo: "== quote-and-close"
+  - echo: Request a live Jupiter quote for the default $25
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.755
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Check the quote"
+      timeoutMs: 30000
+  - echo: Close the sheet without reviewing or signing
+  - tool: gesture-tap
+    args:
+      x: 0.915
+      y: 0.114
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Get quote"
+  - echo: "== sign-out"
+  - echo: Back to the Bags tab
+  - tool: gesture-tap
+    args:
+      x: 0.095
+      y: 0.103
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Account"
+        role: "button"
+  - echo: Open Account and sign out
+  - tool: gesture-tap
+    args:
+      x: 0.84
+      y: 0.94
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Sign out"
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.508
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Signed in with email"
+      timeoutMs: 10000

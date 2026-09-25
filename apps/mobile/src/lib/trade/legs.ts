@@ -1,0 +1,76 @@
+import { USDC_MINT } from "@/lib/solana/transaction";
+import type { Bag, QuoteLeg, TradeError } from "@/services/api/types";
+
+/**
+ * Checks the server-supplied label of a prepared leg against what the user asked for, so a
+ * transaction can never be presented as a swap into a token outside this bag or from a different
+ * input. Returns blocking problems (empty when consistent).
+ */
+export function legLabelProblems(leg: QuoteLeg, bag: Pick<Bag, "assets">, index: number, total: number): string[] {
+  const problems: string[] = [];
+  const asset = bag.assets.find((candidate) => candidate.mint === leg.outputMint);
+  if (!asset) problems.push("This transaction buys a token that isn’t in this bag.");
+  else if (asset.symbol !== leg.symbol) problems.push("The token label doesn’t match this bag.");
+  if (leg.inputMint !== USDC_MINT) problems.push("This transaction doesn’t spend USDC.");
+  if (leg.index !== index || index >= total) problems.push("Transaction order doesn’t match the quote.");
+  if (!/^\d+$/.test(leg.inputAmount) || BigInt(leg.inputAmount) <= 0n) problems.push("Invalid input amount.");
+  return problems;
+}
+
+/** Sum of every leg's USDC input, in base units. */
+export function totalInput(legs: Pick<QuoteLeg, "inputAmount">[]): bigint {
+  return legs.reduce((sum, leg) => sum + (/^\d+$/.test(leg.inputAmount) ? BigInt(leg.inputAmount) : 0n), 0n);
+}
+
+const FRIENDLY: Record<NonNullable<TradeError>["code"], string> = {
+  NO_WALLET: "Your wallet isn’t ready yet. Try again in a moment.",
+  UNSUPPORTED_INPUT_MINT: "Only USDC can be used to buy bags.",
+  PROVIDER_NOT_CONFIGURED: "Buying isn’t available on this server right now.",
+  BAG_NOT_TRADABLE: "This bag isn’t open for buying yet.",
+  AMOUNT_TOO_SMALL: "That amount is too small to split across this bag. Try a larger amount.",
+  NO_ROUTE: "No swap route is available right now. Try a different amount or try later.",
+  TOKEN_NOT_TRADABLE: "One of the tokens can’t be traded right now.",
+  SLIPPAGE_REJECTED: "Prices moved beyond your slippage limit. Try a higher limit or a new quote.",
+  QUOTE_MISMATCH: "Prices changed while building. Get a fresh quote and try again.",
+  PROVIDER_ERROR: "The swap provider had a problem. Try again in a moment.",
+  PROVIDER_TIMEOUT: "The swap provider took too long. Try again.",
+  INVALID_TRANSACTION: "A transaction failed our safety checks, so nothing was prepared. Try again.",
+};
+
+/** User-facing message for a typed trade error; falls back to the server message. */
+export function tradeErrorMessage(error: TradeError, fallback: string | null): string {
+  if (!error) return fallback ?? "Something went wrong.";
+  const base = FRIENDLY[error.code] ?? error.message;
+  return error.symbol ? `${base} (${error.symbol})` : base;
+}
+
+/** Price impact at or above this (percent) shows a thin-liquidity warning on the leg. */
+export const IMPACT_WARN_PCT = 1;
+/** Price impact at or above this (percent) requires an explicit extra confirmation. */
+export const IMPACT_CONFIRM_PCT = 5;
+
+export type ImpactLevel = "ok" | "warn" | "high" | "unknown";
+
+/**
+ * Jupiter's `priceImpactPct` (passed through unchanged by the API) is a fraction string:
+ * "0.0214" means 2.14%. Returns the percentage, or null when missing/unparseable.
+ */
+export function impactPercent(priceImpactPct: string | null): number | null {
+  if (priceImpactPct == null || priceImpactPct.trim() === "") return null;
+  const value = Number(priceImpactPct);
+  if (!Number.isFinite(value)) return null;
+  return Math.abs(value) * 100;
+}
+
+export function impactLevel(priceImpactPct: string | null): ImpactLevel {
+  const pct = impactPercent(priceImpactPct);
+  if (pct == null) return "unknown";
+  if (pct >= IMPACT_CONFIRM_PCT) return "high";
+  if (pct >= IMPACT_WARN_PCT) return "warn";
+  return "ok";
+}
+
+/** Legs whose impact needs an explicit confirmation before building or signing. */
+export function highImpactLegs<L extends Pick<QuoteLeg, "priceImpactPct" | "symbol">>(legs: L[]): L[] {
+  return legs.filter((leg) => impactLevel(leg.priceImpactPct) === "high");
+}

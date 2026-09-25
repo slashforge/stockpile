@@ -4,6 +4,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SonnerOverlay } from "../components/ui/sonner-overlay";
+import { AuthProvider } from "./auth-provider";
 import { NetworkErrorProvider } from "./network-error-provider";
 import { QueryProvider } from "./query-provider";
 import { QueryClearProvider } from "./query-clear-provider";
@@ -24,7 +25,9 @@ CoreProviders.displayName = "CoreProviders";
 
 const AuthProviders = memo(({ children }: { children: React.ReactNode }) => (
   <QueryProvider>
-    <QueryClearProvider>{children}</QueryClearProvider>
+    <QueryClearProvider>
+      <AuthProvider>{children}</AuthProvider>
+    </QueryClearProvider>
   </QueryProvider>
 ));
 AuthProviders.displayName = "AuthProviders";

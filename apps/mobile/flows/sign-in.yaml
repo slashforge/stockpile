@@ -1,0 +1,52 @@
+executionPrerequisite: >-
+  Signed out, on a bag detail screen (run browse-to-detail first). Needs secrets
+  STOCKPILE_TEST_EMAIL and STOCKPILE_TEST_CODE (Privy test account) in ~/.argent/secrets.env.
+  Ends with the buy sheet open, because sign-in continues into "Put money in the bag".
+steps:
+  - echo: Tap "Sign in to buy"
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.925
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Send code"
+      timeoutMs: 10000
+  - echo: Enter the test email
+  - tool: gesture-tap
+    args:
+      x: 0.53
+      y: 0.777
+  - tool: keyboard
+    delayMs: 500
+    args:
+      text: "{{secret:STOCKPILE_TEST_EMAIL}}"
+  - tool: gesture-tap
+    delayMs: 500
+    args:
+      x: 0.5
+      y: 0.855
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Verification code"
+      timeoutMs: 15000
+  - echo: Enter the one-time code
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.785
+  - tool: keyboard
+    delayMs: 500
+    args:
+      text: "{{secret:STOCKPILE_TEST_CODE}}"
+      key: enter
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Get quote"
+      timeoutMs: 30000

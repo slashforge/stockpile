@@ -6,6 +6,11 @@ const scheme = env ? `stockpile${env}` : `stockpile`;
 
 const name = env ? `Stockpile (${env.toUpperCase()})` : "Stockpile";
 
+// Release builds block cleartext HTTP. Allow it only when the configured API is plain http
+// (local/LAN testing); https deployments keep Android's default strict policy.
+const apiUrl = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4040";
+const allowCleartext = apiUrl.trim().toLowerCase().startsWith("http://");
+
 const config = {
   expo: {
     name: name,
@@ -14,7 +19,8 @@ const config = {
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: scheme,
-    userInterfaceStyle: "automatic",
+    userInterfaceStyle: "light",
+    backgroundColor: "#F5F2EA",
     newArchEnabled: true,
     runtimeVersion: {
       policy: "appVersion",
@@ -35,7 +41,6 @@ const config = {
         backgroundImage: "./assets/images/android-icon-background.png",
         monochromeImage: "./assets/images/android-icon-monochrome.png",
       },
-      edgeToEdgeEnabled: true,
       package: bundleIdentifier,
       predictiveBackGestureEnabled: false,
     },
@@ -51,10 +56,7 @@ const config = {
           image: "./assets/images/splash-icon.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#161616",
-          dark: {
-            backgroundColor: "#161616",
-          },
+          backgroundColor: "#F5F2EA",
         },
       ],
 
@@ -67,33 +69,22 @@ const config = {
         },
       ],
       "expo-web-browser",
-      "expo-build-properties",
       "expo-sqlite",
       "react-native-cloud-storage",
       "react-native-edge-to-edge",
-      ["react-native-cloud-storage"],
       [
         "expo-build-properties",
         {
           ios: {
             deploymentTarget: "16.4",
           },
+          // Android SDK levels follow React Native 0.85 defaults (compile/target 36).
           android: {
-            compileSdkVersion: 35,
+            usesCleartextTraffic: allowCleartext,
           },
         },
       ],
       ["expo-font"],
-      [
-        "react-native-vision-camera",
-        {
-          cameraPermissionText:
-            "$(PRODUCT_NAME) needs access to your Camera. To Scan QR Codes.",
-
-          enableMicrophonePermission: false,
-          enableCodeScanner: true,
-        },
-      ],
       "@react-native-community/datetimepicker",
     ],
     experiments: {

@@ -1,0 +1,23 @@
+executionPrerequisite: Buy sheet open on "Choose an amount" (run open-buy-sheet or sign-in first). Never signs or submits.
+steps:
+  - echo: Request a live Jupiter quote for the default $25
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.755
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Check the quote"
+      timeoutMs: 30000
+  - echo: Close the sheet without reviewing or signing
+  - tool: gesture-tap
+    args:
+      x: 0.915
+      y: 0.114
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Get quote"

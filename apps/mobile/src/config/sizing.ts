@@ -41,6 +41,15 @@ export const radius = {
   full: 9999,
 } as const;
 
+/**
+ * Rounded-rectangle corners with Apple's continuous (squircle) curve on iOS; a no-op on Android.
+ * Use for cards, panels, keys and chips. Keep plain `borderRadius` for circles and pills, where the
+ * continuous curve would flatten the shape.
+ */
+export function rounded(value: number) {
+  return { borderRadius: value, borderCurve: "continuous" } as const;
+}
+
 export const typography = {
   size: {
     xs: 10,

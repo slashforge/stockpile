@@ -5,6 +5,10 @@
   "private": true,
   "scripts": {
     "setup": "bun scripts/setup.ts",
+    "api:dev": "bun --env-file=.env --watch apps/api/index.ts",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate",
+    "stories:ingest": "bun --env-file=.env apps/api/scripts/ingest-stories.ts",
     "generate:sdk": "bun run --cwd apps/api generate:openapi && bun run --cwd packages/api-client generate"
   },
   "workspaces": [

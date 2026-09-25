@@ -9,7 +9,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_ENV": "dev",
-        "EXPO_PUBLIC_API_URL": "https://api.stockpile.nitish.sh"
+        "EXPO_PUBLIC_API_URL": "https://api.stockpile.cash"
       }
     },
     "preview": {
@@ -17,7 +17,7 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_ENV": "beta",
-        "EXPO_PUBLIC_API_URL": "https://beta.api.stockpile.nitish.sh"
+        "EXPO_PUBLIC_API_URL": "https://beta.api.stockpile.cash"
       }
     },
     "beta": {
@@ -25,7 +25,7 @@
       "channel": "beta",
       "env": {
         "EXPO_PUBLIC_ENV": "beta",
-        "EXPO_PUBLIC_API_URL": "https://beta.api.stockpile.nitish.sh"
+        "EXPO_PUBLIC_API_URL": "https://beta.api.stockpile.cash"
       }
     },
     "production": {
@@ -33,7 +33,7 @@
       "channel": "production",
       "env": {
         "EXPO_PUBLIC_ENV": "prod",
-        "EXPO_PUBLIC_API_URL": "https://api.stockpile.nitish.sh"
+        "EXPO_PUBLIC_API_URL": "https://api.stockpile.cash"
       }
     }
   },

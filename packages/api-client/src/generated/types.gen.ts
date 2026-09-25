@@ -8,25 +8,190 @@ export type HealthResponse = {
     status: string;
 };
 
-export type SyncResponse = {
-    success: boolean;
-    user: User;
+export type BagsResponse = {
+    bags: Array<Bag>;
 };
 
-export type User = {
+export type Bag = {
     id: string;
-    email: string;
-    walletAddress: string;
-    authUserId: string;
-    createdAt: string;
+    title: string;
+    subtitle: string;
+    description: string;
+    thesis: string;
+    disclosure: string;
+    sourceType: 'editorial';
+    issuer: Issuer;
+    assetClass: AssetClass;
+    risks: Array<string>;
+    tradable: boolean;
+    sources: Array<{
+        title: string;
+        url: string;
+    }>;
+    assets: Array<BagAsset>;
+};
+
+export type Issuer = 'xstocks' | 'prestocks';
+
+export type AssetClass = 'public-equity' | 'pre-ipo';
+
+export type BagAsset = {
+    symbol: string;
+    name: string;
+    weightBps: number;
+    mint: string | null;
+    decimals: number | null;
+    uiAmountMultiplier: number;
+    issuer: Issuer;
+    assetClass: AssetClass;
+    reference: IssuerReference;
+    sourceUrl: string;
+    iconUrl: string | null;
+    iconSource: 'jupiter-token' | 'issuer-token' | 'underlying-brand' | null;
+    brandColor: string | null;
+};
+
+export type IssuerReference = {
+    markPrice: number;
+    tokenPrice: number;
+    impliedValuation: number;
+    asOf: string;
+} | null;
+
+export type BagResponse = {
+    bag: Bag;
 };
 
 export type _Error = {
     error: string;
 };
 
+export type StoriesResponse = {
+    stories: Array<Story>;
+    nextCursor: string | null;
+};
+
+export type Story = {
+    id: string;
+    title: string;
+    format: 'article' | 'podcast';
+    summary: string;
+    publisher: string;
+    sourceUrl: string;
+    publishedAt: string;
+    imageUrl: string | null;
+    imageCredit: string | null;
+    bagIds: Array<string>;
+    bagConnections: Array<StoryBagConnection>;
+    provenance: 'editorial' | 'ai';
+    status: 'published';
+};
+
+export type StoryBagConnection = {
+    bagId: string;
+    relationship: 'direct' | 'inferred';
+    context: 'supporting' | 'opposing' | 'neutral';
+    explanation: string;
+};
+
 export type MeResponse = {
     user: User;
+};
+
+export type User = {
+    id: string;
+    email: string | null;
+    walletAddress: string | null;
+    createdAt: string;
+};
+
+export type SavedBagsResponse = {
+    bagIds: Array<string>;
+};
+
+export type SaveBagRequest = {
+    bagId: string;
+};
+
+export type PortfolioResponse = {
+    walletAddress: string | null;
+    status: 'live' | 'unavailable';
+    holdings: Array<Holding>;
+    sol: Balance;
+    usdc: Balance;
+    asOf: string | null;
+    message: string | null;
+};
+
+export type Holding = {
+    mint: string;
+    symbol: string | null;
+    amount: string;
+    decimals: number;
+    uiAmount: string | null;
+    program: 'token' | 'token-2022';
+};
+
+export type Balance = {
+    amount: string;
+    decimals: number;
+} | null;
+
+export type QuoteResponse = {
+    status: 'available' | 'unavailable';
+    bagId: string;
+    inputMint: string;
+    amount: string;
+    slippageBps: number;
+    legs: Array<QuoteLeg>;
+    error: TradeError;
+    message: string | null;
+};
+
+export type QuoteLeg = {
+    index: number;
+    symbol: string;
+    weightBps: number;
+    inputMint: string;
+    outputMint: string;
+    outputDecimals: number | null;
+    uiAmountMultiplier: number;
+    inputAmount: string;
+    outAmount: string;
+    minOutAmount: string | null;
+    priceImpactPct: string | null;
+    routeSteps: number;
+};
+
+export type TradeError = {
+    code: 'NO_WALLET' | 'UNSUPPORTED_INPUT_MINT' | 'PROVIDER_NOT_CONFIGURED' | 'BAG_NOT_TRADABLE' | 'AMOUNT_TOO_SMALL' | 'NO_ROUTE' | 'TOKEN_NOT_TRADABLE' | 'SLIPPAGE_REJECTED' | 'QUOTE_MISMATCH' | 'PROVIDER_ERROR' | 'PROVIDER_TIMEOUT' | 'INVALID_TRANSACTION';
+    message: string;
+    legIndex: number | null;
+    symbol: string | null;
+} | null;
+
+export type TradeRequest = {
+    bagId: string;
+    inputMint: string;
+    amount: string;
+    slippageBps?: number;
+};
+
+export type PrepareResponse = {
+    status: 'ready' | 'unavailable';
+    bagId: string;
+    inputMint: string;
+    amount: string;
+    slippageBps: number;
+    walletAddress: string | null;
+    transactions: Array<PreparedTransaction>;
+    error: TradeError;
+    message: string | null;
+};
+
+export type PreparedTransaction = QuoteLeg & {
+    transaction: string;
+    lastValidBlockHeight: number | null;
 };
 
 export type GetHealthData = {
@@ -38,59 +203,309 @@ export type GetHealthData = {
 
 export type GetHealthResponses = {
     /**
-     * Service health status
+     * Service health
      */
     200: HealthResponse;
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
 
-export type SyncUserData = {
+export type ListBagsData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/auth/sync';
+    url: '/bags';
 };
 
-export type SyncUserErrors = {
+export type ListBagsResponses = {
     /**
-     * Not authenticated
+     * Editorial bags
      */
-    401: _Error;
+    200: BagsResponse;
 };
 
-export type SyncUserError = SyncUserErrors[keyof SyncUserErrors];
+export type ListBagsResponse = ListBagsResponses[keyof ListBagsResponses];
 
-export type SyncUserResponses = {
+export type GetBagData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/bags/{id}';
+};
+
+export type GetBagErrors = {
     /**
-     * User synced with the backend
+     * Not found
      */
-    200: SyncResponse;
+    404: _Error;
 };
 
-export type SyncUserResponse = SyncUserResponses[keyof SyncUserResponses];
+export type GetBagError = GetBagErrors[keyof GetBagErrors];
+
+export type GetBagResponses = {
+    /**
+     * Editorial bag
+     */
+    200: BagResponse;
+};
+
+export type GetBagResponse = GetBagResponses[keyof GetBagResponses];
+
+export type ListBagStoriesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        limit?: number;
+        cursor?: string;
+        format?: 'article' | 'podcast';
+    };
+    url: '/bags/{id}/stories';
+};
+
+export type ListBagStoriesErrors = {
+    /**
+     * Invalid cursor
+     */
+    400: _Error;
+    /**
+     * Bag not found
+     */
+    404: _Error;
+};
+
+export type ListBagStoriesError = ListBagStoriesErrors[keyof ListBagStoriesErrors];
+
+export type ListBagStoriesResponses = {
+    /**
+     * Persisted sourced stories
+     */
+    200: StoriesResponse;
+};
+
+export type ListBagStoriesResponse = ListBagStoriesResponses[keyof ListBagStoriesResponses];
+
+export type ListStoriesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursor?: string;
+        format?: 'article' | 'podcast';
+    };
+    url: '/stories';
+};
+
+export type ListStoriesErrors = {
+    /**
+     * Invalid cursor
+     */
+    400: _Error;
+};
+
+export type ListStoriesError = ListStoriesErrors[keyof ListStoriesErrors];
+
+export type ListStoriesResponses = {
+    /**
+     * Persisted sourced stories
+     */
+    200: StoriesResponse;
+};
+
+export type ListStoriesResponse = ListStoriesResponses[keyof ListStoriesResponses];
 
 export type GetMeData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/auth/me';
+    url: '/me';
 };
 
 export type GetMeErrors = {
     /**
-     * Not authenticated
+     * Unauthorized
      */
     401: _Error;
+    /**
+     * Provider not configured
+     */
+    503: _Error;
 };
 
 export type GetMeError = GetMeErrors[keyof GetMeErrors];
 
 export type GetMeResponses = {
     /**
-     * Current authenticated user
+     * Authenticated profile
      */
     200: MeResponse;
 };
 
 export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
+export type ListSavedBagsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/saved-bags';
+};
+
+export type ListSavedBagsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type ListSavedBagsError = ListSavedBagsErrors[keyof ListSavedBagsErrors];
+
+export type ListSavedBagsResponses = {
+    /**
+     * Saved bag IDs
+     */
+    200: SavedBagsResponse;
+};
+
+export type ListSavedBagsResponse = ListSavedBagsResponses[keyof ListSavedBagsResponses];
+
+export type SaveBagData = {
+    body?: SaveBagRequest;
+    path?: never;
+    query?: never;
+    url: '/saved-bags';
+};
+
+export type SaveBagErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Bag not found
+     */
+    404: _Error;
+};
+
+export type SaveBagError = SaveBagErrors[keyof SaveBagErrors];
+
+export type SaveBagResponses = {
+    /**
+     * Saved bag IDs
+     */
+    200: SavedBagsResponse;
+};
+
+export type SaveBagResponse = SaveBagResponses[keyof SaveBagResponses];
+
+export type RemoveSavedBagData = {
+    body?: never;
+    path: {
+        bagId: string;
+    };
+    query?: never;
+    url: '/saved-bags/{bagId}';
+};
+
+export type RemoveSavedBagErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type RemoveSavedBagError = RemoveSavedBagErrors[keyof RemoveSavedBagErrors];
+
+export type RemoveSavedBagResponses = {
+    /**
+     * Saved bag IDs
+     */
+    200: SavedBagsResponse;
+};
+
+export type RemoveSavedBagResponse = RemoveSavedBagResponses[keyof RemoveSavedBagResponses];
+
+export type GetPortfolioData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/portfolio';
+};
+
+export type GetPortfolioErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type GetPortfolioError = GetPortfolioErrors[keyof GetPortfolioErrors];
+
+export type GetPortfolioResponses = {
+    /**
+     * Verified live balances and holdings, or explicitly unavailable
+     */
+    200: PortfolioResponse;
+};
+
+export type GetPortfolioResponse = GetPortfolioResponses[keyof GetPortfolioResponses];
+
+export type QuoteBagTradeData = {
+    body?: TradeRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/quote';
+};
+
+export type QuoteBagTradeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Bag not found
+     */
+    404: _Error;
+};
+
+export type QuoteBagTradeError = QuoteBagTradeErrors[keyof QuoteBagTradeErrors];
+
+export type QuoteBagTradeResponses = {
+    /**
+     * Indicative Jupiter quote per leg, or unavailable with a typed error
+     */
+    200: QuoteResponse;
+};
+
+export type QuoteBagTradeResponse = QuoteBagTradeResponses[keyof QuoteBagTradeResponses];
+
+export type PrepareBagTradeData = {
+    body?: TradeRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/prepare';
+};
+
+export type PrepareBagTradeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Bag not found
+     */
+    404: _Error;
+};
+
+export type PrepareBagTradeError = PrepareBagTradeErrors[keyof PrepareBagTradeErrors];
+
+export type PrepareBagTradeResponses = {
+    /**
+     * Unsigned per-leg transactions, or unavailable with a typed error
+     */
+    200: PrepareResponse;
+};
+
+export type PrepareBagTradeResponse = PrepareBagTradeResponses[keyof PrepareBagTradeResponses];

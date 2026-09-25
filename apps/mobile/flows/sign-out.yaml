@@ -1,0 +1,33 @@
+executionPrerequisite: Signed in, on a bag detail screen with no sheet open (after quote-and-close).
+steps:
+  - echo: Back to the Bags tab
+  - tool: gesture-tap
+    args:
+      x: 0.095
+      y: 0.103
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Account"
+        role: "button"
+  - echo: Open Account and sign out
+  - tool: gesture-tap
+    args:
+      x: 0.84
+      y: 0.94
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Sign out"
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.508
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Signed in with email"
+      timeoutMs: 10000

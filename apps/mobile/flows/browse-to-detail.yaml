@@ -1,0 +1,55 @@
+executionPrerequisite: Stockpile dev client running on Metro (either auth state). Starts from any screen.
+steps:
+  - echo: Open the story feed
+  - tool: open-url
+    args:
+      url: "stockpile://"
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Related bag"
+      timeoutMs: 15000
+  - echo: Open the bag preview from the story's bag card
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.85
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Bag summary"
+  - echo: Dismiss the preview via the backdrop (after the open animation settles)
+  - tool: gesture-tap
+    delayMs: 1000
+    args:
+      x: 0.5
+      y: 0.12
+  - tool: await-ui-element
+    args:
+      condition: hidden
+      selector:
+        text: "Bag summary"
+  - echo: Go to the Bags tab
+  - tool: gesture-tap
+    args:
+      x: 0.33
+      y: 0.94
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "AI Infrastructure. Hardware"
+      timeoutMs: 10000
+  - echo: Open the AI Infrastructure bag detail
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.6
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "inside"
+      timeoutMs: 10000

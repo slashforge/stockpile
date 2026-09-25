@@ -7,7 +7,7 @@ StyleSheet.configure({
     dark: darkTheme,
   },
   settings: {
-    initialTheme: "dark",
+    initialTheme: "light",
   },
 });
 

@@ -1,0 +1,13 @@
+executionPrerequisite: Signed in, on a bag detail screen (run browse-to-detail first).
+steps:
+  - echo: Tap "Put money in the bag"
+  - tool: gesture-tap
+    args:
+      x: 0.5
+      y: 0.925
+  - tool: await-ui-element
+    args:
+      condition: visible
+      selector:
+        text: "Get quote"
+      timeoutMs: 10000

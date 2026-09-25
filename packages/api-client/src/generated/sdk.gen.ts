@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, SyncUserData, SyncUserErrors, SyncUserResponses } from './types.gen';
+import type { GetBagData, GetBagErrors, GetBagResponses, GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, GetPortfolioData, GetPortfolioErrors, GetPortfolioResponses, ListBagsData, ListBagsResponses, ListBagStoriesData, ListBagStoriesErrors, ListBagStoriesResponses, ListSavedBagsData, ListSavedBagsErrors, ListSavedBagsResponses, ListStoriesData, ListStoriesErrors, ListStoriesResponses, PrepareBagTradeData, PrepareBagTradeErrors, PrepareBagTradeResponses, QuoteBagTradeData, QuoteBagTradeErrors, QuoteBagTradeResponses, RemoveSavedBagData, RemoveSavedBagErrors, RemoveSavedBagResponses, SaveBagData, SaveBagErrors, SaveBagResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -25,16 +25,91 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
     });
 };
 
-export const syncUser = <ThrowOnError extends boolean = false>(options?: Options<SyncUserData, ThrowOnError>) => {
-    return (options?.client ?? client).post<SyncUserResponses, SyncUserErrors, ThrowOnError>({
-        url: '/auth/sync',
+export const listBags = <ThrowOnError extends boolean = false>(options?: Options<ListBagsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<ListBagsResponses, unknown, ThrowOnError>({
+        url: '/bags',
+        ...options
+    });
+};
+
+export const getBag = <ThrowOnError extends boolean = false>(options: Options<GetBagData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetBagResponses, GetBagErrors, ThrowOnError>({
+        url: '/bags/{id}',
+        ...options
+    });
+};
+
+export const listBagStories = <ThrowOnError extends boolean = false>(options: Options<ListBagStoriesData, ThrowOnError>) => {
+    return (options.client ?? client).get<ListBagStoriesResponses, ListBagStoriesErrors, ThrowOnError>({
+        url: '/bags/{id}/stories',
+        ...options
+    });
+};
+
+export const listStories = <ThrowOnError extends boolean = false>(options?: Options<ListStoriesData, ThrowOnError>) => {
+    return (options?.client ?? client).get<ListStoriesResponses, ListStoriesErrors, ThrowOnError>({
+        url: '/stories',
         ...options
     });
 };
 
 export const getMe = <ThrowOnError extends boolean = false>(options?: Options<GetMeData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
-        url: '/auth/me',
+        url: '/me',
         ...options
+    });
+};
+
+export const listSavedBags = <ThrowOnError extends boolean = false>(options?: Options<ListSavedBagsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<ListSavedBagsResponses, ListSavedBagsErrors, ThrowOnError>({
+        url: '/saved-bags',
+        ...options
+    });
+};
+
+export const saveBag = <ThrowOnError extends boolean = false>(options?: Options<SaveBagData, ThrowOnError>) => {
+    return (options?.client ?? client).post<SaveBagResponses, SaveBagErrors, ThrowOnError>({
+        url: '/saved-bags',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+export const removeSavedBag = <ThrowOnError extends boolean = false>(options: Options<RemoveSavedBagData, ThrowOnError>) => {
+    return (options.client ?? client).delete<RemoveSavedBagResponses, RemoveSavedBagErrors, ThrowOnError>({
+        url: '/saved-bags/{bagId}',
+        ...options
+    });
+};
+
+export const getPortfolio = <ThrowOnError extends boolean = false>(options?: Options<GetPortfolioData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetPortfolioResponses, GetPortfolioErrors, ThrowOnError>({
+        url: '/portfolio',
+        ...options
+    });
+};
+
+export const quoteBagTrade = <ThrowOnError extends boolean = false>(options?: Options<QuoteBagTradeData, ThrowOnError>) => {
+    return (options?.client ?? client).post<QuoteBagTradeResponses, QuoteBagTradeErrors, ThrowOnError>({
+        url: '/trade/quote',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+export const prepareBagTrade = <ThrowOnError extends boolean = false>(options?: Options<PrepareBagTradeData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PrepareBagTradeResponses, PrepareBagTradeErrors, ThrowOnError>({
+        url: '/trade/prepare',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
     });
 };
