@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { bags, configuredSymbol, findBag, publicBag } from "../lib/bags";
+import { bags, knownSymbol, findBag, publicBag } from "../lib/bags";
 import { assetChart, bagChart, bagReturns, sparklines } from "../lib/charts";
 import { base58Mint } from "../lib/constants";
 import { bagHistory } from "../lib/history";
@@ -27,6 +27,6 @@ export default app;
 export const assetRoutes = new OpenAPIHono();
 assetRoutes.openapi(createRoute({ method: "get", path: "/{mint}/chart", operationId: "getAssetChart", tags: ["bags"], request: { params: z.object({ mint: z.string().regex(base58Mint) }), query: z.object({ range: ChartRangeSchema.default("1D") }) }, responses: { 200: { description: "Closes and candles for one allowlisted asset mint from tokens.xyz; points empty with a reason when unavailable", content: { "application/json": { schema: AssetChartSchema } } }, 404: { description: "Mint is not an allowlisted bag asset", content: { "application/json": { schema: ErrorSchema } } } } }), async (c) => {
   const mint = c.req.valid("param").mint;
-  const symbol = configuredSymbol(mint);
+  const symbol = knownSymbol(mint);
   return symbol ? c.json(await assetChart(mint, symbol, c.req.valid("query").range), 200) : c.json({ error: "Asset not found" }, 404);
 });

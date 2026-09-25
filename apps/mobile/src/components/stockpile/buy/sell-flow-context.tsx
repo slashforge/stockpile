@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useState } from "react";
 import { queryKeys } from "@/hooks/query-keys";
 import { useBagPosition } from "@/hooks/use-positions";
@@ -14,7 +14,7 @@ export const SELL_PORTIONS = [2500, 5000, 7500, 10000] as const;
  * Sell request: the server sizes each leg from what the wallet holds of the bag's tokens times
  * `portionBps`; `amount` / `inputMint` are ignored on a sell.
  */
-export function sellRequest(bagId: string, portionBps: number, slippageBps: number): TradeRequest {
+export function sellRequest(bagId: string, portionBps: number, slippageBps: number | null): TradeRequest {
   return { bagId, side: "sell", portionBps, slippageBps };
 }
 
@@ -42,6 +42,8 @@ function useSellFlowState(bagId: string) {
     queryFn: () => quoteTrade(request),
     enabled: authenticated && !!walletAddress,
     staleTime: 20 * 1000,
+    // Switching portion or protection keeps the last estimate on screen (dimmed) instead of blanking it.
+    placeholderData: keepPreviousData,
     retry: 1,
   });
 

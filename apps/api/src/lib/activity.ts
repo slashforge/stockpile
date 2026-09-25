@@ -3,7 +3,7 @@
 // per-mint token deltas over balances owned by the wallet (Token + Token-2022, via `uiAmountString`, which the RPC has already
 // scaled for Token-2022 scaled-UI mints) and the wallet's lamport delta with the fee it paid and rent for token accounts it
 // opened/closed added back. Helius labels (`type`, `description`) are never used. Pages are cached 30s per wallet+cursor+limit.
-import { bagIdsForMint, configuredSymbol } from "./bags";
+import { bagIdsForMint, knownSymbol } from "./bags";
 import { base58Mint, USDC } from "./constants";
 import { atomicToUi } from "./portfolio";
 import { tokenMetadata, WSOL_MINT } from "./token-meta";
@@ -68,6 +68,11 @@ function accountKeys(tx: Json): string[] {
 }
 /** First account key: the transaction's fee payer (null when the payload is malformed). */
 export function feePayerOf(value: unknown): string | null { const tx = record(value); return tx ? accountKeys(tx)[0] ?? null : null; }
+/** Static account keys flagged as signers in a jsonParsed transaction (fee payer first). */
+export function signersOf(value: unknown): string[] {
+  const message = record(record(record(value)?.transaction)?.message);
+  return list(message?.accountKeys).filter((key) => key.signer === true).map((key) => address(key.pubkey)).filter((key): key is string => key !== null);
+}
 /** Slot and block time of a jsonParsed transaction. */
 export function transactionMeta(value: unknown): { slot: number | null; blockTime: Date | null; failed: boolean } {
   const tx = record(value) ?? {};
@@ -189,7 +194,7 @@ export async function normaliseActivity(value: unknown, wallet: string, known: M
   const failed = meta.err !== null && meta.err !== undefined;
   const { changes, feePaid } = failed ? { changes: [] as Change[], feePaid: accountKeys(tx)[0] === wallet ? lamports(meta.fee) ?? 0n : 0n } : walletChanges(tx, wallet);
   const legs = changes.map((change): ActivityLeg => ({
-    mint: change.mint, symbol: change.mint === WSOL_MINT ? "SOL" : change.mint === USDC ? "USDC" : configuredSymbol(change.mint) ?? known.get(change.mint)?.symbol ?? null,
+    mint: change.mint, symbol: change.mint === WSOL_MINT ? "SOL" : change.mint === USDC ? "USDC" : knownSymbol(change.mint) ?? known.get(change.mint)?.symbol ?? null,
     amount: atomicToUi(change.delta < 0n ? -change.delta : change.delta, change.scale), direction: change.delta < 0n ? "out" : "in",
   })).sort((a, b) => (a.direction === b.direction ? 0 : a.direction === "out" ? -1 : 1)); // what was paid, then what was received
   const ins = legs.filter((leg) => leg.direction === "in"), outs = legs.filter((leg) => leg.direction === "out");

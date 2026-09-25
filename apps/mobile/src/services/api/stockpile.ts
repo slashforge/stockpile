@@ -2,6 +2,7 @@ import {
   getBag as sdkGetBag,
   getMe as sdkGetMe,
   getPortfolio as sdkGetPortfolio,
+  getTransactionStatuses as sdkGetTransactionStatuses,
   listActivity as sdkListActivity,
   listBags as sdkListBags,
   listSavedBags as sdkListSavedBags,
@@ -9,6 +10,7 @@ import {
   quoteBagTrade as sdkQuoteBagTrade,
   removeSavedBag as sdkRemoveSavedBag,
   saveBag as sdkSaveBag,
+  submitTransaction as sdkSubmitTransaction,
 } from "./client";
 import type {
   ActivityPage,
@@ -129,4 +131,15 @@ export async function quoteTrade(body: TradeRequest): Promise<TradeQuote> {
 
 export async function prepareTrade(body: TradeRequest): Promise<PreparedTrade> {
   return unwrap(sdkPrepareBagTrade({ body }));
+}
+
+/** Broadcasts a wallet-signed transaction through Stockpile (Helius RPC + Sender); returns its signature. */
+export async function submitSignedTransaction(transaction: string, bagId?: string): Promise<string> {
+  const data = await unwrap(sdkSubmitTransaction({ body: { transaction, bagId } }));
+  return data.signature;
+}
+
+export async function fetchTransactionStatuses(signatures: string[]) {
+  const data = await unwrap(sdkGetTransactionStatuses({ body: { signatures } }));
+  return data.statuses;
 }

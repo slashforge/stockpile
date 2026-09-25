@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { USDC_MINT } from "@/lib/solana/transaction";
 import type { Bag, QuoteLeg } from "@/services/api/types";
-import { legLabelProblems, totalInput, totalOutput, tradeErrorMessage } from "./legs";
+import { friendlySwapError, legLabelProblems, totalInput, totalOutput, tradeErrorMessage } from "./legs";
 
 const bag = {
   assets: [
@@ -177,5 +177,23 @@ describe("sell legs", () => {
 
   test("totals the USDC out", () => {
     expect(totalOutput([sellLeg, { ...sellLeg, outAmount: "1" }])).toBe(5000001n);
+  });
+});
+
+describe("friendlySwapError", () => {
+  const fallback = "Transaction failed on-chain. No tokens were swapped.";
+  test("explains Jupiter's slippage guard in plain words", () => {
+    for (const raw of [
+      "Simulation failed. Message: Transaction simulation failed: Error processing Instruction 3: custom program error: 0x1771.",
+      '{"InstructionError":[3,{"Custom":6001}]}',
+    ]) {
+      expect(friendlySwapError(raw, fallback)).toContain("price moved more than your price protection allows");
+    }
+  });
+  test("maps expiry and other simulation failures, and hides raw program errors", () => {
+    expect(friendlySwapError("Blockhash not found", fallback)).toContain("expired");
+    expect(friendlySwapError("Simulation failed. Message: something else", fallback)).toContain("would fail right now");
+    expect(friendlySwapError('{"InstructionError":[3,{"Custom":42}]}', fallback)).toBe(fallback);
+    expect(friendlySwapError(undefined, fallback)).toBe(fallback);
   });
 });

@@ -1994,7 +1994,11 @@
             ]
           },
           "slippageBps": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The requested override, or null for automatic protection."
           },
           "totalOutAmount": {
             "type": [
@@ -2171,10 +2175,13 @@
             "description": "Sell only: share of the user's bag position to sell, 1..10000 bps."
           },
           "slippageBps": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1,
             "maximum": 500,
-            "default": 50
+            "description": "Advanced override. Omit or null for automatic protection (Jupiter real-time slippage estimator) chosen per leg when the swap is built."
           }
         },
         "required": [
@@ -2216,7 +2223,11 @@
             ]
           },
           "slippageBps": {
-            "type": "number"
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The requested override, or null for automatic protection."
           },
           "totalOutAmount": {
             "type": [
@@ -2271,20 +2282,122 @@
             "type": "object",
             "properties": {
               "transaction": {
-                "type": "string"
+                "type": "string",
+                "description": "Base64 v0 transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature."
               },
               "lastValidBlockHeight": {
                 "type": [
                   "number",
                   "null"
                 ]
+              },
+              "slippageBps": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Slippage limit this leg was built with (chosen by Jupiter when automatic)."
+              },
+              "feePayer": {
+                "type": "string",
+                "description": "Stockpile paymaster that pays the network fee and token-account rent."
               }
             },
             "required": [
               "transaction",
-              "lastValidBlockHeight"
+              "lastValidBlockHeight",
+              "slippageBps",
+              "feePayer"
             ]
           }
+        ]
+      },
+      "SubmitTransactionResponse": {
+        "type": "object",
+        "properties": {
+          "signature": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "signature"
+        ]
+      },
+      "SubmitTransactionRequest": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored)."
+          },
+          "bagId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Bag this swap belongs to. The server links the leg to the bag once it confirms, even if the app closes first."
+          }
+        },
+        "required": [
+          "transaction"
+        ]
+      },
+      "TransactionStatusesResponse": {
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionStatus"
+            }
+          }
+        },
+        "required": [
+          "statuses"
+        ]
+      },
+      "TransactionStatus": {
+        "type": "object",
+        "properties": {
+          "signature": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "failed"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "signature",
+          "status",
+          "error"
+        ]
+      },
+      "TransactionStatusRequest": {
+        "type": "object",
+        "properties": {
+          "signatures": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[1-9A-HJ-NP-Za-km-z]{43,100}$"
+            },
+            "minItems": 1,
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "signatures"
         ]
       }
     },
@@ -3170,6 +3283,114 @@
           },
           "404": {
             "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/submit": {
+      "post": {
+        "operationId": "submitTransaction",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Broadcast through Stockpile's RPC; confirm with /trade/status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitTransactionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not signed by your wallet, or rejected by preflight simulation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transaction provider not configured or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trade/status": {
+      "post": {
+        "operationId": "getTransactionStatuses",
+        "tags": [
+          "trade"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status per signature, in request order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionStatusesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transaction provider not configured or unavailable",
             "content": {
               "application/json": {
                 "schema": {

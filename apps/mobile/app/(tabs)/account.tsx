@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { CopyRow } from "@/components/stockpile/copy-row";
-import { LowSolPill, useFundSheet } from "@/components/stockpile/fund-sheet";
+import { useFundSheet } from "@/components/stockpile/fund-sheet";
 import { GradientCard } from "@/components/stockpile/gradient-card";
 import { HeroState } from "@/components/stockpile/hero-state";
 import {
@@ -151,7 +151,6 @@ export default function AccountScreen() {
                   detail="Receive USDC on Solana"
                   icon="add-circle"
                   onPress={openFund}
-                  trailing={<LowSolPill />}
                 />
               </>
             ) : (

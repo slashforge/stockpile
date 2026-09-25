@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { AuthGate } from "@/components/stockpile/auth-gate";
 import { GradientCard } from "@/components/stockpile/gradient-card";
-import { LowSolPill, useFundSheet } from "@/components/stockpile/fund-sheet";
+import { useFundSheet } from "@/components/stockpile/fund-sheet";
 import { HeroState } from "@/components/stockpile/hero-state";
 import { CardSkeleton, Divider, Screen, Skeleton } from "@/components/stockpile/layout";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
@@ -20,11 +20,11 @@ import { usePositions } from "@/hooks/use-positions";
 import { changeTone, formatSignedPct } from "@/lib/market";
 import { type BagPosition, heldPositions } from "@/services/api/positions";
 import { LogoCluster } from "@/components/stockpile/bag-art";
-import { isLowSol } from "@/lib/funding";
 import {
   activityVisual,
   describeActivity,
   flattenActivity,
+  groupActivityByDay,
   formatHoldingAmount,
   formatUsdValue,
   relativeTime,
@@ -50,6 +50,10 @@ const ROW_H_PAD = density.card;
 const ROW_GAP = density.rowGap;
 const ROW_INSET = ROW_H_PAD + AVATAR + ROW_GAP;
 const WALLET_PILL = 44;
+const ACTIVITY_AVATAR = 44;
+const SWAP_TOKEN = 30;
+const ACTIVITY_BADGE = 18;
+const ACTIVITY_RING = 2;
 
 function formatAsOf(value: string | null) {
   if (!value) return null;
@@ -375,7 +379,6 @@ function WalletCard({ address, portfolio }: { address: string; portfolio: Portfo
           </T>
         </Pressable>
       </View>
-      <LowSolPill />
     </GradientCard>
   );
 }
@@ -389,7 +392,6 @@ type Row = {
   amount: string;
   usdValue: number | null;
   bagIds: string[];
-  lowFees?: boolean;
 };
 
 function HoldingRow({ row }: { row: Row }) {
@@ -406,7 +408,6 @@ function HoldingRow({ row }: { row: Row }) {
           <T variant="headline" numberOfLines={1}>
             {row.symbol}
           </T>
-          {row.lowFees ? <RowChip icon="flash-outline" label="Low for fees" tone="caution" /> : null}
         </View>
         <T variant="footnote" tone="secondary" numberOfLines={1}>
           {row.name}
@@ -448,7 +449,6 @@ function holdingRows(data: Portfolio, assets: ReturnType<typeof indexAssetsByMin
       amount: formatHoldingAmount(data.sol.uiAmount),
       usdValue: data.sol.usdValue,
       bagIds: [],
-      lowFees: isLowSol(solBalance(data)),
     });
   }
   for (const holding of data.holdings) {
@@ -472,67 +472,114 @@ function holdingRows(data: Portfolio, assets: ReturnType<typeof indexAssetsByMin
   return rows;
 }
 
-function ActivityRow({ item, bagsById }: { item: Activity; bagsById: Map<string, Bag> }) {
+type AssetIndex = ReturnType<typeof indexAssetsByMint>;
+type ActivityLeg = Activity["legs"][number];
+
+function LegAvatar({ leg, assets, size }: { leg: ActivityLeg; assets: AssetIndex; size: number }) {
+  const asset = assets.get(leg.mint);
+  return (
+    <TokenAvatar symbol={leg.symbol ?? asset?.symbol ?? "?"} mint={leg.mint} iconUrl={asset?.iconUrl} size={size} />
+  );
+}
+
+/** Token (or action) mark in a canvas-coloured ring so it reads cleanly over the shape behind it. */
+function Ringed({ size, style, children }: { size: number; style: object; children: React.ReactNode }) {
+  const outer = size + ACTIVITY_RING * 2;
+  return <View style={[styles.ring, { width: outer, height: outer, borderRadius: outer / 2 }, style]}>{children}</View>;
+}
+
+/**
+ * Swaps: the two tokens overlapped (other side behind, subject in front). Transfers and other
+ * items: a solid action circle with a small token badge on its corner.
+ */
+function ActivityAvatar({ item, line, assets }: { item: Activity; line: ReturnType<typeof describeActivity>; assets: AssetIndex }) {
   const { theme } = useUnistyles();
+  const failed = item.status === "failed";
+  if (!failed && item.kind === "swap" && line.front && line.back) {
+    return (
+      <View style={styles.activityAvatar}>
+        <View style={styles.swapBack}>
+          <LegAvatar leg={line.back} assets={assets} size={SWAP_TOKEN} />
+        </View>
+        <Ringed size={SWAP_TOKEN} style={styles.swapFront}>
+          <LegAvatar leg={line.front} assets={assets} size={SWAP_TOKEN} />
+        </Ringed>
+      </View>
+    );
+  }
   const visual = activityVisual(item);
-  const color = {
-    accent: theme.ds.accent,
-    positive: theme.ds.positive,
-    neutral: theme.ds.inkSecondary,
-    danger: theme.ds.danger,
-  }[visual.tone];
-  const background = {
-    accent: theme.ds.accentSoft,
-    positive: theme.ds.mintSoft,
-    neutral: theme.ds.sunken,
-    danger: theme.ds.dangerSoft,
-  }[visual.tone];
+  const fill = failed
+    ? theme.ds.dangerSoft
+    : { accent: theme.ds.accent, positive: theme.ds.positive, neutral: theme.ds.inkTertiary, danger: theme.ds.danger }[visual.tone];
+  const iconColor = failed ? theme.ds.danger : "#FFFFFF";
+  const rotate = visual.icon === "arrow-down" || visual.icon === "arrow-up" ? "45deg" : "0deg";
+  return (
+    <View style={styles.activityAvatar}>
+      <View style={[styles.actionCircle, { backgroundColor: fill }]}>
+        <Ionicons name={visual.icon} size={22} color={iconColor} style={{ transform: [{ rotate }] }} />
+      </View>
+      {line.front ? (
+        <Ringed size={ACTIVITY_BADGE} style={styles.actionBadge}>
+          <LegAvatar leg={line.front} assets={assets} size={ACTIVITY_BADGE} />
+        </Ringed>
+      ) : null}
+    </View>
+  );
+}
+
+function ActivityRow({ item, bagsById, assets }: { item: Activity; bagsById: Map<string, Bag>; assets: AssetIndex }) {
   const when = relativeTime(item.ts);
   const failed = item.status === "failed";
   const line = describeActivity(item);
   const bag = item.bagId ? bagsById.get(item.bagId) : undefined;
-  const subtitle = [failed ? "Failed" : null, when, bag?.title].filter(Boolean).join(" · ");
+  const detail = failed ? "Failed" : (bag?.title ?? line.detail);
+  const amountTone = failed
+    ? "tertiary"
+    : line.amount?.tone === "negative"
+      ? "danger"
+      : line.amount?.tone === "positive"
+        ? "positive"
+        : "accent";
   return (
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`${item.summary}${when ? `, ${when}` : ""}${failed ? ", failed" : ""}. Opens in explorer`}
       onPress={() => WebBrowser.openBrowserAsync(item.explorerUrl).catch(() => {})}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.activityRow, pressed && styles.pressed]}
     >
-      <IconBadge icon={visual.icon} color={color} background={background} />
+      <ActivityAvatar item={item} line={line} assets={assets} />
       <View style={styles.textCol}>
         <T variant="headline" numberOfLines={1}>
-          {line.title}
-        </T>
-        <T variant="footnote" tone={failed ? "danger" : "secondary"} numberOfLines={1}>
-          {subtitle || "—"}
-        </T>
-      </View>
-      <View style={styles.rightCol}>
-        {line.primary ? (
-          <T
-            variant="numeric"
-            tone={failed ? "tertiary" : line.primary.tone === "positive" ? "positive" : undefined}
-            style={[styles.rightPrimary, failed && styles.struck]}
-            numberOfLines={1}
-          >
-            {line.primary.text}
-          </T>
-        ) : null}
-        <View style={styles.rightInline}>
-          {line.secondary ? (
-            <T variant="footnote" tone="secondary" style={styles.tabular} numberOfLines={1}>
-              {line.secondary}
+          {line.verb}
+          {line.subject ? (
+            <T variant="headline" tone="secondary" style={styles.subjectText}>
+              {` ${line.subject}`}
             </T>
           ) : null}
-          <Ionicons name="open-outline" size={13} color={theme.ds.inkTertiary} />
-        </View>
+        </T>
+        {detail ? (
+          <T variant="footnote" tone={failed ? "danger" : "secondary"} style={styles.tabular} numberOfLines={1}>
+            {detail}
+          </T>
+        ) : null}
+      </View>
+      <View style={styles.rightCol}>
+        {line.amount ? (
+          <T variant="numeric" tone={amountTone} style={[styles.rightPrimary, failed && styles.struck]} numberOfLines={1}>
+            {line.amount.text}
+          </T>
+        ) : null}
+        {when ? (
+          <T variant="footnote" tone="secondary" style={styles.rightSecondary} numberOfLines={1}>
+            {when}
+          </T>
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
-function ActivitySection({ bagsById }: { bagsById: Map<string, Bag> }) {
+function ActivitySection({ bagsById, assets }: { bagsById: Map<string, Bag>; assets: AssetIndex }) {
   const { theme } = useUnistyles();
   const activity = useActivity();
   const { fetchNextPage, isFetchNextPageError } = activity;
@@ -576,8 +623,17 @@ function ActivitySection({ bagsById }: { bagsById: Map<string, Bag> }) {
     );
   } else {
     body = (
-      <ListCard>
-        <Rows items={items} keyOf={(item) => item.signature} render={(item) => <ActivityRow item={item} bagsById={bagsById} />} />
+      <View>
+        {groupActivityByDay(items).map((group, index) => (
+          <View key={`${group.label}-${group.items[0].signature}`} style={index > 0 && styles.dayGroup}>
+            <T variant="headline" style={styles.dayLabel} accessibilityRole="header">
+              {group.label}
+            </T>
+            {group.items.map((item) => (
+              <ActivityRow key={item.signature} item={item} bagsById={bagsById} assets={assets} />
+            ))}
+          </View>
+        ))}
         {activity.isFetchingNextPage ? (
           <View style={styles.more}>
             <ActivityIndicator color={theme.ds.inkTertiary} />
@@ -593,7 +649,7 @@ function ActivitySection({ bagsById }: { bagsById: Map<string, Bag> }) {
             </T>
           </Pressable>
         ) : null}
-      </ListCard>
+      </View>
     );
   }
 
@@ -623,7 +679,8 @@ function PortfolioBody() {
 
   const data = portfolio.data;
   const walletAddress = data.walletAddress ?? embeddedWallet;
-  const rows = holdingRows(data, indexAssetsByMint(bags.data));
+  const assets = indexAssetsByMint(bags.data);
+  const rows = holdingRows(data, assets);
   const hasTokens = rows.some((row) => row.key !== "usdc" && row.key !== "sol");
   const asOf = formatAsOf(data.asOf);
 
@@ -652,7 +709,7 @@ function PortfolioBody() {
         </PortfolioSection>
       )}
 
-      <ActivitySection bagsById={bagsById} />
+      <ActivitySection bagsById={bagsById} assets={assets} />
     </>
   );
 }
@@ -781,6 +838,28 @@ const styles = StyleSheet.create((theme) => ({
   chipText: { fontSize: 11, lineHeight: 14 },
   chipAccent: { backgroundColor: theme.ds.accentSoft },
   chipCaution: { backgroundColor: theme.ds.cautionSoft },
+
+  dayGroup: { marginTop: theme.density.rowY },
+  dayLabel: { fontSize: 17, lineHeight: 22, fontWeight: "700", marginBottom: 2 },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: theme.density.rowY,
+  },
+  subjectText: { fontWeight: "500" },
+  activityAvatar: { width: ACTIVITY_AVATAR, height: ACTIVITY_AVATAR },
+  actionCircle: {
+    width: ACTIVITY_AVATAR,
+    height: ACTIVITY_AVATAR,
+    borderRadius: ACTIVITY_AVATAR / 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ring: { backgroundColor: theme.ds.canvas, alignItems: "center", justifyContent: "center" },
+  actionBadge: { position: "absolute", right: -ACTIVITY_RING - 2, bottom: -ACTIVITY_RING - 2 },
+  swapBack: { position: "absolute", top: 0, left: 0 },
+  swapFront: { position: "absolute", right: -ACTIVITY_RING, bottom: -ACTIVITY_RING },
 
   skeletons: { flexDirection: "column", alignItems: "flex-start", gap: 10 },
   more: { paddingVertical: theme.density.rowY, alignItems: "center" },

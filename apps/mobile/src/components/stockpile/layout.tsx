@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useScrollToTop } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import { BlurTargetView } from "expo-blur";
+import { router, useFocusEffect, useScrollToTop } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -16,13 +17,18 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { rounded } from "@/config/sizing";
+import { BarBlur, useBlurTarget } from "./bar-blur";
 import { PrimaryButton } from "./primary-button";
 import { useTabBarInset } from "./tab-bar";
 import { T } from "./type";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
+
+/** Top bar height below the status bar: 6 top + 44 button + 8 bottom. */
+const TOP_BAR = 58;
 
 type ScreenProps = {
   title?: string;
@@ -91,6 +97,23 @@ export function Screen({
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
   const [scrolled, setScrolled] = useState(false);
+  const insets = useSafeAreaInsets();
+  const ios = Platform.OS === "ios";
+  const barHeight = insets.top + TOP_BAR;
+  const [footerHeight, setFooterHeight] = useState(0);
+  // Android blur samples this view; publish it while focused so the floating tab bar blurs it too.
+  const blurTarget = useRef<View>(null);
+  const { setTarget } = useBlurTarget();
+  useFocusEffect(
+    useCallback(() => {
+      setTarget(blurTarget);
+    }, [setTarget]),
+  );
+  const bottomPadding = footer
+    ? Math.max(footerHeight - (ios ? insets.bottom : 0), 0) + 16
+    : tabInset > 0
+      ? tabInset + 16
+      : undefined;
   // Only show the spinner for refreshes the user pulled. Driving iOS RefreshControl from background
   // refetches (`isRefetching`) leaves it stuck spinning when a tab mounts mid-refetch.
   const [pulling, setPulling] = useState(false);
@@ -106,8 +129,73 @@ export function Screen({
     : undefined;
   return (
     <View style={styles.root}>
+      <BlurTargetView ref={blurTarget} style={styles.root}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.content,
+            !hasBar && styles.contentNoBar,
+            hasBar && !ios ? { paddingTop: barHeight + 4 } : null,
+            hasBar && ios ? styles.contentBarIos : null,
+            bottomPadding != null ? { paddingBottom: bottomPadding } : null,
+          ]}
+          // iOS: let UIKit inset content for the status bar and the native (Liquid Glass) tab bar;
+          // the extra top inset clears the absolute blurred top bar and keeps the refresh spinner below it.
+          contentInsetAdjustmentBehavior={ios ? "automatic" : undefined}
+          contentInset={hasBar && ios ? { top: TOP_BAR } : undefined}
+          contentOffset={hasBar && ios ? { x: 0, y: -barHeight } : undefined}
+          refreshControl={
+            handleRefresh ? (
+              <RefreshControl
+                refreshing={pulling}
+                onRefresh={handleRefresh}
+                tintColor={theme.ds.inkTertiary}
+                colors={[theme.ds.accent]}
+                progressViewOffset={hasBar ? barHeight : insets.top}
+              />
+            ) : undefined
+          }
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          scrollEventThrottle={32}
+          onScroll={
+            hasBar || onEndReached
+              ? (event) => {
+                  const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+                  if (hasBar) {
+                    const next = contentOffset.y > (ios ? 4 - barHeight : 4);
+                    if (next !== scrolled) setScrolled(next);
+                  }
+                  if (onEndReached && contentOffset.y + layoutMeasurement.height >= contentSize.height - 400) {
+                    onEndReached();
+                  }
+                }
+              : undefined
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {title ? (
+            <View style={styles.header}>
+              {eyebrow ? (
+                <T variant="overline" tone="accent">
+                  {eyebrow}
+                </T>
+              ) : null}
+              <T variant="display" accessibilityRole="header">
+                {title}
+              </T>
+              {subtitle ? (
+                <T variant="callout" tone="secondary" style={styles.subtitle}>
+                  {subtitle}
+                </T>
+              ) : null}
+            </View>
+          ) : null}
+          {children}
+        </ScrollView>
+      </BlurTargetView>
       {hasBar ? (
-        <View style={[styles.topBar, scrolled && styles.topBarScrolled]}>
+        <BarBlur target={blurTarget} style={[styles.topBar, scrolled && styles.topBarScrolled]}>
           {back || close ? (
             <IconButton
               icon={close ? "close" : "chevron-back"}
@@ -118,68 +206,21 @@ export function Screen({
             <View />
           )}
           <View style={styles.topBarRight}>{right}</View>
+        </BarBlur>
+      ) : (
+        <View style={styles.statusScrim} pointerEvents="none">
+          <BarBlur target={blurTarget} style={styles.fill} />
         </View>
-      ) : null}
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.content,
-          !hasBar && styles.contentNoBar,
-          tabInset > 0 && !footer ? { paddingBottom: tabInset + 16 } : null,
-        ]}
-        // iOS: let UIKit inset content for the status bar and the native (Liquid Glass) tab bar.
-        contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : undefined}
-        refreshControl={
-          handleRefresh ? (
-            <RefreshControl
-              refreshing={pulling}
-              onRefresh={handleRefresh}
-              tintColor={theme.ds.inkTertiary}
-              colors={[theme.ds.accent]}
-            />
-          ) : undefined
-        }
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        scrollEventThrottle={32}
-        onScroll={
-          hasBar || onEndReached
-            ? (event) => {
-                const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-                if (hasBar) {
-                  const next = contentOffset.y > 4;
-                  if (next !== scrolled) setScrolled(next);
-                }
-                if (onEndReached && contentOffset.y + layoutMeasurement.height >= contentSize.height - 400) {
-                  onEndReached();
-                }
-              }
-            : undefined
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {title ? (
-          <View style={styles.header}>
-            {eyebrow ? (
-              <T variant="overline" tone="accent">
-                {eyebrow}
-              </T>
-            ) : null}
-            <T variant="display" accessibilityRole="header">
-              {title}
-            </T>
-            {subtitle ? (
-              <T variant="callout" tone="secondary" style={styles.subtitle}>
-                {subtitle}
-              </T>
-            ) : null}
-          </View>
-        ) : null}
-        {children}
-      </ScrollView>
-      {!hasBar ? <View style={styles.statusScrim} pointerEvents="none" /> : null}
+      )}
       {footer ? (
-        <View style={[styles.footer, tabInset > 0 ? { paddingBottom: tabInset + 12 } : null]}>{footer}</View>
+        <View
+          style={styles.footerWrap}
+          onLayout={(event) => setFooterHeight(Math.round(event.nativeEvent.layout.height))}
+        >
+          <BarBlur target={blurTarget} style={[styles.footer, tabInset > 0 ? { paddingBottom: tabInset + 12 } : null]}>
+            {footer}
+          </BarBlur>
+        </View>
       ) : null}
     </View>
   );
@@ -234,7 +275,17 @@ export function Divider({ inset = 0 }: { inset?: number }) {
 
 type PillTone = "neutral" | "accent" | "caution" | "positive";
 
-export function Pill({ label, tone = "neutral", icon }: { label: string; tone?: PillTone; icon?: IconName }) {
+export function Pill({
+  label,
+  tone = "neutral",
+  icon,
+  style,
+}: {
+  label: string;
+  tone?: PillTone;
+  icon?: IconName;
+  style?: StyleProp<ViewStyle>;
+}) {
   const { theme } = useUnistyles();
   pillStyles.useVariants({ tone });
   const color =
@@ -246,7 +297,7 @@ export function Pill({ label, tone = "neutral", icon }: { label: string; tone?: 
           ? theme.ds.positive
           : theme.ds.inkSecondary;
   return (
-    <View style={pillStyles.pill}>
+    <View style={[pillStyles.pill, style]}>
       {icon ? <Ionicons name={icon} size={12} color={color} /> : <View style={[pillStyles.dot, { backgroundColor: color }]} />}
       <T variant="caption" style={[pillStyles.label, { color }]}>
         {label}
@@ -494,10 +545,13 @@ const styles = StyleSheet.create((theme, rt) => ({
     left: 0,
     right: 0,
     height: rt.insets.top,
-    backgroundColor: theme.ds.canvas,
-    opacity: 0.94,
   },
+  fill: { flex: 1 },
   topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     paddingTop: rt.insets.top + 6,
     paddingHorizontal: theme.density.gutter,
     paddingBottom: 8,
@@ -506,7 +560,6 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: theme.ds.canvas,
   },
   topBarScrolled: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.ds.line },
   topBarRight: { flexDirection: "row", gap: 8 },
@@ -530,15 +583,16 @@ const styles = StyleSheet.create((theme, rt) => ({
     gap: theme.density.stack,
   },
   contentNoBar: { paddingTop: Platform.OS === "ios" ? 8 : rt.insets.top + 12 },
+  contentBarIos: { paddingTop: 4 },
   header: { gap: 4, marginBottom: 4 },
   subtitle: { maxWidth: 520 },
+  footerWrap: { position: "absolute", left: 0, right: 0, bottom: 0 },
   footer: {
     paddingHorizontal: theme.density.gutter,
     paddingTop: theme.density.rowY,
     paddingBottom: Math.max(rt.insets.bottom, 12),
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.ds.line,
-    backgroundColor: theme.ds.canvas,
     gap: 8,
   },
   card: {

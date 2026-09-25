@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const WALLET = "6wrVmCmxorXZhjQaWnPANgMsxaQ7SZHjB5gG7YiE34Jj";
@@ -41,7 +42,7 @@ const sellTx = (n: number, mint: string, tokenOut: string, usdcIn: string, decim
 });
 const identity = { id: "user-a", walletAddress: WALLET };
 const originalFetch = globalThis.fetch;
-const original = Object.fromEntries(["HELIUS_API_KEY", "JUPITER_API_KEY", "STOCKPILE_ALLOWED_MINTS", "STOCKPILE_MARKET", "STOCKPILE_PRESTOCKS"].map((key) => [key, process.env[key]]));
+const original = Object.fromEntries(["HELIUS_API_KEY", "JUPITER_API_KEY", "STOCKPILE_XSTOCKS", "STOCKPILE_MARKET", "STOCKPILE_PRESTOCKS"].map((key) => [key, process.env[key]]));
 const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
 
 /** Mocks Helius (getTransaction by signature, getTokenAccountsByOwner balances) and Jupiter (token metadata, quotes). */
@@ -72,9 +73,10 @@ function providers(options: { txs?: Record<string, unknown>; balances?: Record<s
 }
 
 beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0";
   rows = []; resetTokenMetaCache(); resetMarketCache();
   process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test"; process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0";
-  process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`;
+  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`);
 });
 afterEach(() => { globalThis.fetch = originalFetch; for (const [key, value] of Object.entries(original)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
 
@@ -93,6 +95,16 @@ describe("parseSwap", () => {
     expect(parseSwap({ ...buyTx(1, NVDAX, "1000000", "440000"), meta: { ...buyTx(1, NVDAX, "1000000", "440000").meta, err: { InstructionError: [0, "Custom"] } } }, WALLET)).toMatchObject({ ok: false, code: "TRANSACTION_FAILED" });
     expect(parseSwap(buyTx(1, NVDAX, "1000000", "440000"), OTHER)).toMatchObject({ ok: false, code: "NOT_YOUR_TRANSACTION" });
     expect(parseSwap(swapTx(4, { feePayer: OTHER, pre: [], post: [] }), WALLET)).toMatchObject({ ok: false, code: "NOT_YOUR_TRANSACTION" });
+    // Sponsored swap: the Stockpile paymaster pays the fee, the wallet signs as the second signer.
+    const sponsored = buyTx(7, NVDAX, "1000000", "440000");
+    const keys = sponsored.transaction.message.accountKeys;
+    keys.unshift({ pubkey: "PAYmaster1111111111111111111111111111111111", signer: true, writable: true, source: "transaction" });
+    keys[1] = { ...keys[1]!, signer: true };
+    sponsored.meta.preBalances.unshift(5_000_000); sponsored.meta.postBalances.unshift(4_995_000);
+    for (const b of [...sponsored.meta.preTokenBalances, ...sponsored.meta.postTokenBalances]) b.accountIndex += 1;
+    expect(parseSwap(sponsored, WALLET)).toMatchObject({ ok: true, value: { side: "buy", mint: NVDAX, tokenAmount: 440000n, usdcAmount: 1000000n } });
+    keys[1] = { ...keys[1]!, signer: false };
+    expect(parseSwap(sponsored, WALLET)).toMatchObject({ ok: false, code: "NOT_YOUR_TRANSACTION" });
     expect(parseSwap(swapTx(5, { pre: [{ accountIndex: 3, owner: WALLET, mint: USDC, amount: "0", decimals: 6 }], post: [{ accountIndex: 3, owner: WALLET, mint: USDC, amount: "100", decimals: 6 }] }), WALLET)).toMatchObject({ ok: false, code: "NOT_A_SWAP" });
     expect(parseSwap(swapTx(6, { pre: [{ accountIndex: 3, owner: WALLET, mint: AAPLX, amount: "100", decimals: 8 }, { accountIndex: 4, owner: WALLET, mint: NVDAX, amount: "0", decimals: 8 }], post: [{ accountIndex: 3, owner: WALLET, mint: AAPLX, amount: "0", decimals: 8 }, { accountIndex: 4, owner: WALLET, mint: NVDAX, amount: "50", decimals: 8 }] }), WALLET)).toMatchObject({ ok: false, code: "NOT_A_SWAP" });
   });
@@ -126,7 +138,7 @@ describe("recordLeg", () => {
   it("accepts a sell of a mint that left the bag when the user bought it into this bag earlier", async () => {
     providers({ txs: { [sig(4)]: buyTx(4, NVDAX, "1000000", "440000"), [sig(5)]: sellTx(5, NVDAX, "440000", "1010000") } });
     expect(await recordLeg(identity, "megacap-builders", sig(4))).toMatchObject({ status: 200 });
-    process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX}`; // NVDAx no longer resolves in the bag
+    seedMints(`AAPLx:${AAPLX}`); // NVDAx no longer resolves in the bag
     expect(await recordLeg(identity, "megacap-builders", sig(5))).toMatchObject({ status: 200, lot: { side: "sell", symbol: "NVDAx", tokenAmount: "440000", usdcAmount: "1010000" } });
     expect(await recordLeg(identity, "ai-infrastructure", sig(5))).toMatchObject({ status: 409 });
   });

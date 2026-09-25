@@ -65,19 +65,26 @@ export function activityVisual(item: Pick<Activity, "kind" | "status">): Activit
     case "transfer-in":
       return { icon: "arrow-down", tone: "positive" };
     case "transfer-out":
-      return { icon: "arrow-up", tone: "neutral" };
+      return { icon: "arrow-up", tone: "danger" };
     default:
       return { icon: "ellipsis-horizontal", tone: "neutral" };
   }
 }
 
+type Leg = Activity["legs"][number];
+
 export type ActivityLine = {
-  /** Short action, e.g. "Bought POLYMARKET", "Received SOL". */
-  title: string;
-  /** Right column, first line: the asset that moved in (or out for sends). */
-  primary: { text: string; tone: "positive" | "neutral" } | null;
-  /** Right column, second line: the other side of a swap. */
-  secondary: string | null;
+  /** Bold action word, e.g. "Bought", "Received"; the summary for unrecognised items. */
+  verb: string;
+  /** Asset named after the verb, e.g. "POLYMARKET". */
+  subject: string | null;
+  /** Signed amount for the right column; the symbol is omitted when `subject` already names it. */
+  amount: { text: string; tone: "positive" | "negative" | "accent" } | null;
+  /** Secondary line, e.g. "2.5 USDC → 0.01655 POLYMARKET" or "Into your wallet". */
+  detail: string | null;
+  /** Legs for the avatar: `front` is the asset the row is about, `back` the other side of a swap. */
+  front: Leg | null;
+  back: Leg | null;
 };
 
 const STABLE = new Set(["USDC", "USDT"]);
@@ -86,35 +93,81 @@ function legLabel(leg: { symbol: string | null; mint: string }) {
   return leg.symbol ?? `${leg.mint.slice(0, 4)}…${leg.mint.slice(-4)}`;
 }
 
-/** Signed amount; the symbol is omitted when the row title already names that asset. */
-function legAmount(leg: { amount: string; symbol: string | null; mint: string }, sign: "+" | "-", subject?: unknown) {
-  return `${sign}${formatHoldingAmount(leg.amount)}${leg === subject ? "" : ` ${legLabel(leg)}`}`;
+function legAmount(leg: Leg) {
+  return `${formatHoldingAmount(leg.amount)} ${legLabel(leg)}`;
 }
 
-/** Splits an activity item into a short title and structured amounts for a two-line list row. */
+/** Splits an activity item into verb / asset / amount / detail for a two-line ledger row. */
 export function describeActivity(item: Pick<Activity, "kind" | "status" | "summary" | "legs">): ActivityLine {
-  const ins = item.legs.filter((leg) => leg.direction === "in");
-  const outs = item.legs.filter((leg) => leg.direction === "out");
-  const received = ins[0];
-  const paid = outs[0];
+  const received = item.legs.find((leg) => leg.direction === "in");
+  const paid = item.legs.find((leg) => leg.direction === "out");
   if (item.kind === "swap" && received && paid) {
     const paidStable = STABLE.has(paid.symbol ?? "");
     const receivedStable = STABLE.has(received.symbol ?? "");
     const verb = paidStable && !receivedStable ? "Bought" : receivedStable && !paidStable ? "Sold" : "Swapped";
     const subject = verb === "Sold" ? paid : received;
     return {
-      title: `${verb} ${legLabel(subject)}`,
-      primary: { text: legAmount(received, "+", subject), tone: "positive" },
-      secondary: legAmount(paid, "-", subject),
+      verb,
+      subject: legLabel(subject),
+      amount: { text: `+${subject === received ? formatHoldingAmount(received.amount) : legAmount(received)}`, tone: "accent" },
+      detail: `${legAmount(paid)} → ${legAmount(received)}`,
+      front: subject,
+      back: subject === paid ? received : paid,
     };
   }
   if (item.kind === "transfer-in" && received) {
-    return { title: `Received ${legLabel(received)}`, primary: { text: legAmount(received, "+", received), tone: "positive" }, secondary: null };
+    return {
+      verb: "Received",
+      subject: legLabel(received),
+      amount: { text: `+${formatHoldingAmount(received.amount)}`, tone: "positive" },
+      detail: "Into your wallet",
+      front: received,
+      back: null,
+    };
   }
   if (item.kind === "transfer-out" && paid) {
-    return { title: `Sent ${legLabel(paid)}`, primary: { text: legAmount(paid, "-", paid), tone: "neutral" }, secondary: null };
+    return {
+      verb: "Sent",
+      subject: legLabel(paid),
+      amount: { text: `-${formatHoldingAmount(paid.amount)}`, tone: "negative" },
+      detail: "Out of your wallet",
+      front: paid,
+      back: null,
+    };
   }
-  return { title: item.summary, primary: null, secondary: null };
+  return { verb: item.summary, subject: null, amount: null, detail: null, front: received ?? paid ?? null, back: null };
+}
+
+function dayKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/** Day heading for grouped activity: "Today", "Yesterday", "Sep 21", "Aug 1, 2025"; "Pending" without a time. */
+export function activityDayLabel(iso: string | null | undefined, now = Date.now()): string {
+  const at = iso ? Date.parse(iso) : Number.NaN;
+  if (Number.isNaN(at)) return "Pending";
+  const date = new Date(at);
+  const today = new Date(now);
+  if (dayKey(date) === dayKey(today)) return "Today";
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (dayKey(date) === dayKey(yesterday)) return "Yesterday";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+/** Groups consecutive (newest-first) items under day headings. */
+export function groupActivityByDay<Item extends Pick<Activity, "ts">>(items: Item[], now = Date.now()) {
+  const groups: { label: string; items: Item[] }[] = [];
+  for (const item of items) {
+    const label = activityDayLabel(item.ts, now);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else groups.push({ label, items: [item] });
+  }
+  return groups;
 }
 
 /** Dedupes items across pages (a cursor boundary can repeat a signature). */

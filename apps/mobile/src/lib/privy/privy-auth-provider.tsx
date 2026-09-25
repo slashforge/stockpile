@@ -7,6 +7,7 @@ import {
 } from "@privy-io/expo";
 import { PrivyElements, useFundSolanaWallet } from "@privy-io/expo/ui";
 import { useQueryClient } from "@tanstack/react-query";
+import { Buffer } from "buffer";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { AppState } from "react-native";
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from "@/config/env";
@@ -16,13 +17,13 @@ import {
   type PrivyFundingConfig,
   suggestedFundingAmount,
 } from "@/lib/funding";
-import { getConnection } from "@/lib/solana/rpc";
-import { decodeTransaction } from "@/lib/solana/transaction";
+import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
 import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
 import {
   clearIdentityTokenGetter,
   setIdentityTokenGetter,
 } from "@/services/api/identity-token";
+import { submitSignedTransaction } from "@/services/api/stockpile";
 
 type LinkedAccount = { type?: string; address?: string };
 
@@ -78,14 +79,23 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
   const signAndSendTransaction = useMemo<
     StockpileAuth["signAndSendTransaction"]
   >(() => {
-    if (!wallet?.address) return null;
-    return async (base64Transaction: string) => {
+    const address = wallet?.address;
+    if (!wallet || !address) return null;
+    // Swaps arrive pre-signed by Stockpile's fee payer, so the wallet only adds its signature. The
+    // exact checked bytes are broadcast through the Stockpile API (Helius RPC + Sender), never a
+    // public RPC from the device.
+    return async (base64Transaction: string, options?: { bagId?: string }) => {
       const transaction = decodeTransaction(base64Transaction);
       const provider = await wallet.getProvider();
-      const { signature } = await provider.request({
-        method: "signAndSendTransaction",
-        params: { transaction, connection: getConnection() },
+      const { signedTransaction } = await provider.request({
+        method: "signTransaction",
+        params: { transaction: decodeTransaction(base64Transaction) },
       });
+      assertWalletSigned(transaction, signedTransaction, address);
+      const signature = await submitSignedTransaction(
+        Buffer.from(signedTransaction.serialize()).toString("base64"),
+        options?.bagId,
+      );
       return { signature };
     };
   }, [wallet]);

@@ -1,16 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { T } from "@/components/stockpile/type";
 import type { ImpactLevel } from "@/lib/trade/legs";
 import { formatBps } from "@/utils/amounts";
 
-export const SLIPPAGE_OPTIONS = [
+/** `null` = automatic: Jupiter picks the limit per swap from live market conditions. */
+export const SLIPPAGE_OPTIONS: { bps: number | null; label: string }[] = [
+  { bps: null, label: "Auto" },
   { bps: 50, label: "0.5%" },
   { bps: 100, label: "1%" },
   { bps: 300, label: "3%" },
 ];
+
+/** Short label for the price-protection setting: "Auto" or a fixed percentage. */
+export function protectionLabel(bps: number | null) {
+  return bps == null ? "Auto" : formatBps(bps);
+}
 
 export function Chip({
   label,
@@ -39,51 +45,75 @@ export function Chip({
   );
 }
 
-/** Slippage is a setting, not a step: a small toggle that reveals the options. */
-export function SlippageControl({
+/** Header cog for the trade settings (price protection today); a dot marks a non-default setting. */
+export function TradeSettingsButton({
   value,
-  onChange,
-  disabled,
+  open,
+  onPress,
 }: {
-  value: number;
-  onChange: (bps: number) => void;
-  disabled?: boolean;
+  value: number | null;
+  open: boolean;
+  onPress: () => void;
 }) {
   const { theme } = useUnistyles();
-  const [open, setOpen] = useState(false);
   return (
-    <View style={styles.slippage}>
-      {open ? (
-        <View style={styles.slippagePanel}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Trade settings. Price protection ${protectionLabel(value)}`}
+      accessibilityState={{ expanded: open }}
+      hitSlop={10}
+      onPress={onPress}
+      style={({ pressed }) => [styles.round, pressed && chipStyles.pressed]}
+    >
+      <Ionicons name="settings-outline" size={19} color={theme.ds.inkSecondary} />
+      {value != null ? <View style={styles.customDot} /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * Popover for the header cog. Rendered by the flow layout as an overlay of the whole sheet (so its
+ * chips stay tappable), with the card placed just under the header at `top`.
+ */
+export function TradeSettingsPopover({
+  open,
+  top,
+  value,
+  onChange,
+  onClose,
+}: {
+  open: boolean;
+  top: number;
+  value: number | null;
+  onChange: (bps: number | null) => void;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <View style={styles.overlay}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close settings" />
+      <View style={[styles.popover, { top }]} accessibilityViewIsModal>
+        <T variant="subhead" style={styles.bold}>
+          Price protection
+        </T>
+        <T variant="footnote" tone="secondary">
+          The most the price can move on each swap before it’s cancelled. Auto adapts to the market.
+        </T>
+        <View style={styles.popoverChips}>
           {SLIPPAGE_OPTIONS.map((option) => (
             <Chip
-              key={option.bps}
+              key={option.label}
               compact
               label={option.label}
               selected={value === option.bps}
               onPress={() => {
                 onChange(option.bps);
-                setOpen(false);
+                onClose();
               }}
             />
           ))}
         </View>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Slippage ${formatBps(value)}`}
-        accessibilityHint="Shows slippage options"
-        accessibilityState={{ expanded: open, disabled }}
-        disabled={disabled}
-        hitSlop={8}
-        onPress={() => setOpen((current) => !current)}
-        style={({ pressed }) => [styles.slippageToggle, pressed && chipStyles.pressed]}
-      >
-        <Ionicons name="options-outline" size={15} color={theme.ds.inkSecondary} />
-        <T variant="footnote" tone="secondary" style={styles.bold}>
-          Slippage {formatBps(value)}
-        </T>
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -116,17 +146,40 @@ export function ImpactLabel({ level, impact }: { level: ImpactLevel; impact: num
 
 const styles = StyleSheet.create((theme) => ({
   bold: { fontWeight: "600" },
-  slippage: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6 },
-  slippageToggle: {
-    flexDirection: "row",
+  round: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
-    gap: 5,
-    minHeight: 30,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.full,
+    justifyContent: "center",
     backgroundColor: theme.ds.sunken,
   },
-  slippagePanel: { flexDirection: "row", gap: 6 },
+  customDot: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: theme.ds.accent,
+  },
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 20 },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+  popover: {
+    position: "absolute",
+    right: theme.density.gutter,
+    width: 280,
+    gap: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: theme.ds.surface,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  popoverChips: { flexDirection: "row", gap: 6, marginTop: 4 },
   impact: { flexDirection: "row", alignItems: "center", gap: 3 },
 }));
 

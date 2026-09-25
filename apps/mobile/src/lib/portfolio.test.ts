@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import type { Activity } from "@/services/api/types";
 import {
   activityVisual,
+  activityDayLabel,
   describeActivity,
   flattenActivity,
+  groupActivityByDay,
   formatHoldingAmount,
   formatUsdValue,
   relativeTime,
@@ -77,7 +79,7 @@ describe("activityVisual", () => {
   test("by kind, failed overrides", () => {
     expect(activityVisual({ kind: "swap", status: "confirmed" }).icon).toBe("swap-horizontal");
     expect(activityVisual({ kind: "transfer-in", status: "confirmed" }).icon).toBe("arrow-down");
-    expect(activityVisual({ kind: "transfer-out", status: "confirmed" }).icon).toBe("arrow-up");
+    expect(activityVisual({ kind: "transfer-out", status: "confirmed" })).toEqual({ icon: "arrow-up", tone: "danger" });
     expect(activityVisual({ kind: "other", status: "confirmed" }).icon).toBe("ellipsis-horizontal");
     expect(activityVisual({ kind: "swap", status: "failed" })).toEqual({ icon: "close", tone: "danger" });
   });
@@ -85,28 +87,50 @@ describe("activityVisual", () => {
 
 describe("describeActivity", () => {
   const leg = (symbol: string, amount: string, direction: "in" | "out") => ({ mint: `${symbol}mint`, symbol, amount, direction });
-  test("buy with USDC: title names the asset, amounts split by side", () => {
-    expect(
-      describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("USDC", "2.5", "out"), leg("POLYMARKET", "0.016548", "in")] }),
-    ).toEqual({ title: "Bought POLYMARKET", primary: { text: "+0.01655", tone: "positive" }, secondary: "-2.5 USDC" });
+  test("buy with USDC: names the asset, amount is what came in, detail shows both sides", () => {
+    const usdc = leg("USDC", "2.5", "out");
+    const poly = leg("POLYMARKET", "0.016548", "in");
+    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [usdc, poly] })).toEqual({
+      verb: "Bought",
+      subject: "POLYMARKET",
+      amount: { text: "+0.01655", tone: "accent" },
+      detail: "2.5 USDC → 0.01655 POLYMARKET",
+      front: poly,
+      back: usdc,
+    });
   });
   test("sell to USDC and asset-to-asset swap", () => {
-    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("KALSHI", "1", "out"), leg("USDC", "3", "in")] })).toEqual({
-      title: "Sold KALSHI",
-      primary: { text: "+3 USDC", tone: "positive" },
-      secondary: "-1",
-    });
-    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("SOL", "1", "out"), leg("NVDAx", "3", "in")] }).title).toBe("Swapped NVDAx");
+    const kalshi = leg("KALSHI", "1", "out");
+    const line = describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [kalshi, leg("USDC", "3", "in")] });
+    expect(line.verb).toBe("Sold");
+    expect(line.subject).toBe("KALSHI");
+    expect(line.amount).toEqual({ text: "+3 USDC", tone: "accent" });
+    expect(line.front).toBe(kalshi);
+    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("SOL", "1", "out"), leg("NVDAx", "3", "in")] }).verb).toBe("Swapped");
   });
   test("transfers and fallback", () => {
-    expect(describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [leg("SOL", "0.02", "in")] })).toEqual({
-      title: "Received SOL",
-      primary: { text: "+0.02", tone: "positive" },
-      secondary: null,
-    });
-    expect(describeActivity({ kind: "transfer-out", status: "confirmed", summary: "", legs: [leg("USDC", "10", "out")] }).primary).toEqual({ text: "-10", tone: "neutral" });
-    expect(describeActivity({ kind: "other", status: "confirmed", summary: "Jupiter", legs: [] })).toEqual({ title: "Jupiter", primary: null, secondary: null });
-    expect(describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [{ mint: "So11111111111111111111111111111111111111112", symbol: null, amount: "1", direction: "in" }] }).title).toBe("Received So11…1112");
+    const line = describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [leg("SOL", "0.02", "in")] });
+    expect(line.verb).toBe("Received");
+    expect(line.amount).toEqual({ text: "+0.02", tone: "positive" });
+    expect(describeActivity({ kind: "transfer-out", status: "confirmed", summary: "", legs: [leg("USDC", "10", "out")] }).amount).toEqual({ text: "-10", tone: "negative" });
+    expect(describeActivity({ kind: "other", status: "confirmed", summary: "Jupiter", legs: [] })).toEqual({ verb: "Jupiter", subject: null, amount: null, detail: null, front: null, back: null });
+    expect(describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [{ mint: "So11111111111111111111111111111111111111112", symbol: null, amount: "1", direction: "in" }] }).subject).toBe("So11…1112");
+  });
+});
+
+describe("activity days", () => {
+  const now = new Date(2026, 8, 25, 12).getTime();
+  const at = (month: number, day: number, year = 2026) => new Date(year, month, day, 9).toISOString();
+  test("labels", () => {
+    expect(activityDayLabel(at(8, 25), now)).toBe("Today");
+    expect(activityDayLabel(at(8, 24), now)).toBe("Yesterday");
+    expect(activityDayLabel(at(8, 21), now)).toBe("Sep 21");
+    expect(activityDayLabel(at(7, 1, 2025), now)).toBe("Aug 1, 2025");
+    expect(activityDayLabel(null, now)).toBe("Pending");
+  });
+  test("groups consecutive items by day", () => {
+    const groups = groupActivityByDay([{ ts: at(8, 25) }, { ts: at(8, 25) }, { ts: at(8, 21) }], now);
+    expect(groups.map((group) => [group.label, group.items.length])).toEqual([["Today", 2], ["Sep 21", 1]]);
   });
 });
 

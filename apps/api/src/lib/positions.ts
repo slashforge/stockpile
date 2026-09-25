@@ -4,8 +4,8 @@
 // the running sum of lots per (bag, mint), reconciled against the wallet's live balances (same Helius batch as the portfolio) and
 // priced with the same Jupiter token batch. Nothing here submits transactions.
 import { createId } from "@stockpile/core/db/schema";
-import { feePayerOf, rawTokenDelta, transactionMeta, walletChanges, type Activity, type ActivityPage } from "./activity";
-import { bagAssets, bags, configuredSymbol, findBag, resolveAsset, type Bag } from "./bags";
+import { feePayerOf, rawTokenDelta, signersOf, transactionMeta, walletChanges, type Activity, type ActivityPage } from "./activity";
+import { bagAssets, bags, knownSymbol, findBag, resolveAsset, type Bag } from "./bags";
 import { USDC } from "./constants";
 import { findLotBySignature, hasBuyLot, insertLot, listLots, lotLinks, type LotRow } from "./lots-store";
 import { scaledUiMultiplier } from "./market";
@@ -51,7 +51,8 @@ export async function fetchTransaction(signature: string, key: string): Promise<
 export function parseSwap(tx: Json, wallet: string): { ok: true; value: ParsedSwap } | { ok: false; code: LegErrorCode; error: string } {
   const meta = transactionMeta(tx);
   if (meta.failed) return { ok: false, code: "TRANSACTION_FAILED", error: "The transaction failed on-chain" };
-  if (feePayerOf(tx) !== wallet) return { ok: false, code: "NOT_YOUR_TRANSACTION", error: "The transaction was not paid by your wallet" };
+  // Stockpile's paymaster pays the fee on sponsored swaps, so the wallet only has to have signed it.
+  if (feePayerOf(tx) !== wallet && !signersOf(tx).includes(wallet)) return { ok: false, code: "NOT_YOUR_TRANSACTION", error: "The transaction was not signed by your wallet" };
   const { changes } = walletChanges(tx, wallet);
   const outs = changes.filter((change) => change.delta < 0n), ins = changes.filter((change) => change.delta > 0n);
   if (outs.length !== 1 || ins.length !== 1) return { ok: false, code: "NOT_A_SWAP", error: "The transaction is not a single-token swap for your wallet" };
@@ -90,7 +91,7 @@ export async function recordLeg(identity: { id: string; walletAddress: string | 
   if (!parsed.ok) return { status: 400, error: parsed.error, code: parsed.code };
   const swap = parsed.value;
   const mints = await currentMints(bag);
-  let symbol = mints.get(swap.mint) ?? configuredSymbol(swap.mint);
+  let symbol = mints.get(swap.mint) ?? knownSymbol(swap.mint);
   if (!mints.has(swap.mint)) {
     // A mint that left the bag (tracker recomposition) can still be sold out of it when the user bought it into this bag before.
     const prior = swap.side === "sell" ? await hasBuyLot(identity.id, bagId, swap.mint) : null;

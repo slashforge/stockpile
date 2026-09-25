@@ -124,8 +124,6 @@ const fmt = (r: Row) => [r.ticker.padEnd(6), (r.symbol ?? "-").padEnd(8), (r.min
 console.log(rows.map(fmt).join("\n"));
 const passing = rows.filter(passes);
 console.log(`\n${passing.length}/${rows.length} pass (gate: routes, impact <= ${maxImpact}% on ${probeSizeUsdc} USDC, TVL >= $${minLiquidity}, implied price within ${maxDeviation}% of Jupiter usdPrice)`);
-console.log("\nissuer-assets.ts entries:");
+console.log("\nissuer-assets.ts pin entries:");
 console.log(passing.map((r) => `  ${r.symbol}: "${r.mint}",`).join("\n"));
-console.log("\nSTOCKPILE_ALLOWED_MINTS entries:");
-console.log(passing.map((r) => `${r.symbol}:${r.mint}`).join(","));
 process.exit(0);

@@ -3,7 +3,7 @@ import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { bagTradable, researchOnlyReason } from "@/components/stockpile/bag-card";
-import { Chip, heroSize, SlippageControl } from "@/components/stockpile/buy/controls";
+import { Chip, heroSize } from "@/components/stockpile/buy/controls";
 import { useBuyFlow } from "@/components/stockpile/buy/flow-context";
 import { MessageState, Skeleton } from "@/components/stockpile/layout";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
@@ -136,13 +136,6 @@ export default function BuyAmountScreen() {
 
   return (
     <View style={[styles.root, bottom]}>
-      <SlippageControl
-        value={flow.slippageBps}
-        onChange={(bps) => {
-          flow.setSlippageBps(bps);
-          prepare.reset();
-        }}
-      />
       <View style={styles.hero}>
         <T
           style={[styles.heroAmount, heroSize(heroText), !amount && styles.heroEmpty]}

@@ -1,8 +1,13 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { SOLANA_RPC_URL } from "@/config/env";
+import { fetchTransactionStatuses } from "@/services/api/stockpile";
+import { createConfirmationPoller } from "./confirmations";
+
+export type { ConfirmationStatus } from "./confirmations";
 
 let connection: Connection | null = null;
 
+/** Read-only fallback (mint decimals). Sending and confirming go through the Stockpile API. */
 export function getConnection(): Connection {
   connection ??= new Connection(SOLANA_RPC_URL, "confirmed");
   return connection;
@@ -24,28 +29,5 @@ export async function fetchMintDecimals(mints: string[]): Promise<Record<string,
   return result;
 }
 
-export type ConfirmationStatus = "confirmed" | "failed" | "unknown";
-
-/** Polls signature status until confirmed/finalized, failed, or timeout. */
-export async function waitForConfirmation(
-  signature: string,
-  { timeoutMs = 45_000, intervalMs = 2_000 } = {},
-): Promise<{ status: ConfirmationStatus; error?: string }> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const { value } = await getConnection().getSignatureStatuses([signature], {
-        searchTransactionHistory: true,
-      });
-      const status = value[0];
-      if (status?.err) return { status: "failed", error: JSON.stringify(status.err) };
-      if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") {
-        return { status: "confirmed" };
-      }
-    } catch {
-      // transient RPC failure; keep polling until timeout
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-  return { status: "unknown" };
-}
+/** Batched confirmation through Stockpile's `/trade/status` (Helius), shared by every in-flight swap. */
+export const waitForConfirmation = createConfirmationPoller(fetchTransactionStatuses);

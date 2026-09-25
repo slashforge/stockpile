@@ -1,14 +1,28 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import type { ReactNode } from "react";
+import { useUnistyles } from "react-native-unistyles";
 import { BuyFlowProvider, useBuyFlow } from "@/components/stockpile/buy/flow-context";
-import { FlowHeader } from "@/components/stockpile/buy/flow-header";
+import { FlowShell } from "@/components/stockpile/buy/flow-header";
 
 const TITLES = { amount: "Buy bag", review: "Review", progress: "Buying bag" };
 
-function Header() {
-  const { bag, close, status } = useBuyFlow();
-  return <FlowHeader bag={bag.data} status={status} close={close} titles={TITLES} />;
+function Shell({ children }: { children: ReactNode }) {
+  const { bag, close, status, slippageBps, setSlippageBps, prepare } = useBuyFlow();
+  return (
+    <FlowShell
+      bag={bag.data}
+      status={status}
+      close={close}
+      titles={TITLES}
+      slippageBps={slippageBps}
+      onSlippageChange={(bps) => {
+        setSlippageBps(bps);
+        prepare.reset();
+      }}
+    >
+      {children}
+    </FlowShell>
+  );
 }
 
 export default function BuyLayout() {
@@ -16,8 +30,7 @@ export default function BuyLayout() {
   const { theme } = useUnistyles();
   return (
     <BuyFlowProvider bagId={bagId}>
-      <View style={styles.root}>
-        <Header />
+      <Shell>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -28,11 +41,7 @@ export default function BuyLayout() {
           <Stack.Screen name="review" />
           <Stack.Screen name="progress" options={{ gestureEnabled: false }} />
         </Stack>
-      </View>
+      </Shell>
     </BuyFlowProvider>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  root: { flex: 1, backgroundColor: theme.ds.canvas },
-}));

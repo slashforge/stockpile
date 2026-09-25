@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const AAPLX = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", MSFTX = "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX", NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 const now = new Date("2026-09-25T12:00:00Z");
@@ -11,7 +12,7 @@ const { assetChart, bagHistory, bagIndex, changePct, rangeInterval } = await imp
 const { bags } = await import("./bags");
 const { resetTokensApiCache } = await import("./tokens-api");
 const originalFetch = globalThis.fetch;
-const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
+const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
 // Three-leg fixture with the classic 35/35/30 weights; bagHistory takes the bag object, so index maths below stays exact.
 const megacap = { ...bags.find((bag) => bag.id === "megacap-builders")!, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
 const hour = 3600;
@@ -35,12 +36,13 @@ function tokens(prices: Record<string, (i: number) => number>, options: { fail?:
 }
 
 beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0";
   resetTokensApiCache(); snapshotRows = [];
-  process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`; process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
+  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_ALLOWED_MINTS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
 });
 
 describe("bag history from tokens.xyz candles", () => {
@@ -88,7 +90,7 @@ describe("bag history from tokens.xyz candles", () => {
     tokens({ [AAPLX]: () => 1, [MSFTX]: () => 1, [NVDAX]: () => 1 }, { unresolved: [MSFTX] });
     expect((await bagHistory(megacap, "24h", now)).source).toBe("snapshot");
     // Research-only bag (missing allowlist entry): tokens.xyz is not consulted; the unresolved asset has no candles and the index is empty.
-    process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX}`;
+    seedMints(`AAPLx:${AAPLX}`);
     const requests = tokens({ [AAPLX]: () => 1 });
     history = await bagHistory(megacap, "7d", now);
     expect(requests).toHaveLength(0);

@@ -1,8 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { Hono } from "hono";
-import { fakeTransaction } from "../lib/solana-tx.fixture";
+import { Keypair, PublicKey, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 import { resetActivityCache } from "../lib/activity";
 import { resetTokenMetaCache } from "../lib/token-meta";
+import { resetMintRegistry, seedMints } from "../lib/mint-registry";
+import { SENDER_TIP_ACCOUNTS, SENDER_TIP_LAMPORTS } from "../lib/sponsor";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const WALLET = "11111111111111111111111111111111";
@@ -12,7 +15,9 @@ const saved = new Map<string, Set<string>>();
 let insertedUser: string | undefined;
 let deleted = false;
 const requestBody = { bagId: "megacap-builders", inputMint: USDC, amount: "1000000" };
-const unsignedTx = fakeTransaction(WALLET, { version: 0 });
+const PAYMASTER = Keypair.generate();
+const PAYER = PAYMASTER.publicKey.toBase58();
+const JUP = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 
 mock.module("../lib/identity", () => ({
   verifyIdentity: async (token: string) => token === "valid" || token === "no-wallet" || token === "other"
@@ -62,30 +67,56 @@ afterAll(() => { megacap.assets = catalogueAssets; });
 const app = new Hono();
 app.route("/", account);
 const originalFetch = globalThis.fetch;
-const original = Object.fromEntries(["PRIVY_APP_ID", "PRIVY_APP_SECRET", "JUPITER_API_KEY", "HELIUS_API_KEY", "STOCKPILE_ALLOWED_MINTS", "STOCKPILE_PRESTOCKS"].map((key) => [key, process.env[key]]));
+const original = Object.fromEntries(["PRIVY_APP_ID", "PRIVY_APP_SECRET", "JUPITER_API_KEY", "HELIUS_API_KEY", "STOCKPILE_XSTOCKS", "STOCKPILE_PRESTOCKS", "SOLANA_PAYMASTER_KEY"].map((key) => [key, process.env[key]]));
 
 function auth(token = "valid") { currentUser = token === "other" ? "user-b" : "user-a"; return { "privy-id-token": token }; }
 function post(path: string, body: unknown, token = "valid") { return app.request(path, { method: "POST", headers: { ...auth(token), "Content-Type": "application/json" }, body: JSON.stringify(body) }); }
 async function json(response: Response | Promise<Response>) { return (await response).json() as Promise<any>; }
-function allMints() { process.env.STOCKPILE_ALLOWED_MINTS = Object.entries(mints).map(([symbol, mint]) => `${symbol}:${mint}`).join(","); }
+function allMints() { seedMints(Object.entries(mints).map(([symbol, mint]) => `${symbol}:${mint}`).join(",")); }
 const quoteFor = (url: URL, extra: Record<string, unknown> = {}) => Response.json({ inputMint: url.searchParams.get("inputMint"), outputMint: url.searchParams.get("outputMint"), inAmount: url.searchParams.get("amount"), outAmount: "42", otherAmountThreshold: "41", slippageBps: Number(url.searchParams.get("slippageBps")), priceImpactPct: "0.001", routePlan: [{}], ...extra });
-/** Mocks Jupiter quote + swap. `swap` decides each swap response given its 1-based call number. */
-function jupiter(swap: (call: number, body: any) => Response, swapRequests: any[] = []) {
-  let quoteCalls = 0; let swapCalls = 0;
+const ix = (programId: string, accounts: [string, boolean, boolean][], data = [1, 2, 3]) => ({ programId, accounts: accounts.map(([pubkey, isSigner, isWritable]) => ({ pubkey, isSigner, isWritable })), data: Buffer.from(data).toString("base64") });
+const cuPrice = (microLamports: bigint) => { const data = Buffer.alloc(9); data.writeUInt8(3, 0); data.writeBigUInt64LE(microLamports, 1); return ix("ComputeBudget111111111111111111111111111111", [], [...data]); };
+/** A Jupiter `/swap/v2/build` response for the requested leg: the taker signs the swap, the paymaster funds rent. */
+const buildFor = (url: URL, extra: Record<string, unknown> = {}) => Response.json({
+  inputMint: url.searchParams.get("inputMint"), outputMint: url.searchParams.get("outputMint"), inAmount: url.searchParams.get("amount"), outAmount: "42", otherAmountThreshold: "41", slippageBps: 37, priceImpactPct: "0.001", routePlan: [{}],
+  computeBudgetInstructions: [cuPrice(50_000_000n)], setupInstructions: [], cleanupInstruction: null, otherInstructions: [],
+  swapInstruction: ix(JUP, [[url.searchParams.get("taker")!, true, false], [url.searchParams.get("payer")!, true, true], [USDC, false, true]]),
+  addressesByLookupTableAddress: null, blockhashWithMetadata: { blockhash: new Array(32).fill(7), lastValidBlockHeight: 123 }, ...extra });
+type Simulation = { err?: unknown; logs?: string[]; unitsConsumed?: number; spent?: number };
+/** Helius JSON-RPC for the paymaster: balance + simulation. Returns null for anything else. */
+function sponsorRpc(body: any, simulation: Simulation = {}, simulated: string[] = []) {
+  if (body?.method === "getBalance") return Response.json({ jsonrpc: "2.0", id: 1, result: { value: 1_000_000_000 } });
+  if (body?.method === "simulateTransaction") {
+    simulated.push(body.params[0]);
+    return Response.json({ jsonrpc: "2.0", id: 1, result: { value: { err: simulation.err ?? null, logs: simulation.logs ?? [], unitsConsumed: simulation.unitsConsumed ?? 100_000, accounts: [{ lamports: 1_000_000_000 - (simulation.spent ?? 10_000) }] } } });
+  }
+  return null;
+}
+/** Mocks Jupiter quote + build and the paymaster RPC. `build` decides each build response given its 1-based call number. */
+function jupiter(build: (call: number, url: URL) => Response = (_call, url) => buildFor(url), buildRequests: URL[] = [], simulation: Simulation = {}) {
+  let quoteCalls = 0; let buildCalls = 0;
   globalThis.fetch = mock(async (input: string | URL | Request, options?: RequestInit) => {
     const url = new URL(String(input));
+    if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(options?.body)), simulation) ?? new Response("unexpected", { status: 500 });
     expect((options?.headers as Record<string, string>)["x-api-key"]).toBe("test");
     if (url.pathname.endsWith("/quote")) { quoteCalls++; return quoteFor(url); }
-    const body = JSON.parse(String(options?.body)); swapRequests.push(body);
-    return swap(++swapCalls, body);
+    buildRequests.push(url);
+    return build(++buildCalls, url);
   }) as unknown as typeof fetch;
-  return { quoteCalls: () => quoteCalls, swapCalls: () => swapCalls };
+  return { quoteCalls: () => quoteCalls, buildCalls: () => buildCalls };
+}
+function sponsored() { process.env.HELIUS_API_KEY = "test"; process.env.SOLANA_PAYMASTER_KEY = bs58.encode(PAYMASTER.secretKey); }
+function decoded(base64: string) {
+  const tx = VersionedTransaction.deserialize(Buffer.from(base64, "base64"));
+  const keys = tx.message.staticAccountKeys.map((key) => key.toBase58());
+  return { tx, signers: keys.slice(0, tx.message.header.numRequiredSignatures), paymasterSigned: tx.signatures[0]!.some(Boolean), walletSigned: tx.signatures[1]?.some(Boolean) ?? false };
 }
 
 beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0";
   saved.clear(); lots.length = 0; insertedUser = undefined; deleted = false;
   process.env.PRIVY_APP_ID = "test-app"; process.env.PRIVY_APP_SECRET = "test-secret";
-  delete process.env.JUPITER_API_KEY; delete process.env.HELIUS_API_KEY; delete process.env.STOCKPILE_ALLOWED_MINTS; process.env.STOCKPILE_PRESTOCKS = "0";
+  delete process.env.JUPITER_API_KEY; delete process.env.HELIUS_API_KEY; resetMintRegistry(); delete process.env.SOLANA_PAYMASTER_KEY; process.env.STOCKPILE_PRESTOCKS = "0";
   globalThis.fetch = originalFetch;
 });
 afterEach(() => {
@@ -128,7 +159,7 @@ describe("portfolio (mocked Helius)", () => {
   });
   it("reads SOL, USDC and Token-2022 holdings from one batched Helius RPC call", async () => {
     process.env.HELIUS_API_KEY = "test";
-    process.env.STOCKPILE_ALLOWED_MINTS = `NVDAx:${mints.NVDAx}`;
+    seedMints(`NVDAx:${mints.NVDAx}`);
     const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
     const calls = mock(async (url: string | URL | Request, options?: RequestInit) => {
       expect(String(url)).not.toContain("undefined");
@@ -152,7 +183,7 @@ describe("portfolio (mocked Helius)", () => {
   it("enriches holdings with Jupiter metadata, prices, bag membership and honest totals (Helius stays the balance source)", async () => {
     resetTokenMetaCache();
     process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "jup";
-    process.env.STOCKPILE_ALLOWED_MINTS = `NVDAx:${mints.NVDAx}`;
+    seedMints(`NVDAx:${mints.NVDAx}`);
     const unknown = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
     const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
     const calls: string[] = [];
@@ -233,7 +264,7 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(await json(post("/trade/quote", { ...requestBody, inputMint: WALLET }))).toMatchObject({ status: "unavailable", legs: [], error: { code: "UNSUPPORTED_INPUT_MINT" } });
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", legs: [], error: { code: "PROVIDER_NOT_CONFIGURED" } });
     process.env.JUPITER_API_KEY = "test";
-    process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${mints.AAPLx},MSFTx:${mints.MSFTx}`;
+    seedMints(`AAPLx:${mints.AAPLx},MSFTx:${mints.MSFTx}`);
     const calls = mock(async () => { throw new Error("must not fetch"); });
     globalThis.fetch = calls as unknown as typeof fetch;
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", error: { code: "BAG_NOT_TRADABLE", symbol: "NVDAx" } });
@@ -273,29 +304,80 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
     expect(await json(post("/trade/quote", requestBody))).toMatchObject({ status: "unavailable", legs: [], error: { code: "QUOTE_MISMATCH", legIndex: 0 } });
   });
   it("returns no partial preparation after a leg error", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
-    const { quoteCalls, swapCalls } = jupiter((call) => call === 2 ? new Response("fail", { status: 503 }) : Response.json({ swapTransaction: unsignedTx, lastValidBlockHeight: 100 }));
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    const { quoteCalls, buildCalls } = jupiter((call, url) => call === 2 ? new Response("fail", { status: 503 }) : buildFor(url));
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "PROVIDER_ERROR", legIndex: 1, symbol: "MSFTx" } });
-    expect(quoteCalls()).toBe(3);
-    expect(swapCalls()).toBe(2);
+    expect(quoteCalls()).toBe(0);
+    expect(buildCalls()).toBe(2);
   });
-  it("prepares one labelled unsigned transaction per leg with the user's wallet as fee payer", async () => {
+  it("fails closed when sponsored fees are not configured", async () => {
     allMints(); process.env.JUPITER_API_KEY = "test";
-    const requests: { quoteResponse: { outputMint: string }; userPublicKey: string }[] = [];
-    jupiter(() => Response.json({ swapTransaction: unsignedTx, lastValidBlockHeight: 123 }), requests);
+    const { buildCalls } = jupiter();
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_NOT_CONFIGURED" } });
+    process.env.HELIUS_API_KEY = "test"; process.env.SOLANA_PAYMASTER_KEY = "not a key";
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_NOT_CONFIGURED" } });
+    expect(buildCalls()).toBe(0);
+  });
+  it("prepares one sponsored transaction per leg: paymaster pays and pre-signs, the wallet only signs the swap, RTSE by default", async () => {
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    const requests: URL[] = [];
+    jupiter(undefined, requests);
     const result = await json(post("/trade/prepare", requestBody));
-    expect(result).toMatchObject({ status: "ready", walletAddress: WALLET, bagId: "megacap-builders", error: null });
-    expect(result.transactions.map((t: any) => [t.index, t.symbol, t.outputMint, t.inputAmount, t.transaction, t.lastValidBlockHeight])).toEqual([
-      [0, "AAPLx", mints.AAPLx, "350000", unsignedTx, 123], [1, "MSFTx", mints.MSFTx, "350000", unsignedTx, 123], [2, "NVDAx", mints.NVDAx, "300000", unsignedTx, 123]]);
-    expect(requests.map(({ quoteResponse }) => quoteResponse.outputMint)).toEqual(Object.values(mints));
-    expect(requests.every(({ userPublicKey }) => userPublicKey === WALLET)).toBe(true);
+    expect(result).toMatchObject({ status: "ready", walletAddress: WALLET, bagId: "megacap-builders", slippageBps: null, error: null });
+    expect(result.transactions.map((t: any) => [t.index, t.symbol, t.outputMint, t.inputAmount, t.minOutAmount, t.slippageBps, t.feePayer, t.lastValidBlockHeight])).toEqual([
+      [0, "AAPLx", mints.AAPLx, "350000", "41", 37, PAYER, 123], [1, "MSFTx", mints.MSFTx, "350000", "41", 37, PAYER, 123], [2, "NVDAx", mints.NVDAx, "300000", "41", 37, PAYER, 123]]);
+    for (const t of result.transactions) {
+      const { tx, signers, paymasterSigned, walletSigned } = decoded(t.transaction);
+      expect(signers).toEqual([PAYER, WALLET]);
+      expect(paymasterSigned).toBe(true);
+      expect(walletSigned).toBe(false);
+      expect(tx.message.compiledInstructions).toHaveLength(4); // CU limit, clamped CU price, swap, Sender tip
+      // Last instruction: System transfer of the 5,000-lamport Helius Sender tip, paid by the paymaster.
+      const keys = tx.message.staticAccountKeys.map((key) => key.toBase58());
+      const tip = tx.message.compiledInstructions.at(-1)!;
+      expect(keys[tip.programIdIndex]).toBe("11111111111111111111111111111111");
+      expect(keys[tip.accountKeyIndexes[0]!]).toBe(PAYER);
+      expect(SENDER_TIP_ACCOUNTS as readonly string[]).toContain(keys[tip.accountKeyIndexes[1]!]!);
+      expect(Buffer.from(tip.data).readBigUInt64LE(4)).toBe(BigInt(SENDER_TIP_LAMPORTS));
+    }
+    expect(requests.map((url) => url.pathname)).toEqual(["/swap/v2/build", "/swap/v2/build", "/swap/v2/build"]);
+    expect(requests.map((url) => url.searchParams.get("outputMint"))).toEqual(Object.values(mints));
+    expect(requests.every((url) => url.searchParams.get("taker") === WALLET && url.searchParams.get("payer") === PAYER && url.searchParams.get("slippageBps") === "rtse")).toBe(true);
+    // The advanced override is passed through as a fixed limit.
+    jupiter(undefined, requests.splice(0));
+    expect(await json(post("/trade/prepare", { ...requestBody, slippageBps: 100 }))).toMatchObject({ status: "ready", slippageBps: 100 });
+    expect(requests.every((url) => url.searchParams.get("slippageBps") === "100")).toBe(true);
   });
-  it("refuses transactions that are malformed, pre-signed, or paid by another wallet", async () => {
-    allMints(); process.env.JUPITER_API_KEY = "test";
-    for (const swapTransaction of ["not base64!", "AQIDBA==", fakeTransaction(WALLET, { version: 0, signed: true }), fakeTransaction(OTHER_WALLET, { version: 0 })]) {
-      jupiter(() => Response.json({ swapTransaction }));
+  it("sets the CU limit from simulation and clamps Jupiter's CU price", async () => {
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    jupiter(undefined, [], { unitsConsumed: 200_000 });
+    const result = await json(post("/trade/prepare", requestBody));
+    const { tx } = decoded(result.transactions[0].transaction);
+    const [limit, price] = tx.message.compiledInstructions.map((ix) => Buffer.from(ix.data));
+    expect(limit![0]).toBe(2); expect(limit!.readUInt32LE(1)).toBe(240_000);
+    expect(price![0]).toBe(3); expect(price!.readBigUInt64LE(1)).toBe(1_000_000n);
+  });
+  it("refuses builds that misuse the paymaster, overspend it, or would fail on chain", async () => {
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    const token = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+    const drains: Record<string, unknown>[] = [
+      { swapInstruction: undefined },
+      { setupInstructions: [ix("11111111111111111111111111111111", [[PAYER, true, true], [OTHER_WALLET, false, true]], [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])] },
+      { setupInstructions: [ix(token, [[PAYER, true, true]])] },
+      { setupInstructions: [ix(JUP, [[OTHER_WALLET, true, true]])] },
+    ];
+    for (const extra of drains) {
+      jupiter((_call, url) => buildFor(url, extra));
       expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "INVALID_TRANSACTION", legIndex: 0, symbol: "AAPLx" } });
     }
+    jupiter(undefined, [], { spent: 50_000_000 });
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "INVALID_TRANSACTION", legIndex: 0 } });
+    jupiter(undefined, [], { err: { InstructionError: [2, { Custom: 6001 }] }, logs: ["Program log: Error: SlippageToleranceExceeded"] });
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "SLIPPAGE_REJECTED", legIndex: 0, symbol: "AAPLx" } });
+    jupiter(undefined, [], { err: { InstructionError: [2, { Custom: 1 }] } });
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_ERROR", legIndex: 0 } });
+    jupiter((_call, url) => buildFor(url, { outputMint: OTHER_WALLET }));
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "QUOTE_MISMATCH", legIndex: 0 } });
   });
 });
 
@@ -344,9 +426,11 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
 
     const quotes = providers({ balance: "330000" }); // wallet holds half of what was tracked -> sells from held
     const quote = await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000 }));
-    expect(quote).toMatchObject({ status: "available", side: "sell", bagId: "megacap-builders", inputMint: null, amount: null, portionBps: 10000, slippageBps: 50, totalOutAmount: "1600000", error: null });
-    expect(quote.legs).toEqual([{ index: 0, symbol: "NVDAx", weightBps: 3000, inputMint: mints.NVDAx, outputMint: USDC, outputDecimals: 6, uiAmountMultiplier: 1, inputAmount: "330000", outAmount: "1600000", minOutAmount: "1590000", priceImpactPct: "0.001", routeSteps: 1 }]);
-    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount")])).toEqual([[mints.NVDAx, USDC, "330000"]]);
+    // Automatic protection: indicative quote at 50 bps, but no minimum is promised until the swap is built.
+    expect(quote).toMatchObject({ status: "available", side: "sell", bagId: "megacap-builders", inputMint: null, amount: null, portionBps: 10000, slippageBps: null, totalOutAmount: "1600000", error: null });
+    expect(quote.legs).toEqual([{ index: 0, symbol: "NVDAx", weightBps: 3000, inputMint: mints.NVDAx, outputMint: USDC, outputDecimals: 6, uiAmountMultiplier: 1, inputAmount: "330000", outAmount: "1600000", minOutAmount: null, priceImpactPct: "0.001", routeSteps: 1 }]);
+    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount"), url.searchParams.get("slippageBps")])).toEqual([[mints.NVDAx, USDC, "330000", "50"]]);
+    expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000, slippageBps: 300 }))).toMatchObject({ slippageBps: 300, legs: [{ minOutAmount: "1590000" }] });
     expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 2500 }))).toMatchObject({ legs: [{ inputAmount: "82500" }], totalOutAmount: "1600000" });
     providers({ balance: "0" });
     expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000 }))).toMatchObject({ status: "unavailable", legs: [], totalOutAmount: null, error: { code: "NO_POSITION" } });
@@ -356,22 +440,48 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     expect((await post("/trade/quote", { bagId: "megacap-builders", inputMint: USDC })).status).toBe(400);
     expect((await post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 0 })).status).toBe(400);
   });
-  it("prepares sell legs as unsigned transactions paid by the wallet, echoing side and totalOutAmount", async () => {
-    allMints(); process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test";
-    lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
-    const swapRequests: any[] = [];
+  it("links a submitted leg to its bag server-side once it confirms, without the app recording it", async () => {
+    allMints(); resetTokenMetaCache(); sponsored();
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: PAYMASTER.publicKey, recentBlockhash: bs58.encode(new Uint8Array(32).fill(7)), instructions: [
+      new TransactionInstruction({ programId: new PublicKey(JUP), keys: [{ pubkey: new PublicKey(WALLET), isSigner: true, isWritable: false }], data: Buffer.from([1]) }),
+    ] }).compileToV0Message());
+    tx.sign([PAYMASTER]); tx.signatures[1] = new Uint8Array(64).fill(1);
+    let visible = false;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
-      if (url.hostname === "mainnet.helius-rpc.com") return Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "660000", 8)] } }]);
+      if (url.hostname === "sender.helius-rpc.com") return Response.json({ jsonrpc: "2.0", id: 1, result: signature });
+      if (url.hostname === "mainnet.helius-rpc.com") {
+        const body = JSON.parse(String(init?.body));
+        if (body.method === "sendTransaction") return Response.json({ jsonrpc: "2.0", id: 1, result: signature });
+        expect(body.method).toBe("getTransaction");
+        return Response.json({ jsonrpc: "2.0", id: 1, result: visible ? buyTx(signature) : null });
+      }
       if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([]);
-      if (url.pathname.endsWith("/quote")) return quoteFor(url, { outAmount: "800000" });
-      swapRequests.push(JSON.parse(String(init?.body)));
-      return Response.json({ swapTransaction: unsignedTx, lastValidBlockHeight: 123 });
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    expect(await json(post("/trade/submit", { transaction: Buffer.from(tx.serialize()).toString("base64"), bagId: "megacap-builders" }))).toEqual({ signature });
+    expect(lots).toEqual([]);
+    visible = true;
+    const deadline = Date.now() + 8_000;
+    while (!lots.length && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(lots).toEqual([expect.objectContaining({ userId: "user-a", bagId: "megacap-builders", mint: mints.NVDAx, side: "buy", signature })]);
+  }, 12_000);
+  it("prepares sponsored sell legs, echoing side and totalOutAmount", async () => {
+    allMints(); process.env.JUPITER_API_KEY = "test"; sponsored();
+    lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
+    const builds: URL[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(init?.body))) ?? Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "660000", 8)] } }]);
+      if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([]);
+      if (url.pathname.endsWith("/build")) { builds.push(url); return buildFor(url, { outAmount: "800000" }); }
+      throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
     const result = await json(post("/trade/prepare", { bagId: "megacap-builders", side: "sell", portionBps: 5000 }));
     expect(result).toMatchObject({ status: "ready", side: "sell", portionBps: 5000, inputMint: null, amount: null, walletAddress: WALLET, totalOutAmount: "800000", error: null });
-    expect(result.transactions).toEqual([expect.objectContaining({ index: 0, symbol: "NVDAx", inputMint: mints.NVDAx, outputMint: USDC, inputAmount: "330000", outAmount: "800000", transaction: unsignedTx, lastValidBlockHeight: 123 })]);
-    expect(swapRequests).toEqual([expect.objectContaining({ userPublicKey: WALLET, quoteResponse: expect.objectContaining({ inputMint: mints.NVDAx, outputMint: USDC, inAmount: "330000" }) })]);
+    expect(result.transactions).toEqual([expect.objectContaining({ index: 0, symbol: "NVDAx", inputMint: mints.NVDAx, outputMint: USDC, inputAmount: "330000", outAmount: "800000", feePayer: PAYER, lastValidBlockHeight: 123 })]);
+    expect(decoded(result.transactions[0].transaction).signers).toEqual([PAYER, WALLET]);
+    expect(builds.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount"), url.searchParams.get("taker"), url.searchParams.get("payer")])).toEqual([[mints.NVDAx, USDC, "330000", WALLET, PAYER]]);
     // The activity feed prefers the recorded lot over the catalogue guess.
     resetActivityCache();
     const transfer = buyTx(signature);
@@ -385,4 +495,85 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     return { slot: 1, blockTime: 1790388000, transaction: { signatures: [sig], message: { accountKeys: [{ pubkey: WALLET }, { pubkey: OTHER_WALLET }, { pubkey: "11111111111111111111111111111111" }, { pubkey: "22222222222222222222222222222222" }], instructions: [] } },
       meta: { err: null, fee: 5000, preBalances: [1_000_000_000, 0, 0, 0], postBalances: [999_995_000, 0, 0, 0], preTokenBalances: [tokenBalance(2, WALLET, USDC, "5000000", 6), tokenBalance(3, WALLET, mints.NVDAx, "0", 8)], postTokenBalances: [tokenBalance(2, WALLET, USDC, "3500000", 6), tokenBalance(3, WALLET, mints.NVDAx, "660000", 8)] } };
   }
+});
+
+describe("trade relay (mocked Helius)", () => {
+  /** A paymaster-paid swap the wallet must co-sign; `walletSigned` fills the wallet's signature slot. */
+  function signedSwap({ walletSigned = true, signer = WALLET } = {}) {
+    const tx = new VersionedTransaction(new TransactionMessage({ payerKey: PAYMASTER.publicKey, recentBlockhash: bs58.encode(new Uint8Array(32).fill(7)), instructions: [
+      new TransactionInstruction({ programId: new PublicKey(JUP), keys: [{ pubkey: new PublicKey(signer), isSigner: true, isWritable: false }], data: Buffer.from([1]) }),
+    ] }).compileToV0Message());
+    tx.sign([PAYMASTER]);
+    if (walletSigned) tx.signatures[1] = new Uint8Array(64).fill(1);
+    return { base64: Buffer.from(tx.serialize()).toString("base64"), signature: bs58.encode(tx.signatures[0]!) };
+  }
+  /** Mocks Helius RPC; Sender calls are recorded separately and answered by `sender`. */
+  function helius(handler: (body: any) => Response, calls: any[] = [], senderCalls: any[] = [], sender: () => Response = () => Response.json({ jsonrpc: "2.0", id: 1, result: "ok" })) {
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      const body = JSON.parse(String(init?.body));
+      if (url.hostname === "sender.helius-rpc.com") { expect(url.searchParams.get("swqos_only")).toBe("true"); senderCalls.push(body); return sender(); }
+      expect(url.hostname).toBe("mainnet.helius-rpc.com");
+      calls.push(body); return handler(body);
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  it("relays only transactions the caller's wallet signed: preflighted Helius RPC, then Helius Sender", async () => {
+    const { base64, signature } = signedSwap();
+    expect((await post("/trade/submit", { transaction: base64 })).status).toBe(503); // no Helius key
+    sponsored();
+    const senderCalls: any[] = [];
+    const calls = helius(() => Response.json({ jsonrpc: "2.0", id: 1, result: signature }), [], senderCalls);
+    expect((await app.request("/trade/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transaction: base64 }) })).status).toBe(401);
+    expect(await json(post("/trade/submit", { transaction: base64 }))).toEqual({ signature });
+    expect(calls).toEqual([expect.objectContaining({ method: "sendTransaction", params: [base64, expect.objectContaining({ encoding: "base64", preflightCommitment: "confirmed" })] })]);
+    expect(senderCalls).toEqual([expect.objectContaining({ method: "sendTransaction", params: [base64, { encoding: "base64", skipPreflight: true, maxRetries: 0 }] })]);
+
+    calls.length = 0; senderCalls.length = 0;
+    expect((await post("/trade/submit", { transaction: signedSwap({ walletSigned: false }).base64 })).status).toBe(400);
+    expect((await post("/trade/submit", { transaction: signedSwap({ signer: OTHER_WALLET }).base64 })).status).toBe(400);
+    expect((await post("/trade/submit", { transaction: base64 }, "no-wallet")).status).toBe(400);
+    expect((await post("/trade/submit", { transaction: "bm90IGEgdHg=" })).status).toBe(400);
+    expect(calls).toEqual([]);
+    expect(senderCalls).toEqual([]);
+  });
+
+  it("surfaces preflight failures as 400 without using Sender, retries 429s, falls back to Sender, else 503", async () => {
+    sponsored();
+    const { base64, signature } = signedSwap();
+    const senderCalls: any[] = [];
+    helius(() => Response.json({ jsonrpc: "2.0", id: 1, error: { code: -32002, message: "Transaction simulation failed: Error processing Instruction 1: custom program error: 0x1771", data: { logs: ["Program log: Error: SlippageToleranceExceeded"] } } }), [], senderCalls);
+    const failed = await post("/trade/submit", { transaction: base64 });
+    expect(failed.status).toBe(400);
+    expect((await failed.json() as any).error).toContain("0x1771");
+    expect(senderCalls).toEqual([]);
+
+    let attempts = 0;
+    helius(() => (++attempts < 3 ? new Response("rate limited", { status: 429 }) : Response.json({ jsonrpc: "2.0", id: 1, result: signature })));
+    expect(await json(post("/trade/submit", { transaction: base64 }))).toEqual({ signature });
+    expect(attempts).toBe(3);
+
+    helius(() => new Response("rate limited", { status: 429 }), [], senderCalls);
+    expect(await json(post("/trade/submit", { transaction: base64 }))).toEqual({ signature });
+    expect(senderCalls).toHaveLength(1);
+
+    helius(() => new Response("rate limited", { status: 429 }), [], [], () => new Response("down", { status: 503 }));
+    expect((await post("/trade/submit", { transaction: base64 })).status).toBe(503);
+  });
+
+  it("batches signature statuses into one getSignatureStatuses call", async () => {
+    const sigs = ["5".repeat(88), "6".repeat(88), "7".repeat(88)];
+    expect((await post("/trade/status", { signatures: sigs })).status).toBe(503);
+    process.env.HELIUS_API_KEY = "test";
+    const calls = helius(() => Response.json({ jsonrpc: "2.0", id: 1, result: { value: [{ err: null, confirmationStatus: "confirmed" }, { err: { InstructionError: [1, { Custom: 6001 }] }, confirmationStatus: "confirmed" }, null] } }));
+    expect(await json(post("/trade/status", { signatures: sigs }))).toEqual({ statuses: [
+      { signature: sigs[0], status: "confirmed", error: null },
+      { signature: sigs[1], status: "failed", error: JSON.stringify({ InstructionError: [1, { Custom: 6001 }] }) },
+      { signature: sigs[2], status: "pending", error: null },
+    ] });
+    expect(calls).toEqual([expect.objectContaining({ method: "getSignatureStatuses", params: [sigs, { searchTransactionHistory: true }] })]);
+    expect((await post("/trade/status", { signatures: [] })).status).toBe(400);
+    expect((await post("/trade/status", { signatures: ["not-a-signature"] })).status).toBe(400);
+  });
 });

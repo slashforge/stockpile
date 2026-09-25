@@ -4,6 +4,7 @@ import { activityErrorCodes } from "../lib/activity";
 import { legErrorCodes, signaturePattern } from "../lib/positions";
 import { tokensIntervals } from "../lib/tokens-api";
 import { chartRanges, chartReasons } from "../lib/charts";
+import { MAX_STATUS_SIGNATURES } from "../lib/broadcast";
 
 export const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 export const HealthResponseSchema = z.object({ status: z.string() }).openapi("HealthResponse");
@@ -31,17 +32,30 @@ export const TradeRequestSchema = z.object({
   inputMint: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/).optional().openapi({ description: "Buy only: must be mainnet USDC. Ignored for sells." }),
   amount: z.string().max(20).regex(/^[1-9][0-9]*$/).optional().openapi({ description: "Buy only: USDC base units (6 decimals). Ignored for sells." }),
   portionBps: z.number().int().min(1).max(10000).optional().openapi({ description: "Sell only: share of the user's bag position to sell, 1..10000 bps." }),
-  slippageBps: z.number().int().min(1).max(500).default(50),
+  slippageBps: z.number().int().min(1).max(500).nullable().optional().openapi({ description: "Advanced override. Omit or null for automatic protection (Jupiter real-time slippage estimator) chosen per leg when the swap is built." }),
 }).superRefine((value, ctx) => {
   if (value.side === "buy") { if (!value.inputMint) ctx.addIssue({ code: "custom", path: ["inputMint"], message: "inputMint is required for a buy" }); if (!value.amount) ctx.addIssue({ code: "custom", path: ["amount"], message: "amount is required for a buy" }); }
   else if (value.portionBps === undefined) ctx.addIssue({ code: "custom", path: ["portionBps"], message: "portionBps is required for a sell" });
 }).openapi("TradeRequest");
 export const TradeErrorSchema = z.object({ code: z.enum(tradeErrorCodes), message: z.string(), legIndex: z.number().nullable(), symbol: z.string().nullable() }).openapi("TradeError");
 export const QuoteLegSchema = z.object({ index: z.number(), symbol: z.string(), weightBps: z.number(), inputMint: z.string(), outputMint: z.string(), outputDecimals: z.number().nullable(), uiAmountMultiplier: z.number(), inputAmount: z.string(), outAmount: z.string(), minOutAmount: z.string().nullable(), priceImpactPct: z.string().nullable(), routeSteps: z.number() }).openapi("QuoteLeg");
-const tradeEcho = { bagId: z.string(), side: TradeSideSchema, inputMint: z.string().nullable(), amount: z.string().nullable(), portionBps: z.number().nullable(), slippageBps: z.number(), totalOutAmount: z.string().nullable().openapi({ description: "Sells: sum of leg outAmount in USDC base units. Null for buys." }) };
+const tradeEcho = { bagId: z.string(), side: TradeSideSchema, inputMint: z.string().nullable(), amount: z.string().nullable(), portionBps: z.number().nullable(), slippageBps: z.number().nullable().openapi({ description: "The requested override, or null for automatic protection." }), totalOutAmount: z.string().nullable().openapi({ description: "Sells: sum of leg outAmount in USDC base units. Null for buys." }) };
 export const QuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), ...tradeEcho, legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("QuoteResponse");
-export const PreparedTransactionSchema = QuoteLegSchema.extend({ transaction: z.string(), lastValidBlockHeight: z.number().nullable() }).openapi("PreparedTransaction");
+export const PreparedTransactionSchema = QuoteLegSchema.extend({
+  transaction: z.string().openapi({ description: "Base64 v0 transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature." }),
+  lastValidBlockHeight: z.number().nullable(),
+  slippageBps: z.number().nullable().openapi({ description: "Slippage limit this leg was built with (chosen by Jupiter when automatic)." }),
+  feePayer: z.string().openapi({ description: "Stockpile paymaster that pays the network fee and token-account rent." }),
+}).openapi("PreparedTransaction");
 export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tradeEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
+export const SubmitTransactionRequestSchema = z.object({
+  transaction: z.string().min(1).max(4096).openapi({ description: "Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored)." }),
+  bagId: z.string().min(1).optional().openapi({ description: "Bag this swap belongs to. The server links the leg to the bag once it confirms, even if the app closes first." }),
+}).openapi("SubmitTransactionRequest");
+export const SubmitTransactionSchema = z.object({ signature: z.string() }).openapi("SubmitTransactionResponse");
+export const TransactionStatusRequestSchema = z.object({ signatures: z.array(z.string().regex(signaturePattern)).min(1).max(MAX_STATUS_SIGNATURES) }).openapi("TransactionStatusRequest");
+export const TransactionStatusSchema = z.object({ signature: z.string(), status: z.enum(["pending", "confirmed", "failed"]), error: z.string().nullable() }).openapi("TransactionStatus");
+export const TransactionStatusesSchema = z.object({ statuses: z.array(TransactionStatusSchema) }).openapi("TransactionStatusesResponse");
 export const BalanceSchema = z.object({ amount: z.string(), decimals: z.number(), uiAmount: z.string(), usdPrice: z.number().nullable(), usdValue: z.number().nullable() }).openapi("Balance");
 export const HoldingSchema = z.object({ mint: z.string(), symbol: z.string().nullable(), name: z.string().nullable(), iconUrl: z.string().nullable(), amount: z.string(), decimals: z.number(), uiAmount: z.string().nullable(), program: z.enum(["token", "token-2022"]), usdPrice: z.number().nullable(), usdValue: z.number().nullable(), bagIds: z.array(z.string()) }).openapi("Holding");
 export const PortfolioSchema = z.object({ walletAddress: z.string().nullable(), status: z.enum(["live", "unavailable"]), holdings: z.array(HoldingSchema), sol: BalanceSchema.nullable(), usdc: BalanceSchema.nullable(), totalUsd: z.number().nullable(), unpricedCount: z.number(), asOf: z.string().nullable(), message: z.string().nullable() }).openapi("PortfolioResponse");

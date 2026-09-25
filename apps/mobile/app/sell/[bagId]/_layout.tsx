@@ -1,14 +1,28 @@
 import { Stack, useLocalSearchParams } from "expo-router";
-import { View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { FlowHeader } from "@/components/stockpile/buy/flow-header";
+import type { ReactNode } from "react";
+import { useUnistyles } from "react-native-unistyles";
+import { FlowShell } from "@/components/stockpile/buy/flow-header";
 import { SellFlowProvider, useSellFlow } from "@/components/stockpile/buy/sell-flow-context";
 
 const TITLES = { amount: "Sell bag", review: "Review", progress: "Selling bag" };
 
-function Header() {
-  const { bag, close, status } = useSellFlow();
-  return <FlowHeader bag={bag.data} status={status} close={close} titles={TITLES} />;
+function Shell({ children }: { children: ReactNode }) {
+  const { bag, close, status, slippageBps, setSlippageBps, prepare } = useSellFlow();
+  return (
+    <FlowShell
+      bag={bag.data}
+      status={status}
+      close={close}
+      titles={TITLES}
+      slippageBps={slippageBps}
+      onSlippageChange={(bps) => {
+        setSlippageBps(bps);
+        prepare.reset();
+      }}
+    >
+      {children}
+    </FlowShell>
+  );
 }
 
 export default function SellLayout() {
@@ -16,8 +30,7 @@ export default function SellLayout() {
   const { theme } = useUnistyles();
   return (
     <SellFlowProvider bagId={bagId}>
-      <View style={styles.root}>
-        <Header />
+      <Shell>
         <Stack
           screenOptions={{
             headerShown: false,
@@ -28,11 +41,7 @@ export default function SellLayout() {
           <Stack.Screen name="review" />
           <Stack.Screen name="progress" options={{ gestureEnabled: false }} />
         </Stack>
-      </View>
+      </Shell>
     </SellFlowProvider>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  root: { flex: 1, backgroundColor: theme.ds.canvas },
-}));

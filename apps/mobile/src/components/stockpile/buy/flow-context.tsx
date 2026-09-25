@@ -21,9 +21,10 @@ export function useTradeFlowCore(bagId: string, side: TradeSide) {
   const navigation = useNavigation();
   const bag = useBag(bagId);
   const prepare = usePrepareTrade();
-  const signing = useLegSigning();
+  const signing = useLegSigning(bagId);
   const lots = useLotRecorder(bagId);
-  const [slippageBps, setSlippageBps] = useState(100);
+  // null = automatic price protection (Jupiter's estimator); a number is the advanced override.
+  const [slippageBps, setSlippageBps] = useState<number | null>(null);
   const [prepared, setPrepared] = useState<PreparedTrade | null>(null);
   const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);

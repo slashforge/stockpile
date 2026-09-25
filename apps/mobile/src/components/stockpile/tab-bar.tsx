@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { lightImpact } from "@/components/utils/haptics";
+import { BarBlur, BlurTargetProvider, useBlurTarget } from "./bar-blur";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -32,7 +33,9 @@ const TabBarInsetContext = createContext(0);
 export function TabBarInsetProvider({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
-    <TabBarInsetContext.Provider value={floatingTabBarInset(insets.bottom)}>{children}</TabBarInsetContext.Provider>
+    <TabBarInsetContext.Provider value={floatingTabBarInset(insets.bottom)}>
+      <BlurTargetProvider>{children}</BlurTargetProvider>
+    </TabBarInsetContext.Provider>
   );
 }
 
@@ -110,21 +113,26 @@ export function FloatingTabBar({
   onLongPress?: (key: string) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { target } = useBlurTarget();
   return (
     <View
       pointerEvents="box-none"
       style={[styles.wrap, { bottom: Math.max(insets.bottom, MIN_BOTTOM) + TAB_BAR_GAP }]}
     >
-      <View accessibilityRole="tablist" style={styles.bar}>
-        {items.map((item) => (
-          <TabButton
-            key={item.key}
-            item={item}
-            active={item.key === activeKey}
-            onPress={() => onSelect(item.key)}
-            onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
-          />
-        ))}
+      <View style={styles.shadow}>
+        <BarBlur target={target} style={styles.bar}>
+          <View accessibilityRole="tablist" style={styles.items}>
+            {items.map((item) => (
+              <TabButton
+                key={item.key}
+                item={item}
+                active={item.key === activeKey}
+                onPress={() => onSelect(item.key)}
+                onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
+              />
+            ))}
+          </View>
+        </BarBlur>
       </View>
     </View>
   );
@@ -132,23 +140,24 @@ export function FloatingTabBar({
 
 const styles = StyleSheet.create((theme) => ({
   wrap: { position: "absolute", left: 14, right: 14, alignItems: "center" },
-  bar: {
+  shadow: {
     width: "100%",
     maxWidth: 520,
     height: TAB_BAR_HEIGHT,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 6,
     ...theme.rounded(TAB_BAR_HEIGHT / 2),
-    backgroundColor: Color(theme.ds.surface).alpha(0.94).string(),
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.ds.line,
     shadowColor: "#1B2250",
     shadowOpacity: 0.14,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
   },
+  bar: {
+    flex: 1,
+    overflow: "hidden",
+    ...theme.rounded(TAB_BAR_HEIGHT / 2),
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Color(theme.ds.line).alpha(0.6).string(),
+  },
+  items: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 6 },
   button: { flex: 1, height: "100%", justifyContent: "center" },
   item: {
     height: TAB_BAR_HEIGHT - 12,

@@ -1,12 +1,12 @@
 import { appConfig } from "./config";
 import { database } from "./database";
 import { domains } from "./domains";
-import { betterAuthSecret, databaseUrl, resendApiKey, tokensApiKey } from "./secrets";
+import { betterAuthSecret, databaseUrl, resendApiKey, solanaPaymasterKey, tokensApiKey } from "./secrets";
 import { isDeployed } from "./utils";
 
-const API_LINKS = [appConfig, betterAuthSecret, resendApiKey, tokensApiKey];
+const API_LINKS = [appConfig, betterAuthSecret, resendApiKey, tokensApiKey, solanaPaymasterKey];
 // The API reads provider keys from process.env (see apps/api/src/lib/tokens-api.ts), so the secret is also exposed as an env var.
-const API_ENVIRONMENT = { TOKENS_API_KEY: tokensApiKey.value };
+const API_ENVIRONMENT = { TOKENS_API_KEY: tokensApiKey.value, SOLANA_PAYMASTER_KEY: solanaPaymasterKey.value };
 
 const WORKER_TRANSFORM = {
   worker: {

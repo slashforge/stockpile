@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { PRESTOCKS_DIRECTORY_URL, parsePreStock, preStock, preStocksDirectory, resetPreStocksCache, verifyPreStock } from "./prestocks";
 import { bags, isTradable, resolveAsset } from "./bags";
+import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const MINT = "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF";
@@ -9,7 +10,7 @@ const row = (extra: Record<string, unknown> = {}) => ({ name: "OpenAI PreStocks"
 const directoryResponse = (rows: unknown[]) => Response.json(rows);
 const jupiterToken = (extra: Record<string, unknown> = {}) => ({ id: MINT, symbol: "OPENAI", name: "OpenAI PreStocks", decimals: 9, tags: ["prestocks", "token-2022", "verified", "stocks"], ...extra });
 const originalFetch = globalThis.fetch;
-const original = { key: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, flag: process.env.STOCKPILE_PRESTOCKS };
+const original = { key: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, flag: process.env.STOCKPILE_PRESTOCKS };
 
 /** Mocks directory + Jupiter search/quote/price with overridable pieces. */
 function provider(options: { directory?: () => Response; token?: Record<string, unknown> | null; quote?: () => Response; price?: () => Response } = {}) {
@@ -26,10 +27,11 @@ function provider(options: { directory?: () => Response; token?: Record<string, 
   return calls;
 }
 
-beforeEach(() => { resetPreStocksCache(); process.env.JUPITER_API_KEY = "test"; delete process.env.STOCKPILE_PRESTOCKS; process.env.STOCKPILE_ALLOWED_MINTS = `OPENAI:${MINT}`; });
+beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0"; resetPreStocksCache(); process.env.JUPITER_API_KEY = "test"; delete process.env.STOCKPILE_PRESTOCKS; seedMints(`OPENAI:${MINT}`); });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["JUPITER_API_KEY", original.key], ["STOCKPILE_ALLOWED_MINTS", original.mints], ["STOCKPILE_PRESTOCKS", original.flag]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  for (const [key, value] of [["JUPITER_API_KEY", original.key], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_PRESTOCKS", original.flag]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
 });
 
 describe("PreStocks directory", () => {
@@ -115,10 +117,10 @@ describe("PreStocks Jupiter verification and tradability gating", () => {
     expect(await resolveAsset(bag, bag.assets.find((item) => item.symbol === "ANTHROPIC")!)).toMatchObject({ mint: null, reference: null, issuer: "prestocks" });
     expect(await isTradable(bag)).toBe(false);
     // Allowlisted mint that differs from the issuer's current contract address is refused.
-    process.env.STOCKPILE_ALLOWED_MINTS = `OPENAI:${MINT2}`;
+    seedMints(`OPENAI:${MINT2}`);
     expect((await resolveAsset(bag, openai)).mint).toBeNull();
     // Issuer-listed and allowlisted but Jupiter verification fails.
-    process.env.STOCKPILE_ALLOWED_MINTS = `OPENAI:${MINT}`;
+    seedMints(`OPENAI:${MINT}`);
     resetPreStocksCache(); provider({ token: null });
     expect(await resolveAsset(bag, openai)).toMatchObject({ mint: null, reference: { tokenPrice: 1335.8 } });
     // Directory down and nothing cached: research-only, no reference, no throw.
@@ -127,7 +129,7 @@ describe("PreStocks Jupiter verification and tradability gating", () => {
   });
   it("keeps xStocks resolution independent of the PreStocks directory", async () => {
     globalThis.fetch = mock(async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch;
-    process.env.STOCKPILE_ALLOWED_MINTS = "AAPLx:XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
+    seedMints("AAPLx:XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp");
     const bag = bags[0]!;
     expect(await resolveAsset(bag, bag.assets.find((asset) => asset.symbol === "AAPLx")!)).toMatchObject({ mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", decimals: 8, uiAmountMultiplier: 1, issuer: "xstocks", assetClass: "public-equity", reference: null });
   });

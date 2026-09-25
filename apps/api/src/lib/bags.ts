@@ -1,7 +1,8 @@
 import { assetIcon } from "./token-icons";
 import { issuerAsset } from "./issuer-assets";
-import { PRESTOCKS_DISCLAIMER, preStock, preStocksDirectory, verifyPreStock, type PreStock } from "./prestocks";
-import { base58Mint } from "./constants";
+import { PRESTOCKS_DISCLAIMER, preStock, preStocksDirectory, type PreStock } from "./prestocks";
+import { knownMint, seededMint, verifyListedMint } from "./mint-registry";
+import { xStockListing } from "./xstocks";
 import { assetMarket, bagMarket, liquidityTier, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
 import { congressConsensus, loadDisclosures, pelosiTracker, tickerToSymbol, type Evidence, type TrackerAsset } from "./congress";
 
@@ -182,30 +183,21 @@ export async function bagAssets(bag: Bag): Promise<BagAssetDefinition[]> {
 /** Tracker bags with fewer overlapping tickers than `minAssets` stay research-only even when every mint resolves. */
 export function trackerBlocked(bag: Bag, assets: BagAssetDefinition[]) { return bag.tracker ? assets.length < bag.tracker.minAssets : false; }
 
-// Operators must independently verify issuer mints before adding them to this allowlist.
-export function configuredMint(symbol: string): string | null {
-  const entry = (process.env.STOCKPILE_ALLOWED_MINTS ?? "").split(",")
-    .map((item) => item.trim().split(":"))
-    .find(([key]) => key === symbol);
-  const mint = entry?.[1];
-  return mint && base58Mint.test(mint) ? mint : null;
-}
-
-/** Symbol for a configured (allowlisted) mint, if any. */
-export function configuredSymbol(mint: string): string | null {
-  for (const symbol of allSymbols()) if (configuredMint(symbol) === mint) return symbol;
+/** Bag symbol for a known mint, if any. */
+export function knownSymbol(mint: string): string | null {
+  for (const symbol of allSymbols()) if (knownMint(symbol) === mint) return symbol;
   return null;
 }
 
-/** Editorial display name for an allowlisted symbol (tracker tickers reuse the editorial xStocks names). */
-export function configuredName(symbol: string): string | null {
+/** Editorial display name for a bag symbol (tracker tickers reuse the editorial xStocks names). */
+export function catalogueName(symbol: string): string | null {
   for (const bag of bags) for (const asset of bag.assets) if (asset.symbol === symbol) return asset.name;
   return null;
 }
 
-/** IDs of every bag (editorial or tracker) whose current assets include the allowlisted mint, in catalogue order. */
+/** IDs of every bag (editorial or tracker) whose current assets include the known mint, in catalogue order. */
 export async function bagIdsForMint(mint: string): Promise<string[]> {
-  const symbol = configuredSymbol(mint);
+  const symbol = knownSymbol(mint);
   if (!symbol) return [];
   const ids: string[] = [];
   for (const bag of bags) if ((await bagAssets(bag)).some((asset) => asset.symbol === symbol)) ids.push(bag.id);
@@ -213,23 +205,30 @@ export async function bagIdsForMint(mint: string): Promise<string[]> {
 }
 
 /**
- * Resolves the tradable mint for an asset. xStocks: operator allowlist. PreStocks: operator allowlist AND the issuer's
- * current directory entry AND Jupiter verification must all agree on the same mint; otherwise the asset is research-only.
+ * Resolves the tradable mint for an asset from the issuer's live directory (xStocks per-symbol API / PreStocks directory),
+ * then requires Jupiter verification and agreement with any pinned mint, and skips operator-blocked mints. Anything else
+ * leaves the asset research-only (`mint: null`).
  */
 export async function resolveAsset(bag: Bag, asset: BagAssetDefinition): Promise<ResolvedAsset> {
-  const allowed = configuredMint(asset.symbol);
   if (bag.issuer === "xstocks") {
-    const issuer = issuerAsset(asset.symbol);
-    return { mint: allowed, decimals: allowed ? issuer?.decimals ?? null : null, uiAmountMultiplier: allowed ? await scaledUiMultiplier(allowed) : 1, issuer: "xstocks", assetClass: "public-equity", reference: null, issuerIconUrl: issuer?.logoUrl ?? null, issuerMint: issuer?.mint ?? null };
+    const snapshot = issuerAsset(asset.symbol);
+    const base = { issuer: "xstocks" as const, assetClass: "public-equity" as const, reference: null };
+    const seeded = seededMint(asset.symbol);
+    if (seeded) return { ...base, mint: seeded, decimals: snapshot?.decimals ?? null, uiAmountMultiplier: await scaledUiMultiplier(seeded), issuerIconUrl: snapshot?.logoUrl ?? null, issuerMint: snapshot?.mint ?? null };
+    const listed = await xStockListing(asset.symbol);
+    const icons = { issuerIconUrl: listed?.logoUrl ?? snapshot?.logoUrl ?? null, issuerMint: listed?.mint ?? snapshot?.mint ?? null };
+    const resolution = listed ? await verifyListedMint(asset.symbol, listed.mint, "xstocks") : null;
+    return resolution
+      ? { ...base, ...icons, mint: resolution.mint, decimals: resolution.decimals, uiAmountMultiplier: await scaledUiMultiplier(resolution.mint) }
+      : { ...base, ...icons, mint: null, decimals: null, uiAmountMultiplier: 1 };
   }
   const listed: PreStock | null = await preStock(asset.symbol);
   const base = { issuer: "prestocks" as const, assetClass: "pre-ipo" as const, issuerIconUrl: listed?.imageUrl ?? null, issuerMint: listed?.mint ?? null };
   const asOf = (await preStocksDirectory())?.asOf ?? null;
   const reference = listed && asOf ? { markPrice: listed.markPrice, tokenPrice: listed.tokenPrice, impliedValuation: listed.impliedValuation, asOf } : null;
-  if (!listed || !allowed || listed.mint !== allowed) return { ...base, mint: null, decimals: null, uiAmountMultiplier: 1, reference };
-  const verification = await verifyPreStock(listed);
-  return verification.verified
-    ? { ...base, mint: allowed, decimals: verification.decimals, uiAmountMultiplier: verification.uiAmountMultiplier, reference }
+  const resolution = listed ? await verifyListedMint(asset.symbol, listed.mint, "prestocks") : null;
+  return resolution
+    ? { ...base, mint: resolution.mint, decimals: resolution.decimals, uiAmountMultiplier: resolution.uiAmountMultiplier, reference }
     : { ...base, mint: null, decimals: null, uiAmountMultiplier: 1, reference };
 }
 
@@ -260,10 +259,10 @@ export async function publicBag(bag: Bag) {
   return { ...rest, tradable, tradableReason, market: bagMarket(assets), assets };
 }
 
-/** Registers every configured issuer mint with the market cache so one batched refresh covers all bags. */
+/** Registers every known issuer mint with the market cache so one batched refresh covers all bags. */
 export function trackAllMints() {
   const mints = new Set<string>();
-  for (const symbol of allSymbols()) { const mint = configuredMint(symbol); if (mint) mints.add(mint); }
+  for (const symbol of allSymbols()) { const mint = knownMint(symbol); if (mint) mints.add(mint); }
   trackMints(mints);
   return mints;
 }

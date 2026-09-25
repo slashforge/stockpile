@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetAssetChartData, GetAssetChartErrors, GetAssetChartResponses, GetBagChartData, GetBagChartErrors, GetBagChartResponses, GetBagData, GetBagErrors, GetBagHistoryData, GetBagHistoryErrors, GetBagHistoryResponses, GetBagPositionsData, GetBagPositionsErrors, GetBagPositionsResponses, GetBagResponses, GetBagReturnsData, GetBagReturnsResponses, GetBagSparklinesData, GetBagSparklinesResponses, GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, GetPortfolioData, GetPortfolioErrors, GetPortfolioResponses, ListActivityData, ListActivityErrors, ListActivityResponses, ListBagsData, ListBagsResponses, ListBagStoriesData, ListBagStoriesErrors, ListBagStoriesResponses, ListSavedBagsData, ListSavedBagsErrors, ListSavedBagsResponses, ListStoriesData, ListStoriesErrors, ListStoriesResponses, PrepareBagTradeData, PrepareBagTradeErrors, PrepareBagTradeResponses, QuoteBagTradeData, QuoteBagTradeErrors, QuoteBagTradeResponses, RecordBagLegData, RecordBagLegErrors, RecordBagLegResponses, RemoveSavedBagData, RemoveSavedBagErrors, RemoveSavedBagResponses, SaveBagData, SaveBagErrors, SaveBagResponses } from './types.gen';
+import type { GetAssetChartData, GetAssetChartErrors, GetAssetChartResponses, GetBagChartData, GetBagChartErrors, GetBagChartResponses, GetBagData, GetBagErrors, GetBagHistoryData, GetBagHistoryErrors, GetBagHistoryResponses, GetBagPositionsData, GetBagPositionsErrors, GetBagPositionsResponses, GetBagResponses, GetBagReturnsData, GetBagReturnsResponses, GetBagSparklinesData, GetBagSparklinesResponses, GetHealthData, GetHealthResponses, GetMeData, GetMeErrors, GetMeResponses, GetPortfolioData, GetPortfolioErrors, GetPortfolioResponses, GetTransactionStatusesData, GetTransactionStatusesErrors, GetTransactionStatusesResponses, ListActivityData, ListActivityErrors, ListActivityResponses, ListBagsData, ListBagsResponses, ListBagStoriesData, ListBagStoriesErrors, ListBagStoriesResponses, ListSavedBagsData, ListSavedBagsErrors, ListSavedBagsResponses, ListStoriesData, ListStoriesErrors, ListStoriesResponses, PrepareBagTradeData, PrepareBagTradeErrors, PrepareBagTradeResponses, QuoteBagTradeData, QuoteBagTradeErrors, QuoteBagTradeResponses, RecordBagLegData, RecordBagLegErrors, RecordBagLegResponses, RemoveSavedBagData, RemoveSavedBagErrors, RemoveSavedBagResponses, SaveBagData, SaveBagErrors, SaveBagResponses, SubmitTransactionData, SubmitTransactionErrors, SubmitTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -166,6 +166,28 @@ export const quoteBagTrade = <ThrowOnError extends boolean = false>(options?: Op
 export const prepareBagTrade = <ThrowOnError extends boolean = false>(options?: Options<PrepareBagTradeData, ThrowOnError>) => {
     return (options?.client ?? client).post<PrepareBagTradeResponses, PrepareBagTradeErrors, ThrowOnError>({
         url: '/trade/prepare',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+export const submitTransaction = <ThrowOnError extends boolean = false>(options?: Options<SubmitTransactionData, ThrowOnError>) => {
+    return (options?.client ?? client).post<SubmitTransactionResponses, SubmitTransactionErrors, ThrowOnError>({
+        url: '/trade/submit',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+export const getTransactionStatuses = <ThrowOnError extends boolean = false>(options?: Options<GetTransactionStatusesData, ThrowOnError>) => {
+    return (options?.client ?? client).post<GetTransactionStatusesResponses, GetTransactionStatusesErrors, ThrowOnError>({
+        url: '/trade/status',
         ...options,
         headers: {
             'Content-Type': 'application/json',

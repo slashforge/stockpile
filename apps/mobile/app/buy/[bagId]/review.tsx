@@ -1,20 +1,22 @@
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { useBuyFlow } from "@/components/stockpile/buy/flow-context";
+import { protectionLabel } from "@/components/stockpile/buy/controls";
 import { legBlocking, LegRow } from "@/components/stockpile/buy/leg-row";
 import { Card, Divider, MessageState, Notice, Pill } from "@/components/stockpile/layout";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
+import { SlideToConfirm } from "@/components/stockpile/slide-to-confirm";
 import { T } from "@/components/stockpile/type";
 import { isPreIpoBag, PRE_IPO_REVIEW_NOTE } from "@/lib/pre-ipo";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
-import { impactLevel, impactPercent, totalInput } from "@/lib/trade/legs";
-import { legsToSign, purchaseConfirmMessage } from "@/lib/trade/purchase";
+import { impactLevel, totalInput } from "@/lib/trade/legs";
+import { legsToSign } from "@/lib/trade/purchase";
 import { isPreparedExpired } from "@/lib/trade/signing";
 import { useStockpileAuth } from "@/providers/auth-context";
-import { formatBps, formatMoney, shortAddress } from "@/utils/amounts";
+import { formatMoney, shortAddress } from "@/utils/amounts";
 
 export default function BuyReviewScreen() {
   const flow = useBuyFlow();
@@ -23,6 +25,7 @@ export default function BuyReviewScreen() {
   const { bag, prepared, preparedAt, expired, secondsLeft, request, prepare, signing } = flow;
   const bagData = bag.data;
   const ready = prepared?.status === "ready" ? prepared : null;
+  const [slideReset, setSlideReset] = useState(0);
 
   const blocking = useMemo(() => {
     if (!ready || !bagData) return [];
@@ -61,38 +64,19 @@ export default function BuyReviewScreen() {
   };
 
   const buy = () => {
-    Alert.alert(
-      `Buy ${bagData.title}?`,
-      purchaseConfirmMessage({
-        swaps: toSign.length,
-        totalUsdc,
-        slippageBps: ready.slippageBps,
-        risky: warnLegs.map((tx) => ({
-          symbol: tx.symbol,
-          impactPct: impactPercent(tx.priceImpactPct),
-        })),
-      }),
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: `Buy · $${totalUsdc}`,
-          onPress: () => {
-            // The dialog can sit open past the blockhash lifetime; never send a stale transaction.
-            if (isPreparedExpired(preparedAt, Date.now())) {
-              flow.refreshClock();
-              Alert.alert(
-                "Prices expired",
-                "This purchase waited too long and would fail on Solana. Nothing was sent. Refresh and try again.",
-              );
-              return;
-            }
-            router.push({ pathname: "/buy/[bagId]/progress", params: { bagId: flow.bagId } });
-            flow.signing.signAll(
-              toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction })),
-            );
-          },
-        },
-      ],
+    // The clock only ticks once a second; never send a transaction past the blockhash lifetime.
+    if (isPreparedExpired(preparedAt, Date.now())) {
+      flow.refreshClock();
+      setSlideReset((n) => n + 1);
+      Alert.alert(
+        "Prices expired",
+        "This purchase waited too long and would fail on Solana. Nothing was sent. Refresh and try again.",
+      );
+      return;
+    }
+    router.push({ pathname: "/buy/[bagId]/progress", params: { bagId: flow.bagId } });
+    flow.signing.signAll(
+      toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction })),
     );
   };
 
@@ -114,9 +98,10 @@ export default function BuyReviewScreen() {
               icon="time-outline"
               label={prepare.isPending ? "Refreshing…" : expired ? "Expired" : `Expires in ${secondsLeft ?? 0}s`}
               tone={expired ? "caution" : (secondsLeft ?? 0) <= 15 ? "caution" : "accent"}
+              style={styles.pill}
             />
             <T variant="caption" tone="tertiary">
-              Slippage {formatBps(ready.slippageBps)}
+              Price protection {protectionLabel(ready.slippageBps)} · Network fees on us
             </T>
           </View>
         </Card>
@@ -178,8 +163,9 @@ export default function BuyReviewScreen() {
           </T>
         ) : null}
         <T variant="caption" tone="tertiary" align="center">
-          One confirmation signs every swap from your wallet. Estimates move until they land. Network
-          fees are paid in SOL. Not investment advice.
+          Swiping signs every swap from your wallet at once. Estimates move until they land; price
+          protection cancels a swap if the price moves too far. Stockpile covers network fees. Not investment
+          advice.
         </T>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
@@ -192,10 +178,12 @@ export default function BuyReviewScreen() {
             disabled={!request}
           />
         ) : (
-          <PrimaryButton
-            label={`Buy bag · $${totalUsdc}`}
-            onPress={buy}
+          <SlideToConfirm
+            label={`Swipe to buy · $${totalUsdc}`}
+            onConfirm={buy}
             disabled={blocked || toSign.length === 0}
+            resetKey={slideReset}
+            accessibilityHint={`Swipe right to buy ${bagData.title}`}
           />
         )}
       </View>
@@ -211,6 +199,7 @@ const styles = StyleSheet.create((theme) => ({
   bold: { fontWeight: "600" },
   summary: { flexDirection: "row", alignItems: "center", gap: theme.density.rowGap },
   summaryMeta: { alignItems: "flex-end", gap: 6 },
+  pill: { alignSelf: "flex-end" },
   total: {
     flexDirection: "row",
     alignItems: "center",

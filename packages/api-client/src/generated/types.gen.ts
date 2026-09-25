@@ -454,7 +454,10 @@ export type QuoteResponse = {
     inputMint: string | null;
     amount: string | null;
     portionBps: number | null;
-    slippageBps: number;
+    /**
+     * The requested override, or null for automatic protection.
+     */
+    slippageBps: number | null;
     /**
      * Sells: sum of leg outAmount in USDC base units. Null for buys.
      */
@@ -501,7 +504,10 @@ export type TradeRequest = {
      * Sell only: share of the user's bag position to sell, 1..10000 bps.
      */
     portionBps?: number;
-    slippageBps?: number;
+    /**
+     * Advanced override. Omit or null for automatic protection (Jupiter real-time slippage estimator) chosen per leg when the swap is built.
+     */
+    slippageBps?: number | null;
 };
 
 export type PrepareResponse = {
@@ -511,7 +517,10 @@ export type PrepareResponse = {
     inputMint: string | null;
     amount: string | null;
     portionBps: number | null;
-    slippageBps: number;
+    /**
+     * The requested override, or null for automatic protection.
+     */
+    slippageBps: number | null;
     /**
      * Sells: sum of leg outAmount in USDC base units. Null for buys.
      */
@@ -523,8 +532,48 @@ export type PrepareResponse = {
 };
 
 export type PreparedTransaction = QuoteLeg & {
+    /**
+     * Base64 v0 transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature.
+     */
     transaction: string;
     lastValidBlockHeight: number | null;
+    /**
+     * Slippage limit this leg was built with (chosen by Jupiter when automatic).
+     */
+    slippageBps: number | null;
+    /**
+     * Stockpile paymaster that pays the network fee and token-account rent.
+     */
+    feePayer: string;
+};
+
+export type SubmitTransactionResponse = {
+    signature: string;
+};
+
+export type SubmitTransactionRequest = {
+    /**
+     * Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored).
+     */
+    transaction: string;
+    /**
+     * Bag this swap belongs to. The server links the leg to the bag once it confirms, even if the app closes first.
+     */
+    bagId?: string;
+};
+
+export type TransactionStatusesResponse = {
+    statuses: Array<TransactionStatus>;
+};
+
+export type TransactionStatus = {
+    signature: string;
+    status: 'pending' | 'confirmed' | 'failed';
+    error: string | null;
+};
+
+export type TransactionStatusRequest = {
+    signatures: Array<string>;
 };
 
 export type GetHealthData = {
@@ -1065,3 +1114,65 @@ export type PrepareBagTradeResponses = {
 };
 
 export type PrepareBagTradeResponse = PrepareBagTradeResponses[keyof PrepareBagTradeResponses];
+
+export type SubmitTransactionData = {
+    body?: SubmitTransactionRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/submit';
+};
+
+export type SubmitTransactionErrors = {
+    /**
+     * Not signed by your wallet, or rejected by preflight simulation
+     */
+    400: _Error;
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Transaction provider not configured or unavailable
+     */
+    503: _Error;
+};
+
+export type SubmitTransactionError = SubmitTransactionErrors[keyof SubmitTransactionErrors];
+
+export type SubmitTransactionResponses = {
+    /**
+     * Broadcast through Stockpile's RPC; confirm with /trade/status
+     */
+    200: SubmitTransactionResponse;
+};
+
+export type SubmitTransactionResponse2 = SubmitTransactionResponses[keyof SubmitTransactionResponses];
+
+export type GetTransactionStatusesData = {
+    body?: TransactionStatusRequest;
+    path?: never;
+    query?: never;
+    url: '/trade/status';
+};
+
+export type GetTransactionStatusesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Transaction provider not configured or unavailable
+     */
+    503: _Error;
+};
+
+export type GetTransactionStatusesError = GetTransactionStatusesErrors[keyof GetTransactionStatusesErrors];
+
+export type GetTransactionStatusesResponses = {
+    /**
+     * Status per signature, in request order
+     */
+    200: TransactionStatusesResponse;
+};
+
+export type GetTransactionStatusesResponse = GetTransactionStatusesResponses[keyof GetTransactionStatusesResponses];

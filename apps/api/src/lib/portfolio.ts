@@ -1,4 +1,4 @@
-import { bagIdsForMint, configuredName, configuredSymbol } from "./bags";
+import { bagIdsForMint, catalogueName, knownSymbol } from "./bags";
 import { USDC } from "./constants";
 import { tokenMetadata, WSOL_MINT, type TokenMeta } from "./token-meta";
 
@@ -70,9 +70,9 @@ export async function readPortfolio(walletAddress: string): Promise<Portfolio> {
   const meta = await tokenMetadata([WSOL_MINT, USDC, ...raw.holdings.map((item) => item.mint)]).catch(() => new Map<string, TokenMeta>());
   const holdings: Holding[] = await Promise.all(raw.holdings.map(async (item) => {
     const token = meta.get(item.mint);
-    const configured = item.mint === USDC ? "USDC" : configuredSymbol(item.mint);
+    const configured = item.mint === USDC ? "USDC" : knownSymbol(item.mint);
     const usdPrice = token?.usdPrice ?? null;
-    return { ...item, symbol: configured ?? token?.symbol ?? null, name: (configured && configuredName(configured)) ?? token?.name ?? (item.mint === USDC ? "USD Coin" : null), iconUrl: token?.iconUrl ?? null,
+    return { ...item, symbol: configured ?? token?.symbol ?? null, name: (configured && catalogueName(configured)) ?? token?.name ?? (item.mint === USDC ? "USD Coin" : null), iconUrl: token?.iconUrl ?? null,
       usdPrice, usdValue: usdValueOf(item.uiAmount, usdPrice), bagIds: await bagIdsForMint(item.mint) };
   }));
   const sol = balance(BigInt(raw.lamports), 9, meta.get(WSOL_MINT));

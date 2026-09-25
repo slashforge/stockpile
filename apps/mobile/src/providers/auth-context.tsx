@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 
 export type SubmittedTransaction = { signature: string };
+/** `bagId` lets the server link the leg to its bag on confirmation, even if the app closes first. */
+export type SubmitOptions = { bagId?: string };
 
 export type StockpileAuth = {
   /** Privy IDs present in this build. When false the app is browse-only. */
@@ -13,11 +15,11 @@ export type StockpileAuth = {
   walletAddress: string | null;
   logout: () => Promise<void>;
   /**
-   * Asks the embedded wallet to sign and submit one base64 transaction.
-   * Null when no wallet is available.
+   * Adds the embedded wallet's signature to one base64 transaction (already signed by Stockpile's
+   * fee payer) and broadcasts it. Null when no wallet is available.
    */
   signAndSendTransaction:
-    ((base64Transaction: string) => Promise<SubmittedTransaction>) | null;
+    ((base64Transaction: string, options?: SubmitOptions) => Promise<SubmittedTransaction>) | null;
   /**
    * Opens Privy's card onramp to buy USDC into the embedded wallet. Null unless a card provider
    * is enabled in the Privy dashboard and the wallet exists, so callers can hide the button.

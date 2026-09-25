@@ -57,7 +57,7 @@ const FRIENDLY: Partial<Record<NonNullable<TradeError>["code"] | "INVALID_REQUES
   AMOUNT_TOO_SMALL: "That amount is too small to split across this bag. Try a larger amount.",
   NO_ROUTE: "No swap route is available right now. Try a different amount or try later.",
   TOKEN_NOT_TRADABLE: "One of the tokens can’t be traded right now.",
-  SLIPPAGE_REJECTED: "Prices moved beyond your slippage limit. Try a higher limit or a new quote.",
+  SLIPPAGE_REJECTED: "The price is moving too fast right now, so nothing was prepared. Try again in a moment.",
   QUOTE_MISMATCH: "Prices changed while building. Get a fresh quote and try again.",
   PROVIDER_ERROR: "The swap provider had a problem. Try again in a moment.",
   PROVIDER_TIMEOUT: "The swap provider took too long. Try again.",
@@ -69,6 +69,24 @@ export function tradeErrorMessage(error: TradeError, fallback: string | null): s
   if (!error) return fallback ?? "Something went wrong.";
   const base = FRIENDLY[error.code] ?? error.message;
   return error.symbol ? `${base} (${error.symbol})` : base;
+}
+
+const PRICE_MOVED = "The price moved more than your price protection allows, so nothing was swapped. Retry for a fresh price.";
+
+/**
+ * Plain-language reason for a swap that failed while sending or on chain. Raw RPC/program errors
+ * ("custom program error: 0x1771") mean nothing to most users.
+ */
+export function friendlySwapError(raw: string | undefined, fallback: string): string {
+  const text = raw ?? "";
+  if (/0x1771|"Custom":\s?6001|SlippageToleranceExceeded|slippage/i.test(text)) return PRICE_MOVED;
+  if (/blockhash not found|block height exceeded|expired/i.test(text)) {
+    return "This swap waited too long and expired, so nothing was swapped. Retry for a fresh price.";
+  }
+  if (/insufficient (funds|lamports)|0x1\b/i.test(text)) return "There wasn't enough balance for this swap, so nothing was swapped.";
+  if (/reject|cancel|denied/i.test(text)) return "Signing was cancelled.";
+  if (/simulation failed/i.test(text)) return "This swap would fail right now, so it wasn't sent. Retry for a fresh price.";
+  return text && text.length < 160 && !/^[{[]|program|instruction/i.test(text) ? text : fallback;
 }
 
 /** Price impact at or above this (percent) shows a thin-liquidity warning on the leg. */

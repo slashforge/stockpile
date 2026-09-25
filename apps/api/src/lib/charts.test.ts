@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { assetChart, bagChart, bagIndex, bagReturns, rangeConfig, resetChartCache, sparklines } from "./charts";
 import { bags } from "./bags";
 import { resetTokensApiCache, type Candle } from "./tokens-api";
+import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const AAPLX = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", MSFTX = "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX", NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 const now = new Date("2026-09-25T12:00:00Z");
 const nowSec = Math.floor(now.getTime() / 1000);
 const originalFetch = globalThis.fetch;
-const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
+const original = { tokens: process.env.TOKENS_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET, prestocks: process.env.STOCKPILE_PRESTOCKS };
 // Three-leg fixture with the classic 35/35/30 weights; bagChart takes the bag object, so index maths below stays exact.
 const real = bags.find((bag) => bag.id === "megacap-builders")!;
 const megacap = { ...real, assets: [{ symbol: "AAPLx", underlyingTicker: "AAPL", name: "Apple xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "MSFTx", underlyingTicker: "MSFT", name: "Microsoft xStock", weightBps: 3500, sourceUrl: "https://xstocks.fi/products" }, { symbol: "NVDAx", underlyingTicker: "NVDA", name: "NVIDIA xStock", weightBps: 3000, sourceUrl: "https://xstocks.fi/products" }] };
@@ -36,12 +37,13 @@ function tokens(prices: Record<string, (i: number) => number>, options: { fail?:
 }
 
 beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0";
   resetTokensApiCache(); resetChartCache();
-  process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`; process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
+  seedMints(`AAPLx:${AAPLX},MSFTx:${MSFTX},NVDAx:${NVDAX}`); process.env.STOCKPILE_MARKET = "0"; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.TOKENS_API_KEY = "tk-test";
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_ALLOWED_MINTS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  for (const [key, value] of [["TOKENS_API_KEY", original.tokens], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market], ["STOCKPILE_PRESTOCKS", original.prestocks]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
 });
 
 describe("asset chart", () => {
@@ -137,13 +139,13 @@ describe("bag chart", () => {
     tokens({}, { fail: [AAPLX, MSFTX, NVDAX] });
     expect(await bagChart(megacap, "1D", now)).toMatchObject({ points: [], reason: "unavailable" });
     resetChartCache(); resetTokensApiCache();
-    process.env.STOCKPILE_ALLOWED_MINTS = `AAPLx:${AAPLX}`;
+    seedMints(`AAPLx:${AAPLX}`);
     const requests = tokens({ [AAPLX]: (i) => 100 + i });
     chart = await bagChart(megacap, "1D", now);
     expect(chart.reason).toBeNull(); // one tradable leg still charts; research-only legs are flagged
     expect(chart.legs.map((leg) => [leg.mint, leg.ok, leg.reason])).toEqual([[AAPLX, true, null], [null, false, "not_tradable"], [null, false, "not_tradable"]]);
     expect(requests.filter((request) => request.path.endsWith("/price-chart"))).toHaveLength(1);
-    delete process.env.STOCKPILE_ALLOWED_MINTS; resetChartCache();
+    resetMintRegistry(); resetChartCache();
     expect(await bagChart(megacap, "1D", now)).toMatchObject({ points: [], reason: "not_tradable" });
   });
 });
@@ -174,7 +176,7 @@ describe("bag returns", () => {
   // The mock emits one candle per interval step from the requested window start; SPY rises 0.1 per step, the others are flat.
   const prices = { [SPYX]: (i: number) => 100 + i * 0.1, [QQQX]: () => 200, [GLDX]: () => 50 };
   it("reports exactly bagChart's change for 1M / 1Y / ALL (same candles, interval, window and leg rule as the detail screen)", async () => {
-    process.env.STOCKPILE_ALLOWED_MINTS = `SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`;
+    seedMints(`SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`);
     const requests = tokens(prices);
     const result = await bagReturns(now);
     expect(result).toMatchObject({ source: "tokens.xyz", interval: "1D", reason: null });
@@ -205,7 +207,7 @@ describe("bag returns", () => {
     expect(requests.length).toBe(before);
   });
   it("shortens a window with a late-listed leg exactly like the chart does, and fails soft like the chart", async () => {
-    process.env.STOCKPILE_ALLOWED_MINTS = `SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`;
+    seedMints(`SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`);
     tokens({ ...prices, [GLDX]: (i) => (i < 700 ? 0 : 50) }); // close 0 -> candle dropped: on the daily series GLD has 30 days of history
     const result = await bagReturns(now);
     const index = result.returns["index-basics"]!;
@@ -219,5 +221,24 @@ describe("bag returns", () => {
     expect(await bagReturns(now)).toMatchObject({ reason: "unavailable", returns: { "index-basics": { "1M": null, "1Y": null, ALL: null, since: null, sparkline1M: [] } } });
     delete process.env.TOKENS_API_KEY; resetChartCache();
     expect(await bagReturns(now)).toMatchObject({ reason: "unconfigured", asOf: null, returns: { "index-basics": { "1M": null, "1Y": null, ALL: null } } });
+  });
+  it("serves the last value instantly once it has one and refreshes in the background after the TTL", async () => {
+    seedMints(`SPYx:${SPYX},QQQx:${QQQX},GLDx:${GLDX}`);
+    tokens(prices);
+    const first = await bagReturns(now);
+    const realNow = Date.now;
+    try {
+      Date.now = () => realNow() + 6 * 60_000; // past the 5-minute TTL
+      resetTokensApiCache();
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const inner = globalThis.fetch;
+      globalThis.fetch = (async (...args: Parameters<typeof fetch>) => { await gate; return inner(...args); }) as typeof fetch;
+      // Upstream is blocked, yet the stale value comes back without waiting.
+      expect(await bagReturns(now)).toBe(first);
+      release();
+    } finally {
+      Date.now = realNow;
+    }
   });
 });

@@ -44,7 +44,33 @@ describe("inspectTransaction", () => {
 
   test("blocks a tx built for another wallet", () => {
     const summary = inspectTransaction(unsignedTx(Keypair.generate()), Keypair.generate().publicKey.toBase58());
-    expect(summary.errors).toContain("Fee payer is not your wallet.");
+    expect(summary.errors).toContain("Your wallet is not a signer on this transaction.");
+  });
+
+  test("accepts a sponsored tx only when the fee payer has validly signed", () => {
+    const wallet = Keypair.generate();
+    const sponsor = Keypair.generate();
+    const message = new TransactionMessage({
+      payerKey: sponsor.publicKey,
+      recentBlockhash: BLOCKHASH,
+      instructions: [SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: Keypair.generate().publicKey, lamports: 1 })],
+    }).compileToV0Message();
+    const tx = new VersionedTransaction(message);
+    const encode = (value: VersionedTransaction) => Buffer.from(value.serialize()).toString("base64");
+    const address = wallet.publicKey.toBase58();
+
+    const unsigned = inspectTransaction(encode(tx), address);
+    expect(unsigned.sponsored).toBe(true);
+    expect(unsigned.errors).toEqual(["The network fee sponsor hasn't signed this transaction."]);
+
+    tx.sign([sponsor]);
+    const signed = inspectTransaction(encode(tx), address);
+    expect(signed.errors).toEqual([]);
+    expect(signed.feePayer).toBe(sponsor.publicKey.toBase58());
+    expect(signed.requiredSigners).toEqual([sponsor.publicKey.toBase58(), address]);
+
+    tx.signatures[0] = new Uint8Array(64).fill(1);
+    expect(inspectTransaction(encode(tx), address).errors).toContain("The network fee sponsor hasn't signed this transaction.");
   });
 
   test("blocks a tx needing extra signers", () => {

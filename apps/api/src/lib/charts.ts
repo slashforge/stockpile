@@ -48,7 +48,38 @@ async function memo<T>(key: string, ttl: number, compute: () => Promise<T>): Pro
   memoCache.set(key, { expiresAt: 0, pending });
   return pending;
 }
-export function resetChartCache() { memoCache.clear(); }
+export function resetChartCache() { memoCache.clear(); swrCache.clear(); }
+
+/**
+ * Like `memo`, but once a value exists it is always served immediately: past its TTL it is refreshed in
+ * the background (one refresh at a time). Only the very first call waits for the computation.
+ */
+type SwrEntry = { expiresAt: number; value?: unknown; pending?: Promise<unknown> };
+const swrCache = new Map<string, SwrEntry>();
+async function staleWhileRevalidate<T>(key: string, ttl: number, compute: () => Promise<T>): Promise<T> {
+  const entry: SwrEntry = swrCache.get(key) ?? { expiresAt: 0 };
+  swrCache.set(key, entry);
+  const refresh = () => {
+    entry.pending ??= compute().then(
+      (value) => { entry.value = value; entry.expiresAt = Date.now() + ttl; return value; },
+      (error) => { console.warn("chart refresh failed", error); throw error; },
+    ).finally(() => { entry.pending = undefined; });
+    return entry.pending as Promise<T>;
+  };
+  if (entry.value === undefined) return refresh();
+  if (entry.expiresAt <= Date.now()) refresh().catch(() => undefined);
+  return entry.value as T;
+}
+
+/** Runs `task` over `items` with at most `limit` in flight, keeping result order. */
+async function mapLimited<T, R>(items: readonly T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) { const index = next++; results[index] = await task(items[index]!); }
+  }));
+  return results;
+}
 
 /** Candles for one mint over the window. Daily requests always fetch the two-year ALL window (cached per mint) and clip to [from, to]. */
 async function seriesFor(mint: string, interval: TokensInterval, window: Window): Promise<{ candles: Candle[]; reason: ChartReason | null }> {
@@ -156,19 +187,19 @@ function daily(points: IndexPoint[]): IndexPoint[] {
 /**
  * Card returns for every bag in one call: exactly `bagChart(bag, "1M" | "1Y" | "ALL").change.pct` (same candles, interval, window and
  * leg rule as the detail screen), `since` = first point of the ALL index, `sparkline1M` = the 1M index thinned to one point per day.
- * Bags are processed one at a time so the fan-out stays bounded; bagChart's 60s memo and the per-mint candle cache dedupe the rest.
- * Cached 5 minutes. A range whose chart has a reason (unconfigured, research-only, provider down) is null, like the chart's change.
+ * Four bags are processed at a time so the fan-out stays bounded; bagChart's 60s memo and the per-mint candle cache dedupe the rest.
+ * Refreshed every 5 minutes in the background (stale-while-revalidate), so only a cold server makes a caller wait.
+ * A range whose chart has a reason (unconfigured, research-only, provider down) is null, like the chart's change.
  */
 export async function bagReturns(now = new Date()): Promise<BagReturnsResponse> {
-  return memo(`returns:${process.env.TOKENS_API_KEY ? "k" : "-"}`, returnsTtl, async () => {
-    const entries: (readonly [string, BagReturns])[] = [];
+  return staleWhileRevalidate(`returns:${process.env.TOKENS_API_KEY ? "k" : "-"}`, returnsTtl, async () => {
     let asOf: string | null = null;
-    for (const bag of bags) {
+    const entries = await mapLimited(bags, 4, async (bag) => {
       const [month, year, all] = await Promise.all([bagChart(bag, "1M", now), bagChart(bag, "1Y", now), bagChart(bag, "ALL", now)]);
       const first = all.points[0];
-      entries.push([bag.id, { "1M": month.change?.pct ?? null, "1Y": year.change?.pct ?? null, ALL: all.change?.pct ?? null, since: first ? new Date(first.t * 1000).toISOString() : null, sparkline1M: daily(month.points) }]);
       for (const chart of [month, year, all]) if (chart.asOf && (!asOf || chart.asOf > asOf)) asOf = chart.asOf;
-    }
+      return [bag.id, { "1M": month.change?.pct ?? null, "1Y": year.change?.pct ?? null, ALL: all.change?.pct ?? null, since: first ? new Date(first.t * 1000).toISOString() : null, sparkline1M: daily(month.points) }] as const;
+    });
     const any = entries.some(([, value]) => value["1M"] !== null || value["1Y"] !== null || value.ALL !== null);
     return { source: CHART_SOURCE, interval: "1D", asOf, reason: !process.env.TOKENS_API_KEY ? "unconfigured" : any ? null : "unavailable", returns: Object.fromEntries(entries) };
   });

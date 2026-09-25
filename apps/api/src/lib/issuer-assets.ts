@@ -4,7 +4,8 @@
 // Every symbol also passed the on-chain liquidity gate in apps/api/scripts/probe-xstocks.ts on that date
 // (10 USDC quote routes, <= 2.5% impact, TVL >= $500, implied price within 10% of Jupiter usdPrice).
 // AMDx, AVGOx, NFLXx and TSMx are borderline (~2-2.3% impact); TSMx is allowlisted but not in an editorial bag.
-// Used for icon lookup only; trading still requires the operator allowlist (STOCKPILE_ALLOWED_MINTS).
+// Used for icons and as mint pins: tradable mints are resolved live from the issuer directories (see mint-registry.ts),
+// and a live mint that disagrees with a pinned one is refused until someone re-verifies it. New listings need no pin.
 const mints: Record<string, string> = {
   AAPLx: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp",
   MSFTx: "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX",
@@ -43,4 +44,22 @@ const decimals = 8;
 export function issuerAsset(symbol: string) {
   const mint = mints[symbol];
   return mint ? { mint, decimals, logoUrl: `https://xstocks-metadata.backed.fi/logos/tokens/${symbol}.png` } : null;
+}
+
+// PreStocks contract addresses verified on 2026-09-25 against https://prestocks.com/api/prestocks and Jupiter
+// (verified + prestocks tags, live USDC route). Pins only: resolution still requires the live directory to agree.
+const preStockMints: Record<string, string> = {
+  OPENAI: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
+  ANTHROPIC: "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw",
+  FIGUREAI: "PreZad18qfPtbxNpMtMuAuX2zVpvkEU8DnJx56faCWd",
+  NEURALINK: "PrekqLJvJ3qVdXmBGDiexvwUTF4rLFDa6HWS4HJbw9S",
+  KALSHI: "PreLWGkkeqG1s4HEfFZSy9moCrJ7btsHuUtfcCeoRua",
+  POLYMARKET: "Pre8AREmFPtoJFT8mQSXQLh56cwJmM7CFDRuoGBZiUP",
+  SPACEX: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+  ANDURIL: "PresTj4Yc2bAR197Er7wz4UUKSfqt6FryBEdAriBoQB",
+};
+
+/** Previously verified mint for a symbol (xStocks or PreStocks), used to refuse a directory that suddenly changes it. */
+export function pinnedMint(symbol: string): string | null {
+  return mints[symbol] ?? preStockMints[symbol] ?? null;
 }

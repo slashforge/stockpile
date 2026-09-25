@@ -1,4 +1,5 @@
 import { inspectTransaction } from "@/lib/solana/transaction";
+import { friendlySwapError } from "./legs";
 
 export type LegSigningState =
   | { status: "idle" }
@@ -125,7 +126,7 @@ export async function signLeg(
   } catch (error) {
     return finish({
       status: "failed",
-      error: error instanceof Error ? error.message : "Signing was cancelled or failed.",
+      error: friendlySwapError(error instanceof Error ? error.message : undefined, "Signing was cancelled or failed."),
     });
   }
   onState({ status: "submitted", signature });
@@ -133,7 +134,7 @@ export async function signLeg(
   const result = await waitForConfirmation(signature);
   if (result.status === "confirmed") return finish({ status: "confirmed", signature });
   if (result.status === "failed") {
-    return finish({ status: "failed", signature, error: "Transaction failed on-chain. No tokens were swapped." });
+    return finish({ status: "failed", signature, error: friendlySwapError(result.error, "Transaction failed on-chain. No tokens were swapped.") });
   }
   // Unknown: stay "submitted"; it may still land. The user can check the explorer.
   return { status: "submitted", signature };

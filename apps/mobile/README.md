@@ -143,7 +143,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 - Cleartext HTTP is enabled only when `EXPO_PUBLIC_API_URL` starts with `http://` (local testing).
 - The API must be the Stockpile API. If another process already holds port 4040, run the API on a free port and point the
   emulator at it with `adb reverse tcp:4040 tcp:<port>`.
-- Buying stays disabled until the backend's `STOCKPILE_ALLOWED_MINTS` is set: baskets whose assets have `mint: null` are research only.
+- Buying needs the backend's `JUPITER_API_KEY` (mints are resolved live from the issuers and verified on Jupiter): baskets whose assets have `mint: null` are research only.
 
 ## iOS simulator release build (no Metro)
 

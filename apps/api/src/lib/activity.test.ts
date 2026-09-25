@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { decimalToAtomic, formatAmount, normaliseActivity, normalisePage, readActivity, resetActivityCache, walletChanges } from "./activity";
 import { kalshiBuy, KALSHI_MINT, polymarketBuy, POLYMARKET_MINT, solDeposit, TEST_WALLET as WALLET, usdcDeposit } from "./activity.fixture";
 import { resetTokenMetaCache, WSOL_MINT } from "./token-meta";
+import { resetMintRegistry, seedMints } from "./mint-registry";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const OTHER = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
@@ -9,7 +10,7 @@ const NVDAX = "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh";
 const UNKNOWN = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
 const sig = (n: number) => `${n.toString().replace(/0/g, "z")}${"5".repeat(87 - String(n).length)}`; // 88-char base58 signature
 const originalFetch = globalThis.fetch;
-const original = { helius: process.env.HELIUS_API_KEY, jupiter: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_ALLOWED_MINTS, market: process.env.STOCKPILE_MARKET };
+const original = { helius: process.env.HELIUS_API_KEY, jupiter: process.env.JUPITER_API_KEY, mints: process.env.STOCKPILE_XSTOCKS, market: process.env.STOCKPILE_MARKET };
 const none = new Map();
 
 type Key = { pubkey: string; signer?: boolean; writable?: boolean };
@@ -24,10 +25,11 @@ function tx(n: number, options: { keys: Key[]; pre: number[]; post: number[]; pr
   };
 }
 
-beforeEach(() => { resetActivityCache(); resetTokenMetaCache(); process.env.STOCKPILE_ALLOWED_MINTS = `NVDAx:${NVDAX},KALSHI:${KALSHI_MINT},POLYMARKET:${POLYMARKET_MINT}`; process.env.STOCKPILE_MARKET = "0"; delete process.env.JUPITER_API_KEY; process.env.HELIUS_API_KEY = "test"; });
+beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0"; resetActivityCache(); resetTokenMetaCache(); seedMints(`NVDAx:${NVDAX},KALSHI:${KALSHI_MINT},POLYMARKET:${POLYMARKET_MINT}`); process.env.STOCKPILE_MARKET = "0"; delete process.env.JUPITER_API_KEY; process.env.HELIUS_API_KEY = "test"; });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const [key, value] of [["HELIUS_API_KEY", original.helius], ["JUPITER_API_KEY", original.jupiter], ["STOCKPILE_ALLOWED_MINTS", original.mints], ["STOCKPILE_MARKET", original.market]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  for (const [key, value] of [["HELIUS_API_KEY", original.helius], ["JUPITER_API_KEY", original.jupiter], ["STOCKPILE_XSTOCKS", original.mints], ["STOCKPILE_MARKET", original.market]] as const) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
 });
 
 describe("real getTransactionsForAddress payloads (test wallet)", () => {

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { app } from "./app";
+import { resetMintRegistry, seedMints } from "./lib/mint-registry";
 
-const keys = ["STOCKPILE_ALLOWED_MINTS", "STOCKPILE_PRESTOCKS", "STOCKPILE_BRAND_COLORS", "STOCKPILE_MARKET", "JUPITER_API_KEY", "TOKENS_API_KEY"] as const;
+const keys = ["STOCKPILE_XSTOCKS", "STOCKPILE_PRESTOCKS", "STOCKPILE_BRAND_COLORS", "STOCKPILE_MARKET", "JUPITER_API_KEY", "TOKENS_API_KEY"] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 const verified = { MSFTx: "22222222222222222222222222222222", GOOGLx: "33333333333333333333333333333333", AMZNx: "44444444444444444444444444444444", PLTRx: "55555555555555555555555555555555", ORCLx: "66666666666666666666666666666666" };
 // Bun loads the root .env: without these overrides the suite would call Jupiter / issuer CDNs for fake mints and time out offline.
-beforeEach(() => { delete process.env.STOCKPILE_ALLOWED_MINTS; delete process.env.JUPITER_API_KEY; delete process.env.TOKENS_API_KEY; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.STOCKPILE_BRAND_COLORS = "0"; process.env.STOCKPILE_MARKET = "0"; });
+beforeEach(() => {
+  process.env.STOCKPILE_XSTOCKS = "0"; resetMintRegistry(); delete process.env.JUPITER_API_KEY; delete process.env.TOKENS_API_KEY; process.env.STOCKPILE_PRESTOCKS = "0"; process.env.STOCKPILE_BRAND_COLORS = "0"; process.env.STOCKPILE_MARKET = "0"; });
 afterEach(() => { for (const key of keys) { if (original[key] === undefined) delete process.env[key]; else process.env[key] = original[key]; } });
 
 type Bag = { id: string; sourceType: string; issuer: string; assetClass: string; risks: string[]; disclosure: string; tradable: boolean; tradableReason: string | null; curator: { kind: string; name: string }; market: unknown; assets: { symbol: string; weightBps: number; mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: string; assetClass: string; reference: unknown; iconUrl: string | null; iconSource: string | null }[]; sources: { url: string }[] };
@@ -47,11 +49,11 @@ describe("public bags and auth boundaries", () => {
     }
   });
   it("marks a bag tradable only when every asset symbol is on the operator allowlist", async () => {
-    process.env.STOCKPILE_ALLOWED_MINTS = `MSFTx:${verified.MSFTx},GOOGLx:${verified.GOOGLx},AMZNx:${verified.AMZNx},PLTRx:${verified.PLTRx}`;
+    seedMints(`MSFTx:${verified.MSFTx},GOOGLx:${verified.GOOGLx},AMZNx:${verified.AMZNx},PLTRx:${verified.PLTRx}`);
     let { bag } = await (await app.request("/bags/cloud-software")).json() as { bag: Bag };
     expect(bag.tradable).toBe(false);
     expect(bag.assets.map((asset) => asset.mint)).toEqual([verified.MSFTx, verified.GOOGLx, verified.AMZNx, verified.PLTRx, null]);
-    process.env.STOCKPILE_ALLOWED_MINTS = Object.entries(verified).map(([symbol, mint]) => `${symbol}:${mint}`).join(",");
+    seedMints(Object.entries(verified).map(([symbol, mint]) => `${symbol}:${mint}`).join(","));
     ({ bag } = await (await app.request("/bags/cloud-software")).json() as { bag: Bag });
     expect(bag.tradable).toBe(true);
     expect(bag.assets.map((asset) => asset.mint)).toEqual(Object.values(verified));
@@ -83,7 +85,7 @@ describe("public bags and auth boundaries", () => {
     expect(response.status).toBe(200);
     const document = await response.json() as { info: { title: string }; paths: Record<string, { get?: { operationId: string }; post?: { operationId: string } }> };
     expect(document.info.title).toBe("Stockpile API");
-    expect(Object.keys(document.paths).sort()).toEqual(["/activity", "/assets/{mint}/chart", "/bags", "/bags/returns", "/bags/sparklines", "/bags/{id}", "/bags/{id}/chart", "/bags/{id}/history", "/bags/{id}/stories", "/health", "/me", "/portfolio", "/positions", "/positions/legs", "/saved-bags", "/saved-bags/{bagId}", "/stories", "/trade/prepare", "/trade/quote"]);
+    expect(Object.keys(document.paths).sort()).toEqual(["/activity", "/assets/{mint}/chart", "/bags", "/bags/returns", "/bags/sparklines", "/bags/{id}", "/bags/{id}/chart", "/bags/{id}/history", "/bags/{id}/stories", "/health", "/me", "/portfolio", "/positions", "/positions/legs", "/saved-bags", "/saved-bags/{bagId}", "/stories", "/trade/prepare", "/trade/quote", "/trade/status", "/trade/submit"]);
     expect(document.paths["/bags"]?.get?.operationId).toBe("listBags");
     expect(document.paths["/trade/prepare"]?.post?.operationId).toBe("prepareBagTrade");
     expect(JSON.stringify(document).replace(/Stockpile/g, "")).not.toMatch(/basket|pile/i);

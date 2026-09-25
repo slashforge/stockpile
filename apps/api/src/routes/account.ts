@@ -9,7 +9,8 @@ import { readPortfolio, unavailablePortfolio } from "../lib/portfolio";
 import { cursorPattern, HELIUS_MAX_LIMIT, readActivity } from "../lib/activity";
 import { applyBagLinks, readPositions, recordLeg } from "../lib/positions";
 import { prepareBag, quoteBag, toQuoteLeg, tradeSide, type TradeError, type TradeRequest } from "../lib/trade";
-import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema } from "../schemas";
+import { readStatuses, submitSigned } from "../lib/broadcast";
+import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema, SubmitTransactionRequestSchema, SubmitTransactionSchema, TransactionStatusRequestSchema, TransactionStatusesSchema } from "../schemas";
 
 export type Variables = { identity: Identity };
 export const app = new OpenAPIHono<{ Variables: Variables }>();
@@ -83,7 +84,7 @@ app.openapi(createRoute({ method: "post", path: "/positions/legs", operationId: 
 });
 
 const tradeResponses = { 401: response(ErrorSchema, "Unauthorized"), 404: response(ErrorSchema, "Bag not found") };
-const echoOf = (request: TradeRequest) => ({ bagId: request.bagId, side: tradeSide(request), inputMint: tradeSide(request) === "buy" ? request.inputMint ?? null : null, amount: tradeSide(request) === "buy" ? request.amount ?? null : null, portionBps: tradeSide(request) === "sell" ? request.portionBps ?? null : null, slippageBps: request.slippageBps });
+const echoOf = (request: TradeRequest) => ({ bagId: request.bagId, side: tradeSide(request), inputMint: tradeSide(request) === "buy" ? request.inputMint ?? null : null, amount: tradeSide(request) === "buy" ? request.amount ?? null : null, portionBps: tradeSide(request) === "sell" ? request.portionBps ?? null : null, slippageBps: request.slippageBps ?? null });
 const totalOut = (side: "buy" | "sell", legs: { outAmount: string }[]) => (side === "sell" ? legs.reduce((sum, leg) => sum + BigInt(leg.outAmount), 0n).toString() : null);
 app.openapi(createRoute({ method: "post", path: "/trade/quote", operationId: "quoteBagTrade", tags: ["trade"], request: { body: { content: { "application/json": { schema: TradeRequestSchema } } } }, responses: { 200: response(QuoteSchema, "Indicative Jupiter quote per leg, or unavailable with a typed error"), ...tradeResponses } }), async (c) => {
   const request = c.req.valid("json");
@@ -107,5 +108,44 @@ app.openapi(createRoute({ method: "post", path: "/trade/prepare", operationId: "
   const result = await prepareBag(request, walletAddress, { userId: identity.id, walletAddress });
   if (!result.ok) return unavailable(result.error);
   return c.json({ status: "ready" as const, ...echo, totalOutAmount: totalOut(echo.side, result.value), transactions: result.value, error: null, message: "Unsigned transactions only. Review and sign each leg in your wallet; quotes can expire and fills are not guaranteed." }, 200);
+});
+
+app.openapi(createRoute({ method: "post", path: "/trade/submit", operationId: "submitTransaction", tags: ["trade"], request: { body: { content: { "application/json": { schema: SubmitTransactionRequestSchema } } } }, responses: {
+  200: response(SubmitTransactionSchema, "Broadcast through Stockpile's RPC; confirm with /trade/status"), 400: response(ErrorSchema, "Not signed by your wallet, or rejected by preflight simulation"),
+  401: response(ErrorSchema, "Unauthorized"), 503: response(ErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
+  const identity = c.get("identity");
+  const walletAddress = identity.walletAddress;
+  if (!walletAddress) return c.json({ error: "No verified Solana wallet linked to this Privy identity" }, 400);
+  const { transaction, bagId } = c.req.valid("json");
+  const result = await submitSigned(transaction, walletAddress);
+  if (!result.ok) return result.status === 503 ? c.json({ error: result.error }, 503) : c.json({ error: result.error }, 400);
+  if (bagId) {
+    const task = linkWhenConfirmed(identity, bagId, result.signature);
+    // Workers keep the isolate alive for it; under Bun it simply runs on after the response.
+    try { c.executionCtx.waitUntil(task); } catch { /* no execution context outside Workers */ }
+  }
+  return c.json({ signature: result.signature }, 200);
+});
+
+const LINK_DELAYS_MS = [1_500, 2_500, 4_000, 6_000, 8_000, 8_000];
+/** Server-side twin of the app's lot recorder, so a leg still links if the app is closed or reloaded mid-confirmation. */
+async function linkWhenConfirmed(identity: Identity, bagId: string, signature: string) {
+  try {
+    await syncUser(identity);
+    for (const delay of LINK_DELAYS_MS) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      const result = await recordLeg(identity, bagId, signature).catch(() => null);
+      if (result && result.status !== 202 && result.status !== 503) return;
+    }
+  } catch (error) {
+    console.warn("background leg link failed", signature, error);
+  }
+}
+
+app.openapi(createRoute({ method: "post", path: "/trade/status", operationId: "getTransactionStatuses", tags: ["trade"], request: { body: { content: { "application/json": { schema: TransactionStatusRequestSchema } } } }, responses: {
+  200: response(TransactionStatusesSchema, "Status per signature, in request order"), 401: response(ErrorSchema, "Unauthorized"), 503: response(ErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
+  const result = await readStatuses(c.req.valid("json").signatures);
+  if (!result.ok) return c.json({ error: result.error }, 503);
+  return c.json({ statuses: result.statuses }, 200);
 });
 export default app;

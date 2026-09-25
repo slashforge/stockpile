@@ -11,7 +11,6 @@ import {
   changeTone,
   type Curator,
   type DisclosureEvidence,
-  EM_DASH,
   evidenceLine,
   formatAsOf,
   formatImpactPct,
@@ -24,6 +23,7 @@ import {
 } from "@/lib/market";
 import { pickCardReturns } from "@/lib/returns";
 import type { BagReturnEntry } from "@/services/api/returns";
+import { Skeleton } from "./layout";
 import { T } from "./type";
 
 const TONE_ICON = {
@@ -374,7 +374,8 @@ export const SPARKLINE_MIN_POINTS = 8;
 
 /**
  * Card performance row: 1M (or since-listing) figure, a quieter 1Y/all-time line and the 1M
- * sparkline. "—" while loading; "No history yet" when there is nothing (or the fetch failed).
+ * sparkline. A pill-shaped skeleton while loading; "No history yet" when there is nothing (or the
+ * fetch failed).
  */
 export function BagReturnsLine({
   entry,
@@ -390,6 +391,17 @@ export function BagReturnsLine({
 }) {
   const { theme } = useUnistyles();
   const picked = pickCardReturns(entry);
+  if (!picked && loading) {
+    return (
+      <View
+        style={[styles.returns, compact && styles.returnsCompact]}
+        accessibilityLabel="Loading performance"
+      >
+        <Skeleton height={20} width={72} radius={10} />
+        <Skeleton height={12} width={compact ? 96 : 80} radius={6} />
+      </View>
+    );
+  }
   if (!picked) {
     return (
       <View style={styles.returns}>
@@ -398,7 +410,7 @@ export function BagReturnsLine({
           tone={onArt ? undefined : "tertiary"}
           style={[styles.bold, onArt && styles.onArtMuted]}
         >
-          {loading ? EM_DASH : "No history yet"}
+          No history yet
         </T>
       </View>
     );

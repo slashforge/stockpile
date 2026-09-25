@@ -8,22 +8,12 @@ import {
 import { type LayoutChangeEvent, Share, View } from "react-native";
 import QRCodeStyled, { useQRCodeData } from "react-native-qrcode-styled";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { usePortfolio } from "@/hooks/use-account";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
-import { isLowSol } from "@/lib/funding";
-import { solBalance } from "@/lib/trade/balance";
 import { useStockpileAuth } from "@/providers/auth-context";
-import { Notice, Pill } from "./layout";
+import { Notice } from "./layout";
 import { NativeSheet } from "./native-sheet";
 import { PrimaryButton } from "./primary-button";
 import { T } from "./type";
-
-/** "Low SOL" marker for wallet cards, shown only for a known balance under the fee threshold. */
-export function LowSolPill() {
-  const portfolio = usePortfolio();
-  if (!isLowSol(solBalance(portfolio.data))) return null;
-  return <Pill label="Low SOL for fees" tone="caution" icon="flash-outline" />;
-}
 
 /** Quiet zone inside the white card, matching the sheet's own side gutter. */
 const QR_INSET = 16;
@@ -67,10 +57,8 @@ function AddressQr({ address }: { address: string }) {
 
 function FundBody({ address }: { address: string }) {
   const { fundWithCard } = useStockpileAuth();
-  const portfolio = usePortfolio();
   const [opening, setOpening] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
-  const lowSol = isLowSol(solBalance(portfolio.data));
   // Inline feedback: the toast layer renders behind the native sheet.
   const { copied, copy } = useCopyFeedback();
 
@@ -129,12 +117,6 @@ function FundBody({ address }: { address: string }) {
             {cardError}
           </T>
         </Notice>
-      ) : null}
-
-      {lowSol ? (
-        <T variant="caption" tone="caution" align="center">
-          Add ~0.01 SOL to this address for network fees
-        </T>
       ) : null}
     </View>
   );

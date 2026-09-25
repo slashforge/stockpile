@@ -82,7 +82,7 @@ describe("signLeg", () => {
       },
     });
     const result = await signLeg(unsignedTx(), walletAddress, h.deps);
-    expect(result).toEqual({ status: "failed", error: "User rejected the request" });
+    expect(result).toEqual({ status: "failed", error: "Signing was cancelled." });
     expect(canSignLeg(result)).toBe(true);
   });
 

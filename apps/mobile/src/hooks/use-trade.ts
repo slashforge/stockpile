@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { waitForConfirmation } from "@/lib/solana/rpc";
 import { serialize } from "@/lib/trade/purchase";
 import { canSignLeg, type LegSigningState, signLeg as runSignLeg } from "@/lib/trade/signing";
@@ -30,8 +30,13 @@ export function usePrepareTrade() {
  * Tracks the user-approved signing of each prepared transaction independently.
  * Nothing is signed unless `signLeg` is called for that index.
  */
-export function useLegSigning() {
+export function useLegSigning(bagId?: string) {
   const { signAndSendTransaction, walletAddress } = useStockpileAuth();
+  // Tags every submit with the bag so the server links confirmed legs itself.
+  const send = useMemo(
+    () => (signAndSendTransaction ? (base64: string) => signAndSendTransaction(base64, { bagId }) : null),
+    [signAndSendTransaction, bagId],
+  );
   const queryClient = useQueryClient();
   const [states, setStates] = useState<Record<number, LegSigningState>>({});
   const statesRef = useRef(states);
@@ -59,7 +64,7 @@ export function useLegSigning() {
       const gen = generation.current;
       update(gen, index, { status: "signing" });
       await runSignLeg(base64Transaction, walletAddress, {
-        signAndSend: signAndSendTransaction,
+        signAndSend: send,
         waitForConfirmation,
         onState: (state) => {
           update(gen, index, state);
@@ -70,7 +75,7 @@ export function useLegSigning() {
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.activity });
     },
-    [signAndSendTransaction, walletAddress, queryClient],
+    [send, walletAddress, queryClient],
   );
 
   /**
@@ -84,10 +89,7 @@ export function useLegSigning() {
       if (pending.length === 0) return;
       for (const leg of pending) update(gen, leg.index, { status: "signing" });
       setInFlight(true);
-      const signAndSend =
-        signAndSendTransaction && !CONCURRENT_WALLET_REQUESTS
-          ? serialize(signAndSendTransaction)
-          : signAndSendTransaction;
+      const signAndSend = send && !CONCURRENT_WALLET_REQUESTS ? serialize(send) : send;
       await Promise.allSettled(
         pending.map((leg) =>
           runSignLeg(leg.transaction, walletAddress, {
@@ -110,7 +112,7 @@ export function useLegSigning() {
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.activity });
     },
-    [signAndSendTransaction, walletAddress, queryClient],
+    [send, walletAddress, queryClient],
   );
 
   return { states, inFlight, signLeg, signAll, reset };
