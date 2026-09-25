@@ -5,8 +5,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Share, View } from "react-native";
-import QRCodeStyled from "react-native-qrcode-styled";
+import { type LayoutChangeEvent, Share, View } from "react-native";
+import QRCodeStyled, { useQRCodeData } from "react-native-qrcode-styled";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePortfolio } from "@/hooks/use-account";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
@@ -25,8 +25,47 @@ export function LowSolPill() {
   return <Pill label="Low SOL for fees" tone="caution" icon="flash-outline" />;
 }
 
-function FundBody({ address }: { address: string }) {
+/** Quiet zone inside the white card, matching the sheet's own side gutter. */
+const QR_INSET = 16;
+
+/** Address QR that fills the card width so the inset reads the same on all four sides. */
+function AddressQr({ address }: { address: string }) {
   const { theme } = useUnistyles();
+  // Same options as the component below (both default to level M).
+  const { qrCodeSize } = useQRCodeData(address, {});
+  const [width, setWidth] = useState(0);
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width),
+    [],
+  );
+  const pieceSize =
+    width > 0 && qrCodeSize > 0
+      ? Math.floor((width - QR_INSET * 2) / qrCodeSize)
+      : 0;
+
+  return (
+    <View
+      style={styles.qrCard}
+      onLayout={onLayout}
+      accessible
+      accessibilityLabel="QR code of your Solana wallet address"
+    >
+      {pieceSize > 0 ? (
+        <QRCodeStyled
+          data={address}
+          pieceSize={pieceSize}
+          pieceBorderRadius={pieceSize * 0.3}
+          isPiecesGlued
+          padding={QR_INSET}
+          color={theme.ds.ink}
+          style={styles.qr}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function FundBody({ address }: { address: string }) {
   const { fundWithCard } = useStockpileAuth();
   const portfolio = usePortfolio();
   const [opening, setOpening] = useState(false);
@@ -37,21 +76,7 @@ function FundBody({ address }: { address: string }) {
 
   return (
     <View style={styles.body}>
-      <View
-        style={styles.qrCard}
-        accessible
-        accessibilityLabel="QR code of your Solana wallet address"
-      >
-        <QRCodeStyled
-          data={address}
-          pieceSize={8}
-          pieceBorderRadius={2.5}
-          isPiecesGlued
-          padding={8}
-          color={theme.ds.ink}
-          style={styles.qr}
-        />
-      </View>
+      <AddressQr address={address} />
 
       <View style={styles.actions}>
         <View style={styles.flex}>
@@ -149,13 +174,15 @@ const styles = StyleSheet.create((theme) => ({
   body: { gap: theme.density.sheetGap, paddingTop: theme.density.sheetTop, paddingBottom: theme.density.sheetTop },
   flex: { flex: 1 },
   qrCard: {
-    alignSelf: "center",
-    padding: 10,
-    marginBottom: 4,
+    alignSelf: "stretch",
+    alignItems: "center",
+    aspectRatio: 1,
+    justifyContent: "center",
     ...theme.rounded(28),
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: theme.ds.line,
+    overflow: "hidden",
   },
   qr: { backgroundColor: "#FFFFFF" },
   actions: { flexDirection: "row", gap: theme.density.item },

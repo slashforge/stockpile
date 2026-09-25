@@ -7,9 +7,9 @@ import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { T } from "@/components/stockpile/type";
 import { useMintDecimals } from "@/hooks/use-mint-decimals";
 import { explorerTxUrl, inspectTransaction, USDC_DECIMALS } from "@/lib/solana/transaction";
-import { impactLevel, impactPercent, legLabelProblems } from "@/lib/trade/legs";
+import { impactLevel, impactPercent, legAssetMint, legLabelProblems, type TradeSide } from "@/lib/trade/legs";
 import type { LegDisplayStatus } from "@/lib/trade/purchase";
-import type { Bag, PreparedTransaction } from "@/services/api/types";
+import type { Bag, PreparedTransaction, QuoteLeg } from "@/services/api/types";
 import { formatMoney, formatTokenAmount } from "@/utils/amounts";
 import { ImpactLabel } from "./controls";
 
@@ -20,6 +20,7 @@ export function legBlocking(
   index: number,
   total: number,
   walletAddress: string | null,
+  side: TradeSide = "buy",
 ): string[] {
   let errors: string[];
   try {
@@ -27,17 +28,22 @@ export function legBlocking(
   } catch (error) {
     errors = [error instanceof Error ? error.message : "Could not decode transaction"];
   }
-  return [...errors, ...legLabelProblems(tx, bag, index, total)];
+  return [...errors, ...legLabelProblems(tx, bag, index, total, side)];
 }
 
-/** Formats a raw token amount with the leg's decimals, looking them up only when the API lacked them. */
-export function TokenAmount({ tx, raw }: { tx: PreparedTransaction; raw: string }) {
-  const decimals = useMintDecimals(tx.outputDecimals == null ? [tx.outputMint] : []);
-  const value = tx.outputDecimals ?? decimals.data?.[tx.outputMint];
+/**
+ * Formats a raw amount of the leg's bag token. Buys carry the decimals on the leg; sells (and legs
+ * the API couldn't resolve) look them up on chain.
+ */
+export function TokenAmount({ tx, raw, side = "buy" }: { tx: QuoteLeg; raw: string; side?: TradeSide }) {
+  const mint = legAssetMint(tx, side);
+  const known = side === "buy" ? tx.outputDecimals : null;
+  const decimals = useMintDecimals(known == null ? [mint] : []);
+  const value = known ?? decimals.data?.[mint];
   return <>{value != null ? formatTokenAmount(raw, value, tx.uiAmountMultiplier) : `${raw} units`}</>;
 }
 
-export function LegStatusPill({ status }: { status: LegDisplayStatus }) {
+export function LegStatusPill({ status, side = "buy" }: { status: LegDisplayStatus; side?: TradeSide }) {
   switch (status) {
     case "signing":
       return <Pill label="Signing" />;
@@ -46,7 +52,7 @@ export function LegStatusPill({ status }: { status: LegDisplayStatus }) {
     case "confirmed":
       return <Pill label="Confirmed" tone="positive" icon="checkmark-circle" />;
     case "earlier":
-      return <Pill label="Bought earlier" tone="positive" icon="checkmark-circle" />;
+      return <Pill label={side === "sell" ? "Sold earlier" : "Bought earlier"} tone="positive" icon="checkmark-circle" />;
     case "failed":
       return <Pill label="Failed" tone="caution" icon="alert-circle" />;
     default:
@@ -61,20 +67,29 @@ export function LegRow({
   status,
   error,
   signature,
+  side = "buy",
+  linkFailed = false,
+  onRetryLink,
 }: {
-  tx: PreparedTransaction;
+  tx: QuoteLeg;
   bag: Bag;
   /** Progress mode when set; review mode shows the estimated tokens out instead. */
   status?: LegDisplayStatus;
   error?: string;
   signature?: string;
+  side?: TradeSide;
+  /** The confirmed swap couldn't be linked to the bag's position. */
+  linkFailed?: boolean;
+  onRetryLink?: () => void;
 }) {
   const { theme } = useUnistyles();
-  const asset = bag.assets.find((candidate) => candidate.mint === tx.outputMint);
+  const mint = legAssetMint(tx, side);
+  const asset = bag.assets.find((candidate) => candidate.mint === mint);
   const level = impactLevel(tx.priceImpactPct);
+  const usdc = side === "sell" ? tx.outAmount : tx.inputAmount;
   return (
     <View style={styles.row}>
-      <TokenAvatar symbol={tx.symbol} iconUrl={asset?.iconUrl} mint={tx.outputMint} size={32} />
+      <TokenAvatar symbol={tx.symbol} iconUrl={asset?.iconUrl} mint={mint} size={32} />
       <View style={styles.middle}>
         <View style={styles.titleLine}>
           <T variant="subhead" style={styles.bold} numberOfLines={1}>
@@ -86,9 +101,14 @@ export function LegRow({
           <T variant="caption" tone="danger" numberOfLines={2}>
             {error}
           </T>
+        ) : side === "sell" ? (
+          <T variant="caption" tone="tertiary" numberOfLines={1}>
+            Sell <TokenAmount tx={tx} raw={tx.inputAmount} side="sell" /> {tx.symbol}
+            {tx.minOutAmount ? ` · min $${formatMoney(tx.minOutAmount, USDC_DECIMALS)}` : null}
+          </T>
         ) : (
           <T variant="caption" tone="tertiary" numberOfLines={1}>
-            ${formatMoney(tx.inputAmount, USDC_DECIMALS)} USDC
+            ${formatMoney(usdc, USDC_DECIMALS)} USDC
             {tx.minOutAmount ? (
               <>
                 {" · min "}
@@ -97,13 +117,29 @@ export function LegRow({
             ) : null}
           </T>
         )}
+        {linkFailed ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Couldn't link the ${tx.symbol} swap to the bag. Retry`}
+            hitSlop={6}
+            onPress={onRetryLink}
+            disabled={!onRetryLink}
+          >
+            <T variant="caption" tone="tertiary" numberOfLines={1}>
+              Couldn’t link this swap to the bag ·{" "}
+              <T variant="caption" tone="accent" style={styles.bold}>
+                Retry
+              </T>
+            </T>
+          </Pressable>
+        ) : null}
       </View>
       {status ? (
         <View style={styles.status}>
           {status === "signing" || status === "submitted" ? (
             <ActivityIndicator size="small" color={theme.ds.accent} />
           ) : null}
-          <LegStatusPill status={status} />
+          <LegStatusPill status={status} side={side} />
           {signature ? (
             <Pressable
               accessibilityRole="link"
@@ -115,6 +151,10 @@ export function LegRow({
             </Pressable>
           ) : null}
         </View>
+      ) : side === "sell" ? (
+        <T variant="numeric" style={styles.amount}>
+          ${formatMoney(tx.outAmount, USDC_DECIMALS)}
+        </T>
       ) : (
         <T variant="numeric" style={styles.amount}>
           <TokenAmount tx={tx} raw={tx.outAmount} />

@@ -90,6 +90,35 @@ export function purchaseConfirmMessage({
   return lines.join("\n\n");
 }
 
+/** Body of the single confirmation shown before every sell leg of a bag is signed. */
+export function sellConfirmMessage({
+  swaps,
+  portionPct,
+  totalUsdc,
+  slippageBps,
+  risky,
+}: {
+  swaps: number;
+  portionPct: number;
+  totalUsdc: string;
+  slippageBps: number;
+  risky: { symbol: string; impactPct: number | null }[];
+}): string {
+  const lines = [
+    `${swaps} ${swaps === 1 ? "swap" : "swaps"} sell ${portionPct}% of this bag’s tokens in your wallet and swap them to USDC (about ${totalUsdc} USDC back), signed and sent together.`,
+    `Slippage limit ${slippageBps / 100}%: the USDC you receive can differ from the estimate within it.`,
+  ];
+  if (risky.length > 0) {
+    lines.push(
+      `High price impact (thin liquidity):\n${risky
+        .map((leg) => `${leg.symbol}: ${leg.impactPct == null ? "unknown" : `${leg.impactPct.toFixed(2)}%`}`)
+        .join("\n")}`,
+    );
+  }
+  lines.push("This can’t be undone.");
+  return lines.join("\n\n");
+}
+
 /** Legs that failed and can be bought again with a fresh prepared set. */
 export function failedLegIndices(states: Record<number, LegSigningState>, count: number): number[] {
   return Array.from({ length: count }, (_, index) => index).filter(

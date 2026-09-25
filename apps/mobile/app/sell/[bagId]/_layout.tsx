@@ -1,21 +1,21 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { BuyFlowProvider, useBuyFlow } from "@/components/stockpile/buy/flow-context";
 import { FlowHeader } from "@/components/stockpile/buy/flow-header";
+import { SellFlowProvider, useSellFlow } from "@/components/stockpile/buy/sell-flow-context";
 
-const TITLES = { amount: "Buy bag", review: "Review", progress: "Buying bag" };
+const TITLES = { amount: "Sell bag", review: "Review", progress: "Selling bag" };
 
 function Header() {
-  const { bag, close, status } = useBuyFlow();
+  const { bag, close, status } = useSellFlow();
   return <FlowHeader bag={bag.data} status={status} close={close} titles={TITLES} />;
 }
 
-export default function BuyLayout() {
+export default function SellLayout() {
   const { bagId } = useLocalSearchParams<{ bagId: string }>();
   const { theme } = useUnistyles();
   return (
-    <BuyFlowProvider bagId={bagId}>
+    <SellFlowProvider bagId={bagId}>
       <View style={styles.root}>
         <Header />
         <Stack
@@ -29,7 +29,7 @@ export default function BuyLayout() {
           <Stack.Screen name="progress" options={{ gestureEnabled: false }} />
         </Stack>
       </View>
-    </BuyFlowProvider>
+    </SellFlowProvider>
   );
 }
 

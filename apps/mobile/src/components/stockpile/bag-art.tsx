@@ -61,7 +61,7 @@ export function LogoCluster({
   limit = 4,
   flat = false,
 }: {
-  assets: Bag["assets"];
+  assets: Pick<Bag["assets"][number], "symbol" | "iconUrl">[];
   size?: number;
   /** Total slots including the "+N" badge: 3 assets → 3 logos; 7 assets with limit 3 → 2 logos + "+5". */
   limit?: number;

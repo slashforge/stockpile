@@ -22,8 +22,10 @@ Product term is **bag** everywhere (formerly basket/pile). Base URL `EXPO_PUBLIC
 | DELETE | `/saved-bags/{bagId}` | `removeSavedBag` | yes | `{bagIds:string[]}` |
 | GET | `/portfolio` | `getPortfolio` | yes | `PortfolioResponse` |
 | GET | `/activity?limit=20&cursor=<token>` | `listActivity` | yes | `ActivityResponse`; newest first, default 20 / max 100; `cursor` = `nextCursor` (Helius pagination token `<slot>:<position>`) from the previous page; malformed or rejected cursor / bad limit => 400 |
-| POST | `/trade/quote` body `TradeRequest` | `quoteBagTrade` | yes | `QuoteResponse`; unknown bag => 404 |
-| POST | `/trade/prepare` body `TradeRequest` | `prepareBagTrade` | yes | `PrepareResponse`; unknown bag => 404 |
+| POST | `/trade/quote` body `TradeRequest` | `quoteBagTrade` | yes | `QuoteResponse`; buy or sell (`side`); unknown bag => 404; malformed body (buy without `inputMint`/`amount`, sell without `portionBps`) => 400 |
+| POST | `/trade/prepare` body `TradeRequest` | `prepareBagTrade` | yes | `PrepareResponse`; same request semantics; unknown bag => 404 |
+| GET | `/positions` | `getBagPositions` | yes | `PositionsResponse`: the user's per-bag positions from recorded lots, reconciled against live wallet balances and priced |
+| POST | `/positions/legs` body `RecordBagLegRequest` | `recordBagLeg` | yes | 200 `BagLotResponse` (idempotent per signature+bag); 202 `PendingBagLeg` (tx not visible yet, retry); 400 `BagLegError` (`NOT_YOUR_TRANSACTION` \| `NOT_A_SWAP` \| `MINT_NOT_IN_BAG` \| `TRANSACTION_FAILED`); 404 unknown bag; 409 `BagLegError` `SIGNATURE_ALREADY_LINKED` (+ `bagId` it belongs to); 503 `BagLegError` (`PROVIDER_NOT_CONFIGURED` \| `PROVIDER_UNAVAILABLE`) |
 
 ## Types
 
@@ -127,7 +129,9 @@ ActivityResponse = { status: "live" | "unavailable"; walletAddress: string | nul
                      asOf: string | null; error: ActivityError | null; message: string | null }
 ActivityError = { code: "NO_WALLET" | "PROVIDER_NOT_CONFIGURED" | "PROVIDER_UNAVAILABLE" | "INVALID_CURSOR"; message: string }
 Activity = { signature: string; ts: string | null; kind: "swap" | "transfer-in" | "transfer-out" | "other"; status: "confirmed" | "failed";
-             summary: string; legs: ActivityLeg[]; feeLamports: number; bagId: string | null; explorerUrl: string }
+             summary: string; legs: ActivityLeg[]; feeLamports: number; bagId: string | null; bagLinked: boolean; explorerUrl: string }
+  // bagId: the user's own bag lot for this signature when one exists (bagLinked:true), else the first catalogue bag holding the
+  // swapped asset (bagLinked:false) for USDC<->asset swaps, else null.
 ActivityLeg = { mint: string; symbol: string | null; amount: string; direction: "in" | "out" }
   // Legs are the wallet's own net balance changes in that transaction, "out" legs first: token deltas per mint over accounts the
   // wallet owns (Token + Token-2022) plus the wallet's SOL delta with the network fee it paid and rent it paid/recovered for its own
@@ -144,20 +148,37 @@ ActivityLeg = { mint: string; symbol: string | null; amount: string; direction: 
   // ("<slot>:<position>"); pass nextCursor back unchanged, stop when null. A page can legitimately contain fewer than `limit` items while
   // nextCursor is non-null (server-side filtering); only null means the end.
 
-TradeRequest = { bagId: string; inputMint: string; amount: string; slippageBps?: number }
-  // inputMint must be mainnet USDC EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v; amount = integer USDC base units (6 decimals)
-  // as a string, 1..20 digits; slippageBps integer 1..500, default 50.
+TradeRequest = { bagId: string; side?: "buy" | "sell" /* default buy */; inputMint?: string; amount?: string; portionBps?: number; slippageBps?: number }
+  // Buy: inputMint must be mainnet USDC EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v and amount = integer USDC base units
+  // (6 decimals) as a string, 1..20 digits; both required (400 otherwise). Sell: portionBps integer 1..10000 = share of the user's
+  // position in the bag to sell (required); inputMint / amount are ignored. slippageBps integer 1..500, default 50.
 TradeError = { code: TradeErrorCode; message: string; legIndex: number | null; symbol: string | null }
 TradeErrorCode = "NO_WALLET" | "UNSUPPORTED_INPUT_MINT" | "PROVIDER_NOT_CONFIGURED" | "BAG_NOT_TRADABLE" | "AMOUNT_TOO_SMALL"
-               | "NO_ROUTE" | "TOKEN_NOT_TRADABLE" | "SLIPPAGE_REJECTED" | "QUOTE_MISMATCH" | "PROVIDER_ERROR" | "PROVIDER_TIMEOUT" | "INVALID_TRANSACTION"
+               | "NO_ROUTE" | "TOKEN_NOT_TRADABLE" | "SLIPPAGE_REJECTED" | "QUOTE_MISMATCH" | "PROVIDER_ERROR" | "PROVIDER_TIMEOUT" | "INVALID_TRANSACTION" | "NO_POSITION"
 QuoteLeg = { index: number; symbol: string; weightBps: number; inputMint: string; outputMint: string; outputDecimals: number | null;
              uiAmountMultiplier: number; inputAmount: string; outAmount: string; minOutAmount: string | null; priceImpactPct: string | null; routeSteps: number }
   // display tokens = outAmount / 10^outputDecimals * uiAmountMultiplier (multiplier is 1 except Token-2022 scaled-UI mints)
-QuoteResponse = { status: "available" | "unavailable"; bagId; inputMint; amount: string; slippageBps: number;
-                  legs: QuoteLeg[]; error: TradeError | null; message: string | null }
+QuoteResponse = { status: "available" | "unavailable"; bagId; side: "buy" | "sell"; inputMint: string | null; amount: string | null; portionBps: number | null;
+                  slippageBps: number; totalOutAmount: string | null; legs: QuoteLeg[]; error: TradeError | null; message: string | null }
+  // Echo: buys carry inputMint + amount (portionBps null); sells carry portionBps (inputMint / amount null). totalOutAmount = sum of leg
+  // outAmount in USDC base units for sells ("you get back about "), null for buys. Sell legs: inputMint = asset mint, outputMint = USDC,
+  // inputAmount = token base units, outAmount = USDC base units, outputDecimals = 6, weightBps = the bag's current weight for that symbol (0
+  // when the mint has since left a tracker bag).
 PreparedTransaction = QuoteLeg & { transaction: string /* base64 unsigned v0 tx */; lastValidBlockHeight: number | null }
-PrepareResponse = { status: "ready" | "unavailable"; bagId; inputMint; amount; slippageBps; walletAddress: string | null;
+PrepareResponse = { status: "ready" | "unavailable"; bagId; side; inputMint; amount; portionBps; slippageBps; totalOutAmount; walletAddress: string | null;
                     transactions: PreparedTransaction[]; error: TradeError | null; message: string | null }
+
+RecordBagLegRequest = { bagId: string; signature: string /* base58 tx signature */ }
+BagLot = { id: string; bagId: string; mint: string; symbol: string; side: "buy" | "sell"; tokenAmount: string /* base units */; tokenUiAmount: number;
+           decimals: number; usdcAmount: string /* USDC base units */; usdcUiAmount: number; signature: string; ts: string | null }
+BagLotResponse = { lot: BagLot }
+PendingBagLeg = { status: "pending"; message: string }
+BagLegError = { error: string; code: "NOT_YOUR_TRANSACTION" | "NOT_A_SWAP" | "MINT_NOT_IN_BAG" | "TRANSACTION_FAILED" | "PROVIDER_NOT_CONFIGURED" | "PROVIDER_UNAVAILABLE" | "SIGNATURE_ALREADY_LINKED"; bagId?: string }
+PositionsResponse = { walletAddress: string | null; status: "live" | "unavailable"; message?: string; bags: BagPosition[] }
+BagPosition = { bagId: string; title: string; legs: PositionLeg[]; costUsdc: number; valueUsd: number | null; pnlUsd: number | null; pnlPct: number | null;
+                reconciled: boolean; sellable: boolean; lotCount: number; lastTradedAt: string | null }
+PositionLeg = { mint: string; symbol: string; iconUrl: string | null; decimals: number; tracked: string; trackedUi: number; walletBalance: string | null;
+                held: string; heldUi: number; usdPrice: number | null; usdValue: number | null; costUsdc: number }
 
 Story = { id, title: string; format: "article" | "podcast" | "disclosure"; summary, publisher, sourceUrl, publishedAt: string;
           imageUrl: string | null; imageCredit: string | null; bagIds: string[]; bagConnections: StoryBagConnection[];
@@ -178,6 +199,11 @@ StoryBagConnection = { bagId: string; relationship: "direct" | "inferred"; conte
 **Activity.** Helius RPC `getTransactionsForAddress` (`POST https://mainnet.helius-rpc.com`, params `[wallet, { transactionDetails:"full", encoding:"jsonParsed", maxSupportedTransactionVersion:1, limit, sortOrder:"desc", commitment:"confirmed", paginationToken, filters:{ tokenAccounts:"balanceChanged" } }]`; the Enhanced Transactions REST API is legacy), fetched on demand for the Privy-verified wallet and cached 30s per wallet+cursor+limit (concurrent requests share one fetch; failures are not cached). Legs are computed from `meta` only, the way riven-cash's transaction helpers do: `preTokenBalances`/`postTokenBalances` filtered to `owner == wallet` summed per mint, and `postBalances - preBalances` at the wallet's account-key index (static keys followed by `loadedAddresses` writable then readonly) with the fee added back when the wallet is the fee payer and the rent of token accounts the wallet opened/closed in that transaction added back/removed (only when the wallet actually paid/received it). Helius `type`/`description` labels are never used, so a Jupiter buy whose first instruction creates the wallet's Token-2022 ATA is still a swap. SOL residue under 0.00001 SOL next to token legs is dropped. Symbols for unknown mints are resolved through the same Jupiter batch as the portfolio (one call per page). `status:"unavailable"` with a typed `error` when no wallet (`NO_WALLET`), Helius unconfigured (`PROVIDER_NOT_CONFIGURED`), or the provider fails / times out after 15s (`PROVIDER_UNAVAILABLE`); a cursor Helius rejects returns 400 `{error:"Invalid activity cursor"}`. Never an invented history; the endpoint reads only and never submits anything.
 
 **Quote.** The USDC amount is split per leg by `weightBps` (last leg absorbs rounding, legs sum exactly to `amount`); each leg is quoted on Jupiter `/swap/v1/quote` (USDC -> asset, `restrictIntermediateTokens`). All-or-nothing: on the first failing leg the response is `status:"unavailable"`, `legs:[]`, and `error` identifies the code plus `legIndex`/`symbol` where applicable (`null` for request-level errors such as `UNSUPPORTED_INPUT_MINT`/`PROVIDER_NOT_CONFIGURED`). `BAG_NOT_TRADABLE` names the first asset whose mint could not be resolved (unlisted, unverified, or allowlist mismatch). `AMOUNT_TOO_SMALL` triggers when a leg would receive 0 base units; `NO_ROUTE` is Jupiter's `NO_ROUTES_FOUND` (seen live for 1 base unit); `TOKEN_NOT_TRADABLE` mirrors Jupiter's code; `SLIPPAGE_REJECTED` maps Jupiter slippage errors; `PROVIDER_TIMEOUT` after 8s. `minOutAmount` is Jupiter's `otherAmountThreshold` for the requested `slippageBps`; `priceImpactPct` is Jupiter's raw string (pass through, do not reinterpret). `message` is a human-readable summary (`error.message` when unavailable). Quotes are indicative and can expire.
+
+**Sell.** `side:"sell"` quotes and prepares one asset -> USDC leg per `PositionLeg` of the caller's position in the bag with `held > 0`: `inputAmount = floor(held * portionBps / 10000)` token base units (the server-side reconciled `held`, never a client-supplied amount), quoted and built on Jupiter exactly like buys (same all-or-nothing rule, same unsigned / fee-payer check). `NO_POSITION` when nothing is held in the bag (or the user has no lots there); `AMOUNT_TOO_SMALL` (with the leg) when any leg would round to zero -- legs are never silently skipped, so a sell always keeps the bag's per-leg proportions; `PROVIDER_ERROR` when wallet balances cannot be read (a sell is never sized from unverified balances). `totalOutAmount` is the USDC sum across legs.
+
+**Positions (bag lots).** `POST /positions/legs` links a confirmed swap to a bag. The server fetches the transaction itself (Helius `getTransaction`, jsonParsed, v0) and derives everything from it: the wallet must be the fee payer, the wallet's own token balance changes must be exactly one leg out and one leg in (SOL fee / rent / dust ignored as in Activity), one of them USDC; USDC out + asset in = `buy`, asset out + USDC in = `sell`. `tokenAmount` / `usdcAmount` are the raw base-unit deltas; `tokenUiAmount` follows the RPC's scaled `uiAmountString` (Token-2022 scaled-UI mints). **Amounts and side are derived from the chain, never from the client**; the client only names the bag. The mint must be one of the bag's current assets (tracker bags: the computed composition), except that a `sell` of a mint the user previously bought into the same bag is accepted after the mint left the bag. A signature can belong to one bag only: replaying the same (bag, signature) returns the existing lot (200); another bag gets 409. Not-yet-visible transactions get 202 and should be retried.
+`GET /positions` sums lots per (bag, mint): `tracked = sum(buys) - sum(sells)` floored at 0; `costUsdc = sum(buy USDC) - sum(sell USDC)` (net USDC in, may go negative after profitable sells). Wallet balances come from the same Helius batch as the portfolio, prices / icons from the same Jupiter token batch. `held` is what the bag can sell: `min(tracked, walletBalance)`; **when one mint is tracked in several bags and the wallet holds less than their sum, each bag is capped proportionally: `held = floor(tracked * walletBalance / sumTrackedAcrossBags)`**. `reconciled` is false when any leg's `held < tracked`. `heldUi` / `trackedUi` apply the Token-2022 scaled-UI multiplier; `usdValue = heldUi * usdPrice`; `valueUsd` is null when any leg is unpriced (then `pnlUsd` / `pnlPct` are null too); `pnlPct` is null when `costUsdc <= 0`. Bags whose legs are all zero are omitted. If balances cannot be read the response is `status:"unavailable"` with `held = tracked`, `walletBalance: null`, `sellable:false` (no invented values); without a linked wallet, `unavailable` with no bags.
 
 **Prepare.** Same validation and quoting, then Jupiter `/swap/v1/swap` per leg with `userPublicKey = walletAddress` (the Privy-verified Solana wallet). Each `PreparedTransaction` carries the full `QuoteLeg` label (`index`, `symbol`, `outputMint`, `inputAmount`, `outAmount`, `minOutAmount`) so the client can title each signing step (e.g. "Leg 1 of 3: 1.05 USDC -> AAPLx") without neutral labels, plus the base64 unsigned **versioned (v0)** transaction and Jupiter's `lastValidBlockHeight` (transaction expires after that block height). Before returning, the backend parses each transaction and rejects it (`INVALID_TRANSACTION`) unless it is unsigned and its fee payer (first static account) equals `walletAddress`. The client must sign each transaction with the wallet and submit them itself (one per leg, independently; a later leg can fail after an earlier one lands). The backend never signs, never submits, and never claims a fill. `status:"unavailable"` returns `transactions:[]` with a typed `error`, never a partial set.
 

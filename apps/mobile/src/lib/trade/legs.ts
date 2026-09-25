@@ -6,15 +6,35 @@ import type { Bag, QuoteLeg, TradeError } from "@/services/api/types";
  * transaction can never be presented as a swap into a token outside this bag or from a different
  * input. Returns blocking problems (empty when consistent).
  */
-export function legLabelProblems(leg: QuoteLeg, bag: Pick<Bag, "assets">, index: number, total: number): string[] {
+export function legLabelProblems(
+  leg: QuoteLeg,
+  bag: Pick<Bag, "assets">,
+  index: number,
+  total: number,
+  side: TradeSide = "buy",
+): string[] {
   const problems: string[] = [];
-  const asset = bag.assets.find((candidate) => candidate.mint === leg.outputMint);
-  if (!asset) problems.push("This transaction buys a token that isn’t in this bag.");
-  else if (asset.symbol !== leg.symbol) problems.push("The token label doesn’t match this bag.");
-  if (leg.inputMint !== USDC_MINT) problems.push("This transaction doesn’t spend USDC.");
+  const asset = bag.assets.find((candidate) => candidate.mint === legAssetMint(leg, side));
+  if (!asset) {
+    problems.push(
+      side === "sell"
+        ? "This transaction sells a token that isn’t in this bag."
+        : "This transaction buys a token that isn’t in this bag.",
+    );
+  } else if (asset.symbol !== leg.symbol) problems.push("The token label doesn’t match this bag.");
+  if (side === "sell") {
+    if (leg.outputMint !== USDC_MINT) problems.push("This transaction doesn’t pay out USDC.");
+  } else if (leg.inputMint !== USDC_MINT) problems.push("This transaction doesn’t spend USDC.");
   if (leg.index !== index || index >= total) problems.push("Transaction order doesn’t match the quote.");
   if (!/^\d+$/.test(leg.inputAmount) || BigInt(leg.inputAmount) <= 0n) problems.push("Invalid input amount.");
   return problems;
+}
+
+export type TradeSide = "buy" | "sell";
+
+/** The bag token a leg trades: bought into on a buy, sold out of on a sell. */
+export function legAssetMint(leg: Pick<QuoteLeg, "inputMint" | "outputMint">, side: TradeSide): string {
+  return side === "sell" ? leg.inputMint : leg.outputMint;
 }
 
 /** Sum of every leg's USDC input, in base units. */
@@ -22,7 +42,14 @@ export function totalInput(legs: Pick<QuoteLeg, "inputAmount">[]): bigint {
   return legs.reduce((sum, leg) => sum + (/^\d+$/.test(leg.inputAmount) ? BigInt(leg.inputAmount) : 0n), 0n);
 }
 
-const FRIENDLY: Record<NonNullable<TradeError>["code"], string> = {
+/** Sum of every leg's estimated output, in base units (USDC out on a sell). */
+export function totalOutput(legs: Pick<QuoteLeg, "outAmount">[]): bigint {
+  return legs.reduce((sum, leg) => sum + (/^\d+$/.test(leg.outAmount) ? BigInt(leg.outAmount) : 0n), 0n);
+}
+
+const FRIENDLY: Partial<Record<NonNullable<TradeError>["code"] | "INVALID_REQUEST", string>> = {
+  NO_POSITION: "You don’t hold any of this bag’s tokens in your wallet.",
+  INVALID_REQUEST: "That request wasn’t valid. Try again.",
   NO_WALLET: "Your wallet isn’t ready yet. Try again in a moment.",
   UNSUPPORTED_INPUT_MINT: "Only USDC can be used to buy bags.",
   PROVIDER_NOT_CONFIGURED: "Buying isn’t available on this server right now.",

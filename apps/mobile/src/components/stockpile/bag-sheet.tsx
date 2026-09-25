@@ -1,20 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetModal,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
 import { router } from "expo-router";
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
-  useRef,
   useState,
 } from "react";
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useBag } from "@/hooks/use-bags";
@@ -26,6 +19,7 @@ import { BagArt } from "./bag-art";
 import { useOpenBuy } from "@/hooks/use-open-buy";
 import { bagTradable, researchOnlyReason, TradeStatus } from "./bag-card";
 import { Divider, MessageState, Skeleton } from "./layout";
+import { NativeSheet } from "./native-sheet";
 import { PrimaryButton } from "./primary-button";
 import { SaveButton } from "./save-button";
 import { TokenAvatar } from "./token-avatar";
@@ -154,84 +148,62 @@ function BagSheetBody({
   );
 }
 
-/** Provides `openBag(id)`, which presents a bottom sheet summarising a bag. */
+/** Provides `openBag(id)`, which presents a native bottom sheet summarising a bag. */
 export function BagSheetProvider({ children }: { children: React.ReactNode }) {
-  const ref = useRef<BottomSheetModal>(null);
   const [bagId, setBagId] = useState<string | null>(null);
-  const { theme } = useUnistyles();
+  const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
   const openBag = useCallback((id: string) => {
     setBagId(id);
-    ref.current?.present();
+    setOpen(true);
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setOpen(false);
+    setBagId(null);
   }, []);
 
   const openBuy = useOpenBuy();
   const buy = useCallback(() => {
     if (!bagId) return;
     const id = bagId;
-    ref.current?.dismiss();
-    // Let the preview sheet finish dismissing before the native sheet presents.
+    dismiss();
+    // Let the preview sheet finish dismissing before the buy sheet presents.
     setTimeout(() => openBuy(id), 350);
-  }, [bagId, openBuy]);
+  }, [bagId, dismiss, openBuy]);
 
   const openDetail = useCallback(() => {
     if (!bagId) return;
-    ref.current?.dismiss();
-    router.push({ pathname: "/bag/[id]", params: { id: bagId } });
-  }, [bagId]);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.35}
-      />
-    ),
-    [],
-  );
+    const id = bagId;
+    dismiss();
+    router.push({ pathname: "/bag/[id]", params: { id } });
+  }, [bagId, dismiss]);
 
   const value = useMemo(() => ({ openBag }), [openBag]);
 
   return (
     <BagSheetContext.Provider value={value}>
       {children}
-      <BottomSheetModal
-        ref={ref}
-        enableDynamicSizing
-        maxDynamicContentSize={680}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{
-          backgroundColor: theme.ds.surface,
-          borderRadius: 32,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: theme.ds.lineStrong,
-          width: 40,
-        }}
-        onDismiss={() => setBagId(null)}
-        accessibilityLabel="Bag summary"
-      >
-        <BottomSheetScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom },
-          ]}
+      <NativeSheet isPresented={open && !!bagId} onDismiss={dismiss} testID="bag-sheet">
+        <ScrollView
+          style={styles.fill}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 12 }]}
+          showsVerticalScrollIndicator={false}
+          accessibilityLabel="Bag summary"
         >
           {bagId ? (
             <BagSheetBody bagId={bagId} onOpenDetail={openDetail} onBuy={buy} />
           ) : null}
-        </BottomSheetScrollView>
-      </BottomSheetModal>
+        </ScrollView>
+      </NativeSheet>
     </BagSheetContext.Provider>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  fill: { flex: 1 },
   content: {
-    paddingHorizontal: theme.density.gutter,
     paddingTop: theme.density.sheetTop,
     gap: theme.density.stack,
   },

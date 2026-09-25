@@ -35,6 +35,10 @@ function AppStack() {
               name="buy/[bagId]"
               options={{ presentation: "modal" }}
             />
+            <Stack.Screen
+              name="sell/[bagId]"
+              options={{ presentation: "modal" }}
+            />
           </Stack>
           <RouteTour />
         </BagSheetProvider>

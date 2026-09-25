@@ -1,8 +1,8 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { USDC_MINT } from "@/lib/solana/transaction";
-import type { QuoteLeg } from "@/services/api/types";
-import { legLabelProblems, totalInput, tradeErrorMessage } from "./legs";
+import type { Bag, QuoteLeg } from "@/services/api/types";
+import { legLabelProblems, totalInput, totalOutput, tradeErrorMessage } from "./legs";
 
 const bag = {
   assets: [
@@ -148,4 +148,34 @@ test("every trade error code has friendly copy", () => {
     );
     expect(message).not.toContain("raw ");
   }
+});
+
+describe("sell legs", () => {
+  const sellBag = { assets: [{ mint: "AAPL", symbol: "AAPLx" }] } as unknown as Pick<Bag, "assets">;
+  const sellLeg = {
+    index: 0,
+    symbol: "AAPLx",
+    weightBps: 10000,
+    inputMint: "AAPL",
+    outputMint: USDC_MINT,
+    outputDecimals: 6,
+    uiAmountMultiplier: 1,
+    inputAmount: "100",
+    outAmount: "5000000",
+    minOutAmount: null,
+    priceImpactPct: null,
+    routeSteps: 1,
+  };
+
+  test("a sell leg must sell a bag token into USDC", () => {
+    expect(legLabelProblems(sellLeg, sellBag, 0, 1, "sell")).toEqual([]);
+    expect(legLabelProblems({ ...sellLeg, outputMint: "OTHER" }, sellBag, 0, 1, "sell")).toContain(
+      "This transaction doesn’t pay out USDC.",
+    );
+    expect(legLabelProblems(sellLeg, sellBag, 0, 1, "buy").length).toBeGreaterThan(0);
+  });
+
+  test("totals the USDC out", () => {
+    expect(totalOutput([sellLeg, { ...sellLeg, outAmount: "1" }])).toBe(5000001n);
+  });
 });

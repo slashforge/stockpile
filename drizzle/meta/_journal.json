@@ -36,6 +36,13 @@
       "when": 1790318448841,
       "tag": "0004_market_and_congress",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790335178985,
+      "tag": "0005_bag_lots",
+      "breakpoints": true
     }
   ]
 }

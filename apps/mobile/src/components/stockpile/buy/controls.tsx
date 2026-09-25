@@ -88,6 +88,14 @@ export function SlippageControl({
   );
 }
 
+// Fixed steps instead of `adjustsFontSizeToFit`: inside a height-constrained flex column iOS
+// shrinks auto-fit text far below `minimumFontScale`, leaving a dot where the amount should be.
+export function heroSize(text: string) {
+  if (text.length <= 6) return { fontSize: 72, lineHeight: 84, letterSpacing: -2.5 };
+  if (text.length <= 9) return { fontSize: 56, lineHeight: 68, letterSpacing: -2 };
+  return { fontSize: 42, lineHeight: 52, letterSpacing: -1.2 };
+}
+
 /** Compact price-impact warning; renders nothing for healthy routes. */
 export function ImpactLabel({ level, impact }: { level: ImpactLevel; impact: number | null }) {
   const { theme } = useUnistyles();

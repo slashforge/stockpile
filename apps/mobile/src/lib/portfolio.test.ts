@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type { Activity } from "@/services/api/types";
-import { activityVisual, flattenActivity, formatHoldingAmount, formatUsdValue, relativeTime } from "./portfolio";
+import {
+  activityVisual,
+  describeActivity,
+  flattenActivity,
+  formatHoldingAmount,
+  formatUsdValue,
+  relativeTime,
+} from "./portfolio";
 
 describe("formatHoldingAmount", () => {
   test("keeps small amounts to 4 significant digits", () => {
@@ -29,6 +36,7 @@ const item = (signature: string): Activity => ({
   legs: [],
   feeLamports: 0,
   bagId: null,
+  bagLinked: false,
   explorerUrl: `https://solscan.io/tx/${signature}`,
 });
 
@@ -72,6 +80,33 @@ describe("activityVisual", () => {
     expect(activityVisual({ kind: "transfer-out", status: "confirmed" }).icon).toBe("arrow-up");
     expect(activityVisual({ kind: "other", status: "confirmed" }).icon).toBe("ellipsis-horizontal");
     expect(activityVisual({ kind: "swap", status: "failed" })).toEqual({ icon: "close", tone: "danger" });
+  });
+});
+
+describe("describeActivity", () => {
+  const leg = (symbol: string, amount: string, direction: "in" | "out") => ({ mint: `${symbol}mint`, symbol, amount, direction });
+  test("buy with USDC: title names the asset, amounts split by side", () => {
+    expect(
+      describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("USDC", "2.5", "out"), leg("POLYMARKET", "0.016548", "in")] }),
+    ).toEqual({ title: "Bought POLYMARKET", primary: { text: "+0.01655", tone: "positive" }, secondary: "-2.5 USDC" });
+  });
+  test("sell to USDC and asset-to-asset swap", () => {
+    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("KALSHI", "1", "out"), leg("USDC", "3", "in")] })).toEqual({
+      title: "Sold KALSHI",
+      primary: { text: "+3 USDC", tone: "positive" },
+      secondary: "-1",
+    });
+    expect(describeActivity({ kind: "swap", status: "confirmed", summary: "", legs: [leg("SOL", "1", "out"), leg("NVDAx", "3", "in")] }).title).toBe("Swapped NVDAx");
+  });
+  test("transfers and fallback", () => {
+    expect(describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [leg("SOL", "0.02", "in")] })).toEqual({
+      title: "Received SOL",
+      primary: { text: "+0.02", tone: "positive" },
+      secondary: null,
+    });
+    expect(describeActivity({ kind: "transfer-out", status: "confirmed", summary: "", legs: [leg("USDC", "10", "out")] }).primary).toEqual({ text: "-10", tone: "neutral" });
+    expect(describeActivity({ kind: "other", status: "confirmed", summary: "Jupiter", legs: [] })).toEqual({ title: "Jupiter", primary: null, secondary: null });
+    expect(describeActivity({ kind: "transfer-in", status: "confirmed", summary: "", legs: [{ mint: "So11111111111111111111111111111111111111112", symbol: null, amount: "1", direction: "in" }] }).title).toBe("Received So11…1112");
   });
 });
 

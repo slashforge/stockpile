@@ -23,6 +23,16 @@ mock.module("../lib/identity", () => ({
     return { ...identity, createdAt: "2026-01-01T00:00:00.000Z" };
   },
 }));
+// Bag lots: in-memory store keyed by signature (see lib/positions.test.ts for the position maths; here only the HTTP contract).
+type Lot = { id: string; userId: string; bagId: string; walletAddress: string; mint: string; symbol: string; side: "buy" | "sell"; tokenAmount: string; decimals: number; usdcAmount: string; signature: string; slot: number | null; blockTime: Date | null; createdAt: Date };
+const lots: Lot[] = [];
+mock.module("../lib/lots-store", () => ({
+  findLotBySignature: async (signature: string) => lots.find((lot) => lot.signature === signature) ?? null,
+  listLots: async (userId: string) => lots.filter((lot) => lot.userId === userId),
+  hasBuyLot: async () => null,
+  insertLot: async (values: Omit<Lot, "createdAt">) => { if (lots.some((lot) => lot.signature === values.signature)) return null; const lot = { ...values, createdAt: new Date() }; lots.push(lot); return lot; },
+  lotLinks: async (userId: string, signatures: string[]) => new Map(lots.filter((lot) => lot.userId === userId && signatures.includes(lot.signature)).map((lot) => [lot.signature, lot.bagId])),
+}));
 mock.module("@stockpile/core/db", () => ({
   db: {
     select: () => ({ from: () => ({ where: (expression: unknown) => {
@@ -73,7 +83,7 @@ function jupiter(swap: (call: number, body: any) => Response, swapRequests: any[
 }
 
 beforeEach(() => {
-  saved.clear(); insertedUser = undefined; deleted = false;
+  saved.clear(); lots.length = 0; insertedUser = undefined; deleted = false;
   process.env.PRIVY_APP_ID = "test-app"; process.env.PRIVY_APP_SECRET = "test-secret";
   delete process.env.JUPITER_API_KEY; delete process.env.HELIUS_API_KEY; delete process.env.STOCKPILE_ALLOWED_MINTS; process.env.STOCKPILE_PRESTOCKS = "0";
   globalThis.fetch = originalFetch;
@@ -287,4 +297,92 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
       expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "INVALID_TRANSACTION", legIndex: 0, symbol: "AAPLx" } });
     }
   });
+});
+
+describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
+  const signature = "5".repeat(88);
+  const tokenBalance = (accountIndex: number, owner: string, mint: string, amount: string, decimals: number) => ({ accountIndex, owner, mint, uiTokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } });
+  const tokenAccount = (mint: string, amount: string, decimals: number) => ({ account: { data: { parsed: { info: { mint, tokenAmount: { amount, decimals, uiAmountString: (Number(amount) / 10 ** decimals).toString() } } } } } });
+  /** Helius: getTransaction -> buyTx (or null), balance batch -> 660000 NVDAx; Jupiter: token metadata + quotes. */
+  function providers(options: { found?: boolean; balance?: string } = {}) {
+    const quotes: URL[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.hostname === "mainnet.helius-rpc.com") {
+        const body = JSON.parse(String(init?.body));
+        if (Array.isArray(body)) return Response.json([{ id: 1, result: { value: 1_000_000 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: options.balance === "0" ? [] : [tokenAccount(mints.NVDAx, options.balance ?? "660000", 8)] } }]);
+        expect(body.method).toBe("getTransaction"); expect(body.params[0]).toBe(signature);
+        return Response.json({ jsonrpc: "2.0", id: 1, result: options.found === false ? null : buyTx(signature) });
+      }
+      if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([{ id: mints.NVDAx, symbol: "NVDAx", decimals: 8, icon: "https://img.example/nvda.png", usdPrice: 250 }]);
+      if (url.pathname.endsWith("/quote")) { quotes.push(url); return quoteFor(url, { outAmount: "1600000", otherAmountThreshold: "1590000" }); }
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    return quotes;
+  }
+  it("records a leg from chain data (202 until visible, 200 idempotent, 409 when linked elsewhere), then reports and sells the position", async () => {
+    allMints(); resetTokenMetaCache(); process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test";
+    expect((await post("/positions/legs", { bagId: "megacap-builders", signature: "nope" })).status).toBe(400);
+    expect((await post("/positions/legs", { bagId: "unknown", signature })).status).toBe(404);
+    providers({ found: false });
+    const pending = await post("/positions/legs", { bagId: "megacap-builders", signature });
+    expect(pending.status).toBe(202); expect(await pending.json()).toMatchObject({ status: "pending" });
+    providers();
+    const recorded = await post("/positions/legs", { bagId: "megacap-builders", signature });
+    expect(recorded.status).toBe(200);
+    expect(await recorded.json()).toEqual({ lot: { id: expect.stringMatching(/^lot_/), bagId: "megacap-builders", mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", tokenUiAmount: 0.0066, decimals: 8, usdcAmount: "1500000", usdcUiAmount: 1.5, signature, ts: new Date(1790388000 * 1000).toISOString() } });
+    expect(insertedUser).toBe("user-a");
+    expect((await post("/positions/legs", { bagId: "megacap-builders", signature })).status).toBe(200);
+    const conflict = await post("/positions/legs", { bagId: "ai-infrastructure", signature });
+    expect(conflict.status).toBe(409); expect(await conflict.json()).toEqual({ error: "Signature is already linked to megacap-builders", code: "SIGNATURE_ALREADY_LINKED", bagId: "megacap-builders" });
+    expect(await json(post("/positions/legs", { bagId: "megacap-builders", signature }, "other"))).toEqual({ error: "The transaction was not paid by your wallet", code: "NOT_YOUR_TRANSACTION" });
+
+    const positions = await json(app.request("/positions", { headers: auth() }));
+    expect(positions).toEqual({ walletAddress: WALLET, status: "live", bags: [{ bagId: "megacap-builders", title: "Megacap Builders", costUsdc: 1.5, valueUsd: 1.65, pnlUsd: 0.15, pnlPct: 10, reconciled: true, sellable: true, lotCount: 1, lastTradedAt: new Date(1790388000 * 1000).toISOString(),
+      legs: [{ mint: mints.NVDAx, symbol: "NVDAx", iconUrl: "https://img.example/nvda.png", decimals: 8, tracked: "660000", trackedUi: 0.0066, walletBalance: "660000", held: "660000", heldUi: 0.0066, usdPrice: 250, usdValue: 1.65, costUsdc: 1.5 }] }] });
+    expect(await json(app.request("/positions", { headers: auth("other") }))).toEqual({ walletAddress: WALLET, status: "live", bags: [] });
+
+    const quotes = providers({ balance: "330000" }); // wallet holds half of what was tracked -> sells from held
+    const quote = await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000 }));
+    expect(quote).toMatchObject({ status: "available", side: "sell", bagId: "megacap-builders", inputMint: null, amount: null, portionBps: 10000, slippageBps: 50, totalOutAmount: "1600000", error: null });
+    expect(quote.legs).toEqual([{ index: 0, symbol: "NVDAx", weightBps: 3000, inputMint: mints.NVDAx, outputMint: USDC, outputDecimals: 6, uiAmountMultiplier: 1, inputAmount: "330000", outAmount: "1600000", minOutAmount: "1590000", priceImpactPct: "0.001", routeSteps: 1 }]);
+    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount")])).toEqual([[mints.NVDAx, USDC, "330000"]]);
+    expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 2500 }))).toMatchObject({ legs: [{ inputAmount: "82500" }], totalOutAmount: "1600000" });
+    providers({ balance: "0" });
+    expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000 }))).toMatchObject({ status: "unavailable", legs: [], totalOutAmount: null, error: { code: "NO_POSITION" } });
+    expect(await json(post("/trade/quote", { bagId: "ai-infrastructure", side: "sell", portionBps: 10000 }))).toMatchObject({ status: "unavailable", error: { code: "NO_POSITION" } });
+    // Buys are unchanged: side defaults to buy and echoes the USDC input; sells without portionBps and buys without amount are 400.
+    expect((await post("/trade/quote", { bagId: "megacap-builders", side: "sell" })).status).toBe(400);
+    expect((await post("/trade/quote", { bagId: "megacap-builders", inputMint: USDC })).status).toBe(400);
+    expect((await post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 0 })).status).toBe(400);
+  });
+  it("prepares sell legs as unsigned transactions paid by the wallet, echoing side and totalOutAmount", async () => {
+    allMints(); process.env.HELIUS_API_KEY = "test"; process.env.JUPITER_API_KEY = "test";
+    lots.push({ id: "lot_1", userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: mints.NVDAx, symbol: "NVDAx", side: "buy", tokenAmount: "660000", decimals: 8, usdcAmount: "1500000", signature, slot: null, blockTime: null, createdAt: new Date() });
+    const swapRequests: any[] = [];
+    globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.hostname === "mainnet.helius-rpc.com") return Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "660000", 8)] } }]);
+      if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([]);
+      if (url.pathname.endsWith("/quote")) return quoteFor(url, { outAmount: "800000" });
+      swapRequests.push(JSON.parse(String(init?.body)));
+      return Response.json({ swapTransaction: unsignedTx, lastValidBlockHeight: 123 });
+    }) as unknown as typeof fetch;
+    const result = await json(post("/trade/prepare", { bagId: "megacap-builders", side: "sell", portionBps: 5000 }));
+    expect(result).toMatchObject({ status: "ready", side: "sell", portionBps: 5000, inputMint: null, amount: null, walletAddress: WALLET, totalOutAmount: "800000", error: null });
+    expect(result.transactions).toEqual([expect.objectContaining({ index: 0, symbol: "NVDAx", inputMint: mints.NVDAx, outputMint: USDC, inputAmount: "330000", outAmount: "800000", transaction: unsignedTx, lastValidBlockHeight: 123 })]);
+    expect(swapRequests).toEqual([expect.objectContaining({ userPublicKey: WALLET, quoteResponse: expect.objectContaining({ inputMint: mints.NVDAx, outputMint: USDC, inAmount: "330000" }) })]);
+    // The activity feed prefers the recorded lot over the catalogue guess.
+    resetActivityCache();
+    const transfer = buyTx(signature);
+    globalThis.fetch = mock(async () => Response.json({ jsonrpc: "2.0", id: 1, result: { data: [transfer], paginationToken: null } })) as unknown as typeof fetch;
+    lots[0]!.bagId = "ai-infrastructure";
+    expect(await json(app.request("/activity?limit=1", { headers: auth() }))).toMatchObject({ items: [{ signature, kind: "swap", bagId: "ai-infrastructure", bagLinked: true }] });
+    lots.length = 0; resetActivityCache();
+    expect(await json(app.request("/activity?limit=1", { headers: auth() }))).toMatchObject({ items: [{ signature, bagId: "megacap-builders", bagLinked: false }] });
+  });
+  function buyTx(sig: string) {
+    return { slot: 1, blockTime: 1790388000, transaction: { signatures: [sig], message: { accountKeys: [{ pubkey: WALLET }, { pubkey: OTHER_WALLET }, { pubkey: "11111111111111111111111111111111" }, { pubkey: "22222222222222222222222222222222" }], instructions: [] } },
+      meta: { err: null, fee: 5000, preBalances: [1_000_000_000, 0, 0, 0], postBalances: [999_995_000, 0, 0, 0], preTokenBalances: [tokenBalance(2, WALLET, USDC, "5000000", 6), tokenBalance(3, WALLET, mints.NVDAx, "0", 8)], postTokenBalances: [tokenBalance(2, WALLET, USDC, "3500000", 6), tokenBalance(3, WALLET, mints.NVDAx, "660000", 8)] } };
+  }
 });

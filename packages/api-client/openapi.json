@@ -1582,6 +1582,10 @@
               "null"
             ]
           },
+          "bagLinked": {
+            "type": "boolean",
+            "description": "true when bagId comes from the user's own bag lot for this signature; false when it is the catalogue guess."
+          },
           "explorerUrl": {
             "type": "string"
           }
@@ -1595,6 +1599,7 @@
           "legs",
           "feeLamports",
           "bagId",
+          "bagLinked",
           "explorerUrl"
         ]
       },
@@ -1652,6 +1657,308 @@
           "message"
         ]
       },
+      "PositionsResponse": {
+        "type": "object",
+        "properties": {
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "unavailable"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "bags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BagPosition"
+            }
+          }
+        },
+        "required": [
+          "walletAddress",
+          "status",
+          "bags"
+        ]
+      },
+      "BagPosition": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "legs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PositionLeg"
+            }
+          },
+          "costUsdc": {
+            "type": "number"
+          },
+          "valueUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pnlUsd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "pnlPct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "reconciled": {
+            "type": "boolean"
+          },
+          "sellable": {
+            "type": "boolean"
+          },
+          "lotCount": {
+            "type": "number"
+          },
+          "lastTradedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "bagId",
+          "title",
+          "legs",
+          "costUsdc",
+          "valueUsd",
+          "pnlUsd",
+          "pnlPct",
+          "reconciled",
+          "sellable",
+          "lotCount",
+          "lastTradedAt"
+        ]
+      },
+      "PositionLeg": {
+        "type": "object",
+        "properties": {
+          "mint": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "iconUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decimals": {
+            "type": "number"
+          },
+          "tracked": {
+            "type": "string"
+          },
+          "trackedUi": {
+            "type": "number"
+          },
+          "walletBalance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "held": {
+            "type": "string"
+          },
+          "heldUi": {
+            "type": "number"
+          },
+          "usdPrice": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "usdValue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "costUsdc": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "mint",
+          "symbol",
+          "iconUrl",
+          "decimals",
+          "tracked",
+          "trackedUi",
+          "walletBalance",
+          "held",
+          "heldUi",
+          "usdPrice",
+          "usdValue",
+          "costUsdc"
+        ]
+      },
+      "BagLotResponse": {
+        "type": "object",
+        "properties": {
+          "lot": {
+            "$ref": "#/components/schemas/BagLot"
+          }
+        },
+        "required": [
+          "lot"
+        ]
+      },
+      "BagLot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bagId": {
+            "type": "string"
+          },
+          "mint": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
+          "tokenAmount": {
+            "type": "string"
+          },
+          "tokenUiAmount": {
+            "type": "number"
+          },
+          "decimals": {
+            "type": "number"
+          },
+          "usdcAmount": {
+            "type": "string"
+          },
+          "usdcUiAmount": {
+            "type": "number"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "ts": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "bagId",
+          "mint",
+          "symbol",
+          "side",
+          "tokenAmount",
+          "tokenUiAmount",
+          "decimals",
+          "usdcAmount",
+          "usdcUiAmount",
+          "signature",
+          "ts"
+        ]
+      },
+      "TradeSide": {
+        "type": "string",
+        "enum": [
+          "buy",
+          "sell"
+        ]
+      },
+      "PendingBagLeg": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ]
+      },
+      "BagLegError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "NOT_YOUR_TRANSACTION",
+              "NOT_A_SWAP",
+              "MINT_NOT_IN_BAG",
+              "TRANSACTION_FAILED",
+              "PROVIDER_NOT_CONFIGURED",
+              "PROVIDER_UNAVAILABLE",
+              "SIGNATURE_ALREADY_LINKED"
+            ]
+          },
+          "bagId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ]
+      },
+      "RecordBagLegRequest": {
+        "type": "object",
+        "properties": {
+          "bagId": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string",
+            "pattern": "^[1-9A-HJ-NP-Za-km-z]{43,100}$"
+          }
+        },
+        "required": [
+          "bagId",
+          "signature"
+        ]
+      },
       "QuoteResponse": {
         "type": "object",
         "properties": {
@@ -1665,14 +1972,36 @@
           "bagId": {
             "type": "string"
           },
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
           "inputMint": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "amount": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portionBps": {
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "slippageBps": {
             "type": "number"
+          },
+          "totalOutAmount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sells: sum of leg outAmount in USDC base units. Null for buys."
           },
           "legs": {
             "type": "array",
@@ -1693,9 +2022,12 @@
         "required": [
           "status",
           "bagId",
+          "side",
           "inputMint",
           "amount",
+          "portionBps",
           "slippageBps",
+          "totalOutAmount",
           "legs",
           "error",
           "message"
@@ -1785,7 +2117,8 @@
               "QUOTE_MISMATCH",
               "PROVIDER_ERROR",
               "PROVIDER_TIMEOUT",
-              "INVALID_TRANSACTION"
+              "INVALID_TRANSACTION",
+              "NO_POSITION"
             ]
           },
           "message": {
@@ -1817,14 +2150,25 @@
           "bagId": {
             "type": "string"
           },
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
           "inputMint": {
             "type": "string",
-            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
+            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+            "description": "Buy only: must be mainnet USDC. Ignored for sells."
           },
           "amount": {
             "type": "string",
             "maxLength": 20,
-            "pattern": "^[1-9][0-9]*$"
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Buy only: USDC base units (6 decimals). Ignored for sells."
+          },
+          "portionBps": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Sell only: share of the user's bag position to sell, 1..10000 bps."
           },
           "slippageBps": {
             "type": "integer",
@@ -1834,9 +2178,7 @@
           }
         },
         "required": [
-          "bagId",
-          "inputMint",
-          "amount"
+          "bagId"
         ]
       },
       "PrepareResponse": {
@@ -1852,14 +2194,36 @@
           "bagId": {
             "type": "string"
           },
+          "side": {
+            "$ref": "#/components/schemas/TradeSide"
+          },
           "inputMint": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "amount": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portionBps": {
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "slippageBps": {
             "type": "number"
+          },
+          "totalOutAmount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sells: sum of leg outAmount in USDC base units. Null for buys."
           },
           "walletAddress": {
             "type": [
@@ -1886,9 +2250,12 @@
         "required": [
           "status",
           "bagId",
+          "side",
           "inputMint",
           "amount",
+          "portionBps",
           "slippageBps",
+          "totalOutAmount",
           "walletAddress",
           "transactions",
           "error",
@@ -2590,6 +2957,125 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions": {
+      "get": {
+        "operationId": "getBagPositions",
+        "tags": [
+          "positions"
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-bag positions from the user's recorded lots, reconciled against live wallet balances and priced; explicitly unavailable when balances cannot be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions/legs": {
+      "post": {
+        "operationId": "recordBagLeg",
+        "tags": [
+          "positions"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordBagLegRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The confirmed swap leg linked to the bag (amounts derived from the chain, side inferred); idempotent for the same signature and bag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagLotResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Transaction not yet visible on-chain; retry shortly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingBagLeg"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not your transaction, not a USDC<->asset swap, mint not in the bag, or the transaction failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagLegError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Bag not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Signature already linked to a different bag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagLegError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transaction provider not configured or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BagLegError"
                 }
               }
             }

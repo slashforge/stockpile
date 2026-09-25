@@ -15,9 +15,15 @@ import { density } from "@/config/sizing";
 import { useActivity, usePortfolio } from "@/hooks/use-account";
 import { indexAssetsByMint, useBags } from "@/hooks/use-bags";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
+import { useOpenSell } from "@/hooks/use-open-sell";
+import { usePositions } from "@/hooks/use-positions";
+import { changeTone, formatSignedPct } from "@/lib/market";
+import { type BagPosition, heldPositions } from "@/services/api/positions";
+import { LogoCluster } from "@/components/stockpile/bag-art";
 import { isLowSol } from "@/lib/funding";
 import {
   activityVisual,
+  describeActivity,
   flattenActivity,
   formatHoldingAmount,
   formatUsdValue,
@@ -32,17 +38,17 @@ import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
 /*
  * Layout system for this screen:
  * - Outer cards: rounded(24) continuous, clipped so pressed-row highlights keep the corners.
- * - Rows: one grid for every list row = [badge/avatar 44 | flexible text | right column]. Both
- *   columns top-align and the row has fixed `density.rowY` vertical padding, so a row with a bag
- *   chip is exactly one chip taller than a row without.
+ * - Rows: one grid for every list row = [badge/avatar 40 | flexible text | right column]. Every
+ *   row is exactly two text lines tall (title / subtitle on the left, value / amount on the right),
+ *   vertically centred, so lists read as an even ledger. Bag membership and warnings are tiny
+ *   inline chips on the title line, never a third line.
  * - Pills fully round, avatars/badges circles.
  * - Spacing comes from the shared `density` tokens (section header gap, section spacing, hero pad).
  */
-const AVATAR = 44;
+const AVATAR = 40;
 const ROW_H_PAD = density.card;
 const ROW_GAP = density.rowGap;
 const ROW_INSET = ROW_H_PAD + AVATAR + ROW_GAP;
-const RIGHT_MIN = 110;
 const WALLET_PILL = 44;
 
 function formatAsOf(value: string | null) {
@@ -121,7 +127,7 @@ function IconBadge({
 }) {
   return (
     <View style={[styles.badge, { backgroundColor: background }]}>
-      <Ionicons name={icon} size={20} color={color} />
+      <Ionicons name={icon} size={18} color={color} />
     </View>
   );
 }
@@ -144,8 +150,8 @@ function RowChip({
   const color = tone === "caution" ? theme.ds.caution : theme.ds.accent;
   const content = (
     <>
-      <Ionicons name={icon} size={11} color={color} />
-      <T variant="caption" tone={tone} numberOfLines={1} ellipsizeMode="tail" style={styles.shrink}>
+      <Ionicons name={icon} size={10} color={color} />
+      <T variant="caption" tone={tone} numberOfLines={1} ellipsizeMode="tail" style={[styles.shrink, styles.chipText]}>
         {label}
       </T>
     </>
@@ -162,21 +168,6 @@ function RowChip({
     >
       {content}
     </Pressable>
-  );
-}
-
-/** "in <bag>" chip; opens the bag. Extra bags collapse into "+N". */
-function BagChip({ bagIds, bagsById }: { bagIds: string[]; bagsById: Map<string, Bag> }) {
-  const first = bagIds.map((id) => bagsById.get(id)).find(Boolean);
-  if (!first) return null;
-  const extra = bagIds.length - 1;
-  return (
-    <RowChip
-      icon="layers"
-      label={`${first.title}${extra > 0 ? ` +${extra}` : ""}`}
-      accessibilityLabel={`Open bag ${first.title}`}
-      onPress={() => router.push(`/bag/${first.id}`)}
-    />
   );
 }
 
@@ -239,6 +230,95 @@ function NoBagTokensHint() {
         </View>
       </Pressable>
     </ListCard>
+  );
+}
+
+function PositionRow({ position, onSell }: { position: BagPosition; onSell: () => void }) {
+  const tone = changeTone(position.pnlPct);
+  const pnlTone = tone === "up" ? "positive" : tone === "down" ? "danger" : "secondary";
+  const tokens = `${position.legs.length} ${position.legs.length === 1 ? "token" : "tokens"}`;
+  const traded = relativeTime(position.lastTradedAt);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${position.title}. ${formatUsdValue(position.valueUsd)}, ${formatSignedPct(position.pnlPct)} since buy`}
+      accessibilityHint="Opens the bag"
+      onPress={() => router.push(`/bag/${position.bagId}`)}
+      style={({ pressed }) => [styles.row, styles.positionRow, pressed && styles.rowPressed]}
+    >
+      <View style={styles.cluster}>
+        <LogoCluster assets={position.legs} size={26} limit={3} flat />
+      </View>
+      <View style={styles.textCol}>
+        <T variant="headline" numberOfLines={1}>
+          {position.title}
+        </T>
+        <T variant="footnote" tone="secondary" numberOfLines={1}>
+          {traded ? `${tokens} · traded ${traded}` : tokens}
+        </T>
+        {!position.reconciled ? (
+          <T variant="caption" tone="caution" numberOfLines={2}>
+            Some tokens moved out of this wallet
+          </T>
+        ) : null}
+      </View>
+      <View style={styles.positionRight}>
+        <T variant="numeric" style={styles.rightPrimary} numberOfLines={1}>
+          {formatUsdValue(position.valueUsd)}
+        </T>
+        <T variant="footnote" tone={pnlTone} style={styles.tabular} numberOfLines={1}>
+          {formatSignedPct(position.pnlPct)}
+        </T>
+      </View>
+      {position.sellable ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Sell ${position.title}`}
+          hitSlop={8}
+          onPress={onSell}
+          style={({ pressed }) => [styles.sellPill, pressed && styles.pressed]}
+        >
+          <T variant="subhead" tone="accent" style={styles.bold}>
+            Sell
+          </T>
+        </Pressable>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** Bags bought through the app, valued from what the wallet still holds. */
+function PositionsSection() {
+  const positions = usePositions();
+  const openSell = useOpenSell();
+  if (positions.isPending) return null;
+  if (positions.isError || positions.data.status !== "live") {
+    return (
+      <PortfolioSection title="Your bags">
+        <StatusCard
+          title="Bag positions unavailable"
+          body={
+            positions.data?.message ??
+            (positions.isError ? positions.error.message : "We couldn’t work out your bag positions right now.")
+          }
+          onRetry={() => positions.refetch()}
+        />
+      </PortfolioSection>
+    );
+  }
+  const held = heldPositions(positions.data);
+  if (held.length === 0) return null;
+  return (
+    <PortfolioSection title="Your bags">
+      <ListCard>
+        {held.map((position, index) => (
+          <View key={position.bagId}>
+            {index > 0 ? <Divider inset={ROW_H_PAD} /> : null}
+            <PositionRow position={position} onSell={() => openSell(position.bagId)} />
+          </View>
+        ))}
+      </ListCard>
+    </PortfolioSection>
   );
 }
 
@@ -312,7 +392,7 @@ type Row = {
   lowFees?: boolean;
 };
 
-function HoldingRow({ row, bagsById }: { row: Row; bagsById: Map<string, Bag> }) {
+function HoldingRow({ row }: { row: Row }) {
   const amountLine = `${row.amount} ${row.symbol}`;
   return (
     <View
@@ -322,27 +402,21 @@ function HoldingRow({ row, bagsById }: { row: Row; bagsById: Map<string, Bag> })
     >
       <TokenAvatar symbol={row.symbol} mint={row.mint} iconUrl={row.iconUrl} size={AVATAR} />
       <View style={styles.textCol}>
-        <T variant="headline" numberOfLines={1}>
-          {row.symbol}
-        </T>
+        <View style={styles.titleLine}>
+          <T variant="headline" numberOfLines={1}>
+            {row.symbol}
+          </T>
+          {row.lowFees ? <RowChip icon="flash-outline" label="Low for fees" tone="caution" /> : null}
+        </View>
         <T variant="footnote" tone="secondary" numberOfLines={1}>
           {row.name}
         </T>
-        {row.bagIds.length > 0 ? <BagChip bagIds={row.bagIds} bagsById={bagsById} /> : null}
-        {row.lowFees ? <RowChip icon="flash-outline" label="Low for fees" tone="caution" /> : null}
       </View>
       <View style={styles.rightCol}>
         <T variant="numeric" style={styles.rightPrimary} numberOfLines={1}>
           {formatUsdValue(row.usdValue)}
         </T>
-        <T
-          variant="footnote"
-          tone="secondary"
-          style={[styles.rightSecondary, styles.tabular]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
-        >
+        <T variant="footnote" tone="secondary" style={[styles.rightSecondary, styles.tabular]} numberOfLines={1}>
           {amountLine}
         </T>
       </View>
@@ -415,6 +489,9 @@ function ActivityRow({ item, bagsById }: { item: Activity; bagsById: Map<string,
   }[visual.tone];
   const when = relativeTime(item.ts);
   const failed = item.status === "failed";
+  const line = describeActivity(item);
+  const bag = item.bagId ? bagsById.get(item.bagId) : undefined;
+  const subtitle = [failed ? "Failed" : null, when, bag?.title].filter(Boolean).join(" · ");
   return (
     <Pressable
       accessibilityRole="link"
@@ -424,18 +501,32 @@ function ActivityRow({ item, bagsById }: { item: Activity; bagsById: Map<string,
     >
       <IconBadge icon={visual.icon} color={color} background={background} />
       <View style={styles.textCol}>
-        <T variant="subhead" style={styles.activitySummary} numberOfLines={2}>
-          {item.summary}
+        <T variant="headline" numberOfLines={1}>
+          {line.title}
         </T>
-        {when || failed ? (
-          <T variant="footnote" tone={failed ? "danger" : "tertiary"} numberOfLines={1}>
-            {[failed ? "Failed" : null, when].filter(Boolean).join(" · ")}
+        <T variant="footnote" tone={failed ? "danger" : "secondary"} numberOfLines={1}>
+          {subtitle || "—"}
+        </T>
+      </View>
+      <View style={styles.rightCol}>
+        {line.primary ? (
+          <T
+            variant="numeric"
+            tone={failed ? "tertiary" : line.primary.tone === "positive" ? "positive" : undefined}
+            style={[styles.rightPrimary, failed && styles.struck]}
+            numberOfLines={1}
+          >
+            {line.primary.text}
           </T>
         ) : null}
-        {item.bagId ? <BagChip bagIds={[item.bagId]} bagsById={bagsById} /> : null}
-      </View>
-      <View style={styles.rightInline}>
-        <Ionicons name="open-outline" size={16} color={theme.ds.inkTertiary} />
+        <View style={styles.rightInline}>
+          {line.secondary ? (
+            <T variant="footnote" tone="secondary" style={styles.tabular} numberOfLines={1}>
+              {line.secondary}
+            </T>
+          ) : null}
+          <Ionicons name="open-outline" size={13} color={theme.ds.inkTertiary} />
+        </View>
       </View>
     </Pressable>
   );
@@ -540,6 +631,8 @@ function PortfolioBody() {
     <>
       {walletAddress ? <WalletCard address={walletAddress} portfolio={data} /> : null}
 
+      <PositionsSection />
+
       {data.status !== "live" ? (
         <PortfolioSection title="Holdings">
           <StatusCard
@@ -552,7 +645,7 @@ function PortfolioBody() {
         <PortfolioSection title="Holdings" trailing={asOf ? `Updated ${asOf}` : null}>
           {rows.length > 0 ? (
             <ListCard>
-              <Rows items={rows} keyOf={(row) => row.key} render={(row) => <HoldingRow row={row} bagsById={bagsById} />} />
+              <Rows items={rows} keyOf={(row) => row.key} render={(row) => <HoldingRow row={row} />} />
             </ListCard>
           ) : null}
           {!hasTokens ? <NoBagTokensHint /> : null}
@@ -567,11 +660,16 @@ function PortfolioBody() {
 export default function PortfolioScreen() {
   const portfolio = usePortfolio();
   const activity = useActivity();
+  const positions = usePositions();
   const { authenticated } = useStockpileAuth();
   return (
     <Screen
       title="Portfolio"
-      onRefresh={authenticated ? () => Promise.all([portfolio.refetch(), activity.refetch()]) : undefined}
+      onRefresh={
+        authenticated
+          ? () => Promise.all([portfolio.refetch(), activity.refetch(), positions.refetch()])
+          : undefined
+      }
       onEndReached={
         authenticated
           ? () => {
@@ -643,31 +741,44 @@ const styles = StyleSheet.create((theme) => ({
 
   row: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: ROW_GAP,
     paddingHorizontal: ROW_H_PAD,
     paddingVertical: theme.density.rowY,
   },
   rowPressed: { backgroundColor: theme.ds.sunken },
   textCol: { flex: 1, minWidth: 0, gap: 2 },
-  rightCol: { minWidth: RIGHT_MIN, maxWidth: "45%", flexShrink: 0, alignItems: "flex-end", gap: 2 },
-  rightPrimary: { lineHeight: 21, textAlign: "right" },
-  rightSecondary: { textAlign: "right", alignSelf: "stretch" },
+  titleLine: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 21 },
+  rightCol: { maxWidth: "50%", flexShrink: 0, alignItems: "flex-end", gap: 2 },
+  rightPrimary: { lineHeight: 21, textAlign: "right", fontVariant: ["tabular-nums"] },
+  rightSecondary: { textAlign: "right" },
   rightInline: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 21, flexShrink: 0 },
-  activitySummary: { lineHeight: 21 },
+  struck: { textDecorationLine: "line-through" },
+  bold: { fontWeight: "600" },
+  positionRow: { alignItems: "center" },
+  cluster: { minWidth: AVATAR, alignItems: "flex-start" },
+  positionRight: { alignItems: "flex-end", gap: 2, flexShrink: 0 },
+  sellPill: {
+    minHeight: 32,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.ds.accentSoft,
+  },
   badge: { width: AVATAR, height: AVATAR, borderRadius: AVATAR / 2, alignItems: "center", justifyContent: "center" },
 
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    maxWidth: "100%",
-    gap: 4,
-    marginTop: 4,
-    paddingHorizontal: theme.density.chipX,
-    paddingVertical: theme.density.chipY,
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 3,
+    height: 20,
+    paddingHorizontal: 7,
     borderRadius: 999,
   },
+  chipText: { fontSize: 11, lineHeight: 14 },
   chipAccent: { backgroundColor: theme.ds.accentSoft },
   chipCaution: { backgroundColor: theme.ds.cautionSoft },
 

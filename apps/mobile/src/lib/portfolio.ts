@@ -71,6 +71,52 @@ export function activityVisual(item: Pick<Activity, "kind" | "status">): Activit
   }
 }
 
+export type ActivityLine = {
+  /** Short action, e.g. "Bought POLYMARKET", "Received SOL". */
+  title: string;
+  /** Right column, first line: the asset that moved in (or out for sends). */
+  primary: { text: string; tone: "positive" | "neutral" } | null;
+  /** Right column, second line: the other side of a swap. */
+  secondary: string | null;
+};
+
+const STABLE = new Set(["USDC", "USDT"]);
+
+function legLabel(leg: { symbol: string | null; mint: string }) {
+  return leg.symbol ?? `${leg.mint.slice(0, 4)}…${leg.mint.slice(-4)}`;
+}
+
+/** Signed amount; the symbol is omitted when the row title already names that asset. */
+function legAmount(leg: { amount: string; symbol: string | null; mint: string }, sign: "+" | "-", subject?: unknown) {
+  return `${sign}${formatHoldingAmount(leg.amount)}${leg === subject ? "" : ` ${legLabel(leg)}`}`;
+}
+
+/** Splits an activity item into a short title and structured amounts for a two-line list row. */
+export function describeActivity(item: Pick<Activity, "kind" | "status" | "summary" | "legs">): ActivityLine {
+  const ins = item.legs.filter((leg) => leg.direction === "in");
+  const outs = item.legs.filter((leg) => leg.direction === "out");
+  const received = ins[0];
+  const paid = outs[0];
+  if (item.kind === "swap" && received && paid) {
+    const paidStable = STABLE.has(paid.symbol ?? "");
+    const receivedStable = STABLE.has(received.symbol ?? "");
+    const verb = paidStable && !receivedStable ? "Bought" : receivedStable && !paidStable ? "Sold" : "Swapped";
+    const subject = verb === "Sold" ? paid : received;
+    return {
+      title: `${verb} ${legLabel(subject)}`,
+      primary: { text: legAmount(received, "+", subject), tone: "positive" },
+      secondary: legAmount(paid, "-", subject),
+    };
+  }
+  if (item.kind === "transfer-in" && received) {
+    return { title: `Received ${legLabel(received)}`, primary: { text: legAmount(received, "+", received), tone: "positive" }, secondary: null };
+  }
+  if (item.kind === "transfer-out" && paid) {
+    return { title: `Sent ${legLabel(paid)}`, primary: { text: legAmount(paid, "-", paid), tone: "neutral" }, secondary: null };
+  }
+  return { title: item.summary, primary: null, secondary: null };
+}
+
 /** Dedupes items across pages (a cursor boundary can repeat a signature). */
 export function flattenActivity(pages: { items: Activity[] }[] | undefined): Activity[] {
   const seen = new Set<string>();

@@ -83,17 +83,17 @@ describe("public bags and auth boundaries", () => {
     expect(response.status).toBe(200);
     const document = await response.json() as { info: { title: string }; paths: Record<string, { get?: { operationId: string }; post?: { operationId: string } }> };
     expect(document.info.title).toBe("Stockpile API");
-    expect(Object.keys(document.paths).sort()).toEqual(["/activity", "/assets/{mint}/chart", "/bags", "/bags/returns", "/bags/sparklines", "/bags/{id}", "/bags/{id}/chart", "/bags/{id}/history", "/bags/{id}/stories", "/health", "/me", "/portfolio", "/saved-bags", "/saved-bags/{bagId}", "/stories", "/trade/prepare", "/trade/quote"]);
+    expect(Object.keys(document.paths).sort()).toEqual(["/activity", "/assets/{mint}/chart", "/bags", "/bags/returns", "/bags/sparklines", "/bags/{id}", "/bags/{id}/chart", "/bags/{id}/history", "/bags/{id}/stories", "/health", "/me", "/portfolio", "/positions", "/positions/legs", "/saved-bags", "/saved-bags/{bagId}", "/stories", "/trade/prepare", "/trade/quote"]);
     expect(document.paths["/bags"]?.get?.operationId).toBe("listBags");
     expect(document.paths["/trade/prepare"]?.post?.operationId).toBe("prepareBagTrade");
     expect(JSON.stringify(document).replace(/Stockpile/g, "")).not.toMatch(/basket|pile/i);
   });
   it("requires a Privy identity token for private endpoints", async () => {
-    for (const route of ["/me", "/saved-bags", "/portfolio", "/activity"]) {
+    for (const route of ["/me", "/saved-bags", "/portfolio", "/activity", "/positions"]) {
       const response = await app.request(route);
       expect(response.status).toBe(401);
     }
-    expect((await app.request("/trade/prepare", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status).toBe(401);
+    for (const route of ["/trade/prepare", "/positions/legs"]) expect((await app.request(route, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).status).toBe(401);
   });
   it("refuses unconfigured Privy rather than accepting an unverified token", async () => {
     const previousApp = process.env.PRIVY_APP_ID;

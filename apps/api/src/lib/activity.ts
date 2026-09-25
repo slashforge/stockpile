@@ -13,7 +13,7 @@ export type ActivityErrorCode = (typeof activityErrorCodes)[number];
 export type ActivityError = { code: ActivityErrorCode; message: string };
 export type ActivityKind = "swap" | "transfer-in" | "transfer-out" | "other";
 export type ActivityLeg = { mint: string; symbol: string | null; amount: string; direction: "in" | "out" };
-export type Activity = { signature: string; ts: string | null; kind: ActivityKind; status: "confirmed" | "failed"; summary: string; legs: ActivityLeg[]; feeLamports: number; bagId: string | null; explorerUrl: string };
+export type Activity = { signature: string; ts: string | null; kind: ActivityKind; status: "confirmed" | "failed"; summary: string; legs: ActivityLeg[]; feeLamports: number; bagId: string | null; bagLinked: boolean; explorerUrl: string };
 export type ActivityPage = { items: Activity[]; nextCursor: string | null; asOf: string };
 export type ActivityResult = { ok: true; value: ActivityPage } | { ok: false; error: ActivityError };
 export type KnownToken = { symbol: string | null; decimals: number | null };
@@ -65,6 +65,25 @@ function accountKeys(tx: Json): string[] {
   // Versioned transactions append lookup-table addresses (writable, then readonly) after the static keys; balances are indexed the same way.
   for (const group of ["writable", "readonly"] as const) for (const key of Array.isArray(loaded?.[group]) ? loaded![group] as unknown[] : []) { const value = address(key); if (value) keys.push(value); }
   return keys;
+}
+/** First account key: the transaction's fee payer (null when the payload is malformed). */
+export function feePayerOf(value: unknown): string | null { const tx = record(value); return tx ? accountKeys(tx)[0] ?? null : null; }
+/** Slot and block time of a jsonParsed transaction. */
+export function transactionMeta(value: unknown): { slot: number | null; blockTime: Date | null; failed: boolean } {
+  const tx = record(value) ?? {};
+  const meta = record(tx.meta) ?? {};
+  return { slot: typeof tx.slot === "number" && Number.isSafeInteger(tx.slot) ? tx.slot : null, blockTime: typeof tx.blockTime === "number" && Number.isSafeInteger(tx.blockTime) && tx.blockTime > 0 ? new Date(tx.blockTime * 1000) : null, failed: meta.err !== null && meta.err !== undefined };
+}
+/**
+ * Raw base-unit balance change of `mint` for `wallet` (owner-filtered pre/post `uiTokenAmount.amount`, unscaled -- the unit Jupiter
+ * quotes and `getTokenAccountsByOwner` report), with the mint's on-chain decimals. Null when the wallet has no balance for the mint.
+ */
+export function rawTokenDelta(value: unknown, wallet: string, mint: string): { delta: bigint; decimals: number } | null {
+  const meta = record(record(value)?.meta) ?? {};
+  const pre = tokenBalances(meta.preTokenBalances).filter((b) => b.owner === wallet && b.mint === mint), post = tokenBalances(meta.postTokenBalances).filter((b) => b.owner === wallet && b.mint === mint);
+  const decimals = [...pre, ...post][0]?.decimals;
+  if (decimals === undefined) return null;
+  return { delta: post.reduce((sum, b) => sum + b.atomic, 0n) - pre.reduce((sum, b) => sum + b.atomic, 0n), decimals };
 }
 
 function tokenBalances(value: unknown): TokenBalance[] {
@@ -186,9 +205,9 @@ export async function normaliseActivity(value: unknown, wallet: string, known: M
     summary = kind === "transfer-in" ? `Received ${ins.map(describe).join(", ")}${other ? ` from ${short(other)}` : ""}` : `Sent ${outs.map(describe).join(", ")}${other ? ` to ${short(other)}` : ""}`;
   } else if (legs.length) summary = `Sent ${outs.map(describe).join(", ")}; received ${ins.map(describe).join(", ")}`;
   else summary = `${failed ? "Failed: " : ""}${programLabel(tx)}`;
-  const bagId = kind === "swap" && outs[0]!.mint === USDC ? (await bagIdsForMint(ins[0]!.mint))[0] ?? null : null;
+  const bagId = kind === "swap" && outs[0]!.mint === USDC ? (await bagIdsForMint(ins[0]!.mint))[0] ?? null : kind === "swap" && ins[0]!.mint === USDC ? (await bagIdsForMint(outs[0]!.mint))[0] ?? null : null;
   const blockTime = typeof tx.blockTime === "number" && Number.isSafeInteger(tx.blockTime) && tx.blockTime > 0 ? new Date(tx.blockTime * 1000).toISOString() : null;
-  return { signature, ts: blockTime, kind, status: failed ? "failed" : "confirmed", summary, legs, feeLamports: Number(feePaid), bagId, explorerUrl: `https://solscan.io/tx/${signature}` };
+  return { signature, ts: blockTime, kind, status: failed ? "failed" : "confirmed", summary, legs, feeLamports: Number(feePaid), bagId, bagLinked: false, explorerUrl: `https://solscan.io/tx/${signature}` };
 }
 
 /** Normalises one RPC page: resolves unknown symbols through Jupiter once for the whole page. */

@@ -29,6 +29,8 @@ import { SaveButton } from "@/components/stockpile/save-button";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { FullText, T } from "@/components/stockpile/type";
 import { useOpenBuy } from "@/hooks/use-open-buy";
+import { useOpenSell } from "@/hooks/use-open-sell";
+import { useBagPosition } from "@/hooks/use-positions";
 import { usePortfolio } from "@/hooks/use-account";
 import { useBag } from "@/hooks/use-bags";
 import { useBagChart } from "@/hooks/use-charts";
@@ -555,6 +557,8 @@ export default function BagScreen() {
   const auth = useStockpileAuth();
   const { theme } = useUnistyles();
   const openBuy = useOpenBuy();
+  const openSell = useOpenSell();
+  const { position } = useBagPosition(id);
 
   // Refetch whenever the screen regains focus (mount already fetches: staleTime is 0).
   const focusedOnce = useRef(false);
@@ -605,6 +609,8 @@ export default function BagScreen() {
   const data = bag.data;
   const tradable = bagTradable(data);
   const holdingUsd = bagHoldingUsd(portfolio.data, data.id);
+  const heldChange = changeTone(position?.pnlPct);
+  const heldTone = heldChange === "up" ? "positive" : heldChange === "down" ? "danger" : "secondary";
 
   // Signed-out users go through the sign-in sheet and land in the buy sheet afterwards.
   const tradeCta = () => openBuy(data.id);
@@ -629,8 +635,39 @@ export default function BagScreen() {
                 </T>
               </View>
             ) : null}
+            {position ? (
+              <View
+                style={styles.heldBanner}
+                accessible
+                accessibilityLabel={`You hold about ${formatUsdValue(position.valueUsd)}, ${formatSignedPct(position.pnlPct)} since buy`}
+              >
+                <Ionicons name="layers" size={14} color={theme.ds.accent} />
+                <T variant="footnote" style={[styles.flex, styles.tabular]} numberOfLines={1}>
+                  You hold ≈ {formatUsdValue(position.valueUsd)}
+                  {position.pnlPct != null ? (
+                    <T variant="footnote" tone={heldTone}>
+                      {" "}· {formatSignedPct(position.pnlPct)} since buy
+                    </T>
+                  ) : null}
+                </T>
+              </View>
+            ) : null}
+            {position && auth.authenticated ? (
+              <View style={styles.tradeRow}>
+                {position.sellable ? (
+                  <View style={styles.flex}>
+                    <PrimaryButton label="Sell" variant="outline" onPress={() => openSell(data.id)} />
+                  </View>
+                ) : null}
+                {tradable ? (
+                  <View style={styles.flex}>
+                    <PrimaryButton label="Buy more" icon="add-circle" onPress={tradeCta} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             {/* Research-only bags can't be bought, so never invite a sign-in "to buy" them. */}
-            {tradable ? (
+            {tradable && !(position && auth.authenticated) ? (
               <PrimaryButton
                 label={
                   auth.authenticated ? "Put money in the bag" : "Sign in to buy"
@@ -842,6 +879,17 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ds.caution,
     marginTop: 7,
   },
+  heldBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderCurve: "continuous",
+    backgroundColor: theme.ds.accentSoft,
+  },
+  tradeRow: { flexDirection: "row", gap: theme.density.item },
   footerNote: {
     flexDirection: "row",
     alignItems: "center",

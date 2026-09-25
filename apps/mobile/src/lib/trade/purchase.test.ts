@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   failedLegIndices,
+  sellConfirmMessage,
   legDisplayStatus,
   legsToSign,
   purchaseConfirmMessage,
@@ -119,5 +120,15 @@ describe("serialize", () => {
     const results = await Promise.allSettled([run("a"), run("b"), run("c")]);
     expect(results.map((r) => r.status)).toEqual(["fulfilled", "rejected", "fulfilled"]);
     expect(log).toEqual(["start a", "end a", "start b", "end b", "start c", "end c"]);
+  });
+});
+
+describe("sellConfirmMessage", () => {
+  test("says the tokens become USDC and it can't be undone", () => {
+    const message = sellConfirmMessage({ swaps: 3, portionPct: 50, totalUsdc: "12.34", slippageBps: 100, risky: [] });
+    expect(message).toContain("swap them to USDC");
+    expect(message).toContain("50%");
+    expect(message).toContain("12.34 USDC");
+    expect(message).toContain("can’t be undone");
   });
 });

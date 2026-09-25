@@ -12,7 +12,6 @@ import { connectionFor, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
 import { safeIconUrl } from "@/utils/token-icon";
 import { bagTheme, LogoCluster } from "./bag-art";
-import { PreIpoChip } from "./bag-card";
 import { BagReturnsLine, CuratorLine } from "./market";
 import { T } from "./type";
 
@@ -185,6 +184,34 @@ export function StoryReel({
       </View>
 
       <View style={[styles.bottom, { paddingBottom: bottomInset + 12 }]}>
+        {bag ? (
+          <View style={styles.tags}>
+            {isPreIpoBag(bag) ? (
+              <View style={styles.glassChip} accessibilityLabel="Pre-IPO bag">
+                <Ionicons name="hourglass-outline" size={13} color="#FFFFFF" />
+                <T variant="caption" style={styles.chipText}>
+                  Pre-IPO
+                </T>
+              </View>
+            ) : null}
+            {connection && connection.relationship !== "direct" ? (
+              <View style={styles.glassChip}>
+                <Ionicons name="git-branch-outline" size={13} color="#FFFFFF" />
+                <T variant="caption" style={styles.chipText} numberOfLines={1}>
+                  Related theme
+                </T>
+              </View>
+            ) : null}
+            {bags.length > 1 ? (
+              <View style={styles.glassChip}>
+                <Ionicons name="layers-outline" size={13} color="#FFFFFF" />
+                <T variant="caption" style={styles.chipText} numberOfLines={1}>
+                  +{bags.length - 1} more {bags.length === 2 ? "bag" : "bags"}
+                </T>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
         <T
           variant="title1"
           style={styles.headline}
@@ -240,20 +267,6 @@ export function StoryReel({
           >
             <LogoCluster assets={bag.assets} size={34} limit={3} />
             <View style={styles.flex}>
-              <View style={styles.bagTitleRow}>
-                {isPreIpoBag(bag) ? <PreIpoChip /> : null}
-                <T
-                  variant="caption"
-                  tone="tertiary"
-                  numberOfLines={1}
-                  style={[styles.bold, styles.shrink]}
-                >
-                  {connection?.relationship === "direct"
-                    ? "Mentioned in story"
-                    : "Related theme"}
-                  {bags.length > 1 ? ` · +${bags.length - 1} more` : ""}
-                </T>
-              </View>
               <T variant="headline" numberOfLines={1}>
                 {bag.title}
               </T>
@@ -328,6 +341,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   summary: { color: "rgba(255,255,255,0.92)" },
   credit: { color: "rgba(255,255,255,0.7)" },
+  tags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+  },
   actions: { flexDirection: "row", gap: theme.density.item },
   sourceButton: {
     flexDirection: "row",
@@ -360,8 +379,5 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.ds.accentSoft,
   },
   flex: { flex: 1, gap: 1 },
-  bagTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  shrink: { flexShrink: 1 },
-  bold: { fontWeight: "700" },
   pressed: { opacity: 0.8 },
 }));

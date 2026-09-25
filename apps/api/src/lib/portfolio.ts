@@ -15,6 +15,8 @@ type RpcResult<T> = { id: number; result?: T; error?: unknown };
 const uiPattern = /^\d+(\.\d+)?$/;
 
 export const unavailablePortfolio = (message: string): Portfolio => ({ status: "unavailable", holdings: [], sol: null, usdc: null, totalUsd: null, unpricedCount: 0, asOf: null, message });
+export type RawHolding = { mint: string; amount: string; decimals: number; uiAmount: string | null; program: "token" | "token-2022" };
+export type RawHoldings = { ok: true; lamports: number; holdings: RawHolding[] } | { ok: false; message: string };
 
 /** Exact decimal string for an atomic amount (no floating point). */
 export function atomicToUi(amount: string | bigint, decimals: number): string {
@@ -35,29 +37,34 @@ const balance = (amount: bigint, decimals: number, meta: TokenMeta | undefined):
   return { amount: amount.toString(), decimals, uiAmount, usdPrice: meta?.usdPrice ?? null, usdValue: usdValueOf(uiAmount, meta?.usdPrice ?? null) };
 };
 
+/** One batched Helius RPC call: SOL balance plus every SPL / Token-2022 token account of the wallet (balance source of truth). */
+export async function readRawHoldings(walletAddress: string): Promise<RawHoldings> {
+  const key = process.env.HELIUS_API_KEY;
+  if (!key) return { ok: false, message: "Helius is not configured" };
+  try {
+    const owner = (id: number, programId: string) => ({ jsonrpc: "2.0", id, method: "getTokenAccountsByOwner", params: [walletAddress, { programId }, { encoding: "jsonParsed", commitment: "confirmed" }] });
+    const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(key)}`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([{ jsonrpc: "2.0", id: 1, method: "getBalance", params: [walletAddress, { commitment: "confirmed" }] }, owner(2, TOKEN_PROGRAM), owner(3, TOKEN_2022_PROGRAM)]), signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return { ok: false, message: "Holdings provider unavailable" };
+    const results = await res.json() as RpcResult<unknown>[];
+    if (!Array.isArray(results) || results.length !== 3 || results.some((item) => item.error || item.result === undefined)) return { ok: false, message: "Holdings provider unavailable" };
+    const byId = new Map(results.map((item) => [item.id, item.result]));
+    const lamports = (byId.get(1) as { value?: unknown })?.value;
+    if (typeof lamports !== "number" || !Number.isSafeInteger(lamports) || lamports < 0) return { ok: false, message: "Holdings provider unavailable" };
+    const accounts = (program: "token" | "token-2022") => (((byId.get(program === "token" ? 2 : 3) as { value?: TokenAccount[] })?.value) ?? [])
+      .map(({ account }) => { const info = account.data.parsed.info; const ui = info.tokenAmount.uiAmountString; return { mint: info.mint, amount: info.tokenAmount.amount, decimals: info.tokenAmount.decimals, uiAmount: typeof ui === "string" && uiPattern.test(ui) ? ui : null, program }; });
+    return { ok: true, lamports, holdings: [...accounts("token"), ...accounts("token-2022")].filter((item) => /^\d+$/.test(item.amount) && item.amount !== "0") };
+  } catch { return { ok: false, message: "Holdings provider unavailable" }; }
+}
+
 /**
  * Reads SOL, USDC, and SPL / Token-2022 holdings from Helius RPC (balance source of truth), then enriches each mint with
  * Jupiter Tokens v2 metadata and USD price. Never fabricates balances or prices: any RPC failure is explicitly
  * unavailable, and unknown / unpriced tokens carry nulls (counted in `unpricedCount`).
  */
 export async function readPortfolio(walletAddress: string): Promise<Portfolio> {
-  const key = process.env.HELIUS_API_KEY;
-  if (!key) return unavailablePortfolio("Helius is not configured");
-  let raw: { lamports: number; holdings: Omit<Holding, "symbol" | "name" | "iconUrl" | "usdPrice" | "usdValue" | "bagIds">[] };
-  try {
-    const owner = (id: number, programId: string) => ({ jsonrpc: "2.0", id, method: "getTokenAccountsByOwner", params: [walletAddress, { programId }, { encoding: "jsonParsed", commitment: "confirmed" }] });
-    const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(key)}`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify([{ jsonrpc: "2.0", id: 1, method: "getBalance", params: [walletAddress, { commitment: "confirmed" }] }, owner(2, TOKEN_PROGRAM), owner(3, TOKEN_2022_PROGRAM)]), signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return unavailablePortfolio("Holdings provider unavailable");
-    const results = await res.json() as RpcResult<unknown>[];
-    if (!Array.isArray(results) || results.length !== 3 || results.some((item) => item.error || item.result === undefined)) return unavailablePortfolio("Holdings provider unavailable");
-    const byId = new Map(results.map((item) => [item.id, item.result]));
-    const lamports = (byId.get(1) as { value?: unknown })?.value;
-    if (typeof lamports !== "number" || !Number.isSafeInteger(lamports) || lamports < 0) return unavailablePortfolio("Holdings provider unavailable");
-    const accounts = (program: "token" | "token-2022") => (((byId.get(program === "token" ? 2 : 3) as { value?: TokenAccount[] })?.value) ?? [])
-      .map(({ account }) => { const info = account.data.parsed.info; const ui = info.tokenAmount.uiAmountString; return { mint: info.mint, amount: info.tokenAmount.amount, decimals: info.tokenAmount.decimals, uiAmount: typeof ui === "string" && uiPattern.test(ui) ? ui : null, program }; });
-    raw = { lamports, holdings: [...accounts("token"), ...accounts("token-2022")].filter((item) => /^\d+$/.test(item.amount) && item.amount !== "0") };
-  } catch { return unavailablePortfolio("Holdings provider unavailable"); }
+  const raw = await readRawHoldings(walletAddress);
+  if (!raw.ok) return unavailablePortfolio(raw.message);
 
   // Jupiter enrichment is best-effort: a metadata failure never hides verified balances.
   const meta = await tokenMetadata([WSOL_MINT, USDC, ...raw.holdings.map((item) => item.mint)]).catch(() => new Map<string, TokenMeta>());

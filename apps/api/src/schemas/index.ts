@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { tradeErrorCodes } from "../lib/trade";
 import { activityErrorCodes } from "../lib/activity";
+import { legErrorCodes, signaturePattern } from "../lib/positions";
 import { tokensIntervals } from "../lib/tokens-api";
 import { chartRanges, chartReasons } from "../lib/charts";
 
@@ -24,19 +25,38 @@ export const UserSchema = z.object({ id: z.string(), email: z.string().nullable(
 export const MeResponseSchema = z.object({ user: UserSchema }).openapi("MeResponse");
 export const SavedSchema = z.object({ bagIds: z.array(z.string()) }).openapi("SavedBagsResponse");
 export const SaveBagRequestSchema = z.object({ bagId: z.string() }).openapi("SaveBagRequest");
-export const TradeRequestSchema = z.object({ bagId: z.string(), inputMint: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/), amount: z.string().max(20).regex(/^[1-9][0-9]*$/), slippageBps: z.number().int().min(1).max(500).default(50) }).openapi("TradeRequest");
+export const TradeSideSchema = z.enum(["buy", "sell"]).openapi("TradeSide");
+export const TradeRequestSchema = z.object({
+  bagId: z.string(), side: TradeSideSchema.default("buy"),
+  inputMint: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/).optional().openapi({ description: "Buy only: must be mainnet USDC. Ignored for sells." }),
+  amount: z.string().max(20).regex(/^[1-9][0-9]*$/).optional().openapi({ description: "Buy only: USDC base units (6 decimals). Ignored for sells." }),
+  portionBps: z.number().int().min(1).max(10000).optional().openapi({ description: "Sell only: share of the user's bag position to sell, 1..10000 bps." }),
+  slippageBps: z.number().int().min(1).max(500).default(50),
+}).superRefine((value, ctx) => {
+  if (value.side === "buy") { if (!value.inputMint) ctx.addIssue({ code: "custom", path: ["inputMint"], message: "inputMint is required for a buy" }); if (!value.amount) ctx.addIssue({ code: "custom", path: ["amount"], message: "amount is required for a buy" }); }
+  else if (value.portionBps === undefined) ctx.addIssue({ code: "custom", path: ["portionBps"], message: "portionBps is required for a sell" });
+}).openapi("TradeRequest");
 export const TradeErrorSchema = z.object({ code: z.enum(tradeErrorCodes), message: z.string(), legIndex: z.number().nullable(), symbol: z.string().nullable() }).openapi("TradeError");
 export const QuoteLegSchema = z.object({ index: z.number(), symbol: z.string(), weightBps: z.number(), inputMint: z.string(), outputMint: z.string(), outputDecimals: z.number().nullable(), uiAmountMultiplier: z.number(), inputAmount: z.string(), outAmount: z.string(), minOutAmount: z.string().nullable(), priceImpactPct: z.string().nullable(), routeSteps: z.number() }).openapi("QuoteLeg");
-export const QuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), bagId: z.string(), inputMint: z.string(), amount: z.string(), slippageBps: z.number(), legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("QuoteResponse");
+const tradeEcho = { bagId: z.string(), side: TradeSideSchema, inputMint: z.string().nullable(), amount: z.string().nullable(), portionBps: z.number().nullable(), slippageBps: z.number(), totalOutAmount: z.string().nullable().openapi({ description: "Sells: sum of leg outAmount in USDC base units. Null for buys." }) };
+export const QuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), ...tradeEcho, legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("QuoteResponse");
 export const PreparedTransactionSchema = QuoteLegSchema.extend({ transaction: z.string(), lastValidBlockHeight: z.number().nullable() }).openapi("PreparedTransaction");
-export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), bagId: z.string(), inputMint: z.string(), amount: z.string(), slippageBps: z.number(), walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
+export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tradeEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
 export const BalanceSchema = z.object({ amount: z.string(), decimals: z.number(), uiAmount: z.string(), usdPrice: z.number().nullable(), usdValue: z.number().nullable() }).openapi("Balance");
 export const HoldingSchema = z.object({ mint: z.string(), symbol: z.string().nullable(), name: z.string().nullable(), iconUrl: z.string().nullable(), amount: z.string(), decimals: z.number(), uiAmount: z.string().nullable(), program: z.enum(["token", "token-2022"]), usdPrice: z.number().nullable(), usdValue: z.number().nullable(), bagIds: z.array(z.string()) }).openapi("Holding");
 export const PortfolioSchema = z.object({ walletAddress: z.string().nullable(), status: z.enum(["live", "unavailable"]), holdings: z.array(HoldingSchema), sol: BalanceSchema.nullable(), usdc: BalanceSchema.nullable(), totalUsd: z.number().nullable(), unpricedCount: z.number(), asOf: z.string().nullable(), message: z.string().nullable() }).openapi("PortfolioResponse");
 export const ActivityErrorSchema = z.object({ code: z.enum(activityErrorCodes), message: z.string() }).openapi("ActivityError");
 export const ActivityLegSchema = z.object({ mint: z.string(), symbol: z.string().nullable(), amount: z.string(), direction: z.enum(["in", "out"]) }).openapi("ActivityLeg");
-export const ActivitySchema = z.object({ signature: z.string(), ts: z.string().nullable(), kind: z.enum(["swap", "transfer-in", "transfer-out", "other"]), status: z.enum(["confirmed", "failed"]), summary: z.string(), legs: z.array(ActivityLegSchema), feeLamports: z.number(), bagId: z.string().nullable(), explorerUrl: z.string() }).openapi("Activity");
+export const ActivitySchema = z.object({ signature: z.string(), ts: z.string().nullable(), kind: z.enum(["swap", "transfer-in", "transfer-out", "other"]), status: z.enum(["confirmed", "failed"]), summary: z.string(), legs: z.array(ActivityLegSchema), feeLamports: z.number(), bagId: z.string().nullable(), bagLinked: z.boolean().openapi({ description: "true when bagId comes from the user's own bag lot for this signature; false when it is the catalogue guess." }), explorerUrl: z.string() }).openapi("Activity");
 export const ActivityResponseSchema = z.object({ status: z.enum(["live", "unavailable"]), walletAddress: z.string().nullable(), items: z.array(ActivitySchema), nextCursor: z.string().nullable(), asOf: z.string().nullable(), error: ActivityErrorSchema.nullable(), message: z.string().nullable() }).openapi("ActivityResponse");
+export const RecordBagLegRequestSchema = z.object({ bagId: z.string(), signature: z.string().regex(signaturePattern) }).openapi("RecordBagLegRequest");
+export const BagLotSchema = z.object({ id: z.string(), bagId: z.string(), mint: z.string(), symbol: z.string(), side: TradeSideSchema, tokenAmount: z.string(), tokenUiAmount: z.number(), decimals: z.number(), usdcAmount: z.string(), usdcUiAmount: z.number(), signature: z.string(), ts: z.string().nullable() }).openapi("BagLot");
+export const BagLotResponseSchema = z.object({ lot: BagLotSchema }).openapi("BagLotResponse");
+export const PendingLegSchema = z.object({ status: z.literal("pending"), message: z.string() }).openapi("PendingBagLeg");
+export const LegErrorSchema = z.object({ error: z.string(), code: z.enum([...legErrorCodes, "SIGNATURE_ALREADY_LINKED"]), bagId: z.string().optional() }).openapi("BagLegError");
+export const PositionLegSchema = z.object({ mint: z.string(), symbol: z.string(), iconUrl: z.string().nullable(), decimals: z.number(), tracked: z.string(), trackedUi: z.number(), walletBalance: z.string().nullable(), held: z.string(), heldUi: z.number(), usdPrice: z.number().nullable(), usdValue: z.number().nullable(), costUsdc: z.number() }).openapi("PositionLeg");
+export const BagPositionSchema = z.object({ bagId: z.string(), title: z.string(), legs: z.array(PositionLegSchema), costUsdc: z.number(), valueUsd: z.number().nullable(), pnlUsd: z.number().nullable(), pnlPct: z.number().nullable(), reconciled: z.boolean(), sellable: z.boolean(), lotCount: z.number(), lastTradedAt: z.string().nullable() }).openapi("BagPosition");
+export const PositionsResponseSchema = z.object({ walletAddress: z.string().nullable(), status: z.enum(["live", "unavailable"]), message: z.string().optional(), bags: z.array(BagPositionSchema) }).openapi("PositionsResponse");
 export const HistoryRangeSchema = z.enum(["24h", "7d", "30d", "1y"]).openapi("HistoryRange");
 export const HistorySourceSchema = z.enum(["tokens", "snapshot"]).openapi("HistorySource");
 export const CandleIntervalSchema = z.enum(tokensIntervals).openapi("CandleInterval");

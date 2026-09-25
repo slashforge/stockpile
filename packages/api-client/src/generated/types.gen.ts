@@ -355,6 +355,10 @@ export type Activity = {
     legs: Array<ActivityLeg>;
     feeLamports: number;
     bagId: string | null;
+    /**
+     * true when bagId comes from the user's own bag lot for this signature; false when it is the catalogue guess.
+     */
+    bagLinked: boolean;
     explorerUrl: string;
 };
 
@@ -370,12 +374,91 @@ export type ActivityError = {
     message: string;
 } | null;
 
+export type PositionsResponse = {
+    walletAddress: string | null;
+    status: 'live' | 'unavailable';
+    message?: string;
+    bags: Array<BagPosition>;
+};
+
+export type BagPosition = {
+    bagId: string;
+    title: string;
+    legs: Array<PositionLeg>;
+    costUsdc: number;
+    valueUsd: number | null;
+    pnlUsd: number | null;
+    pnlPct: number | null;
+    reconciled: boolean;
+    sellable: boolean;
+    lotCount: number;
+    lastTradedAt: string | null;
+};
+
+export type PositionLeg = {
+    mint: string;
+    symbol: string;
+    iconUrl: string | null;
+    decimals: number;
+    tracked: string;
+    trackedUi: number;
+    walletBalance: string | null;
+    held: string;
+    heldUi: number;
+    usdPrice: number | null;
+    usdValue: number | null;
+    costUsdc: number;
+};
+
+export type BagLotResponse = {
+    lot: BagLot;
+};
+
+export type BagLot = {
+    id: string;
+    bagId: string;
+    mint: string;
+    symbol: string;
+    side: TradeSide;
+    tokenAmount: string;
+    tokenUiAmount: number;
+    decimals: number;
+    usdcAmount: string;
+    usdcUiAmount: number;
+    signature: string;
+    ts: string | null;
+};
+
+export type TradeSide = 'buy' | 'sell';
+
+export type PendingBagLeg = {
+    status: 'pending';
+    message: string;
+};
+
+export type BagLegError = {
+    error: string;
+    code: 'NOT_YOUR_TRANSACTION' | 'NOT_A_SWAP' | 'MINT_NOT_IN_BAG' | 'TRANSACTION_FAILED' | 'PROVIDER_NOT_CONFIGURED' | 'PROVIDER_UNAVAILABLE' | 'SIGNATURE_ALREADY_LINKED';
+    bagId?: string;
+};
+
+export type RecordBagLegRequest = {
+    bagId: string;
+    signature: string;
+};
+
 export type QuoteResponse = {
     status: 'available' | 'unavailable';
     bagId: string;
-    inputMint: string;
-    amount: string;
+    side: TradeSide;
+    inputMint: string | null;
+    amount: string | null;
+    portionBps: number | null;
     slippageBps: number;
+    /**
+     * Sells: sum of leg outAmount in USDC base units. Null for buys.
+     */
+    totalOutAmount: string | null;
     legs: Array<QuoteLeg>;
     error: TradeError;
     message: string | null;
@@ -397,7 +480,7 @@ export type QuoteLeg = {
 };
 
 export type TradeError = {
-    code: 'NO_WALLET' | 'UNSUPPORTED_INPUT_MINT' | 'PROVIDER_NOT_CONFIGURED' | 'BAG_NOT_TRADABLE' | 'AMOUNT_TOO_SMALL' | 'NO_ROUTE' | 'TOKEN_NOT_TRADABLE' | 'SLIPPAGE_REJECTED' | 'QUOTE_MISMATCH' | 'PROVIDER_ERROR' | 'PROVIDER_TIMEOUT' | 'INVALID_TRANSACTION';
+    code: 'NO_WALLET' | 'UNSUPPORTED_INPUT_MINT' | 'PROVIDER_NOT_CONFIGURED' | 'BAG_NOT_TRADABLE' | 'AMOUNT_TOO_SMALL' | 'NO_ROUTE' | 'TOKEN_NOT_TRADABLE' | 'SLIPPAGE_REJECTED' | 'QUOTE_MISMATCH' | 'PROVIDER_ERROR' | 'PROVIDER_TIMEOUT' | 'INVALID_TRANSACTION' | 'NO_POSITION';
     message: string;
     legIndex: number | null;
     symbol: string | null;
@@ -405,17 +488,34 @@ export type TradeError = {
 
 export type TradeRequest = {
     bagId: string;
-    inputMint: string;
-    amount: string;
+    side?: TradeSide;
+    /**
+     * Buy only: must be mainnet USDC. Ignored for sells.
+     */
+    inputMint?: string;
+    /**
+     * Buy only: USDC base units (6 decimals). Ignored for sells.
+     */
+    amount?: string;
+    /**
+     * Sell only: share of the user's bag position to sell, 1..10000 bps.
+     */
+    portionBps?: number;
     slippageBps?: number;
 };
 
 export type PrepareResponse = {
     status: 'ready' | 'unavailable';
     bagId: string;
-    inputMint: string;
-    amount: string;
+    side: TradeSide;
+    inputMint: string | null;
+    amount: string | null;
+    portionBps: number | null;
     slippageBps: number;
+    /**
+     * Sells: sum of leg outAmount in USDC base units. Null for buys.
+     */
+    totalOutAmount: string | null;
     walletAddress: string | null;
     transactions: Array<PreparedTransaction>;
     error: TradeError;
@@ -837,6 +937,76 @@ export type ListActivityResponses = {
 };
 
 export type ListActivityResponse = ListActivityResponses[keyof ListActivityResponses];
+
+export type GetBagPositionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/positions';
+};
+
+export type GetBagPositionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type GetBagPositionsError = GetBagPositionsErrors[keyof GetBagPositionsErrors];
+
+export type GetBagPositionsResponses = {
+    /**
+     * Per-bag positions from the user's recorded lots, reconciled against live wallet balances and priced; explicitly unavailable when balances cannot be read
+     */
+    200: PositionsResponse;
+};
+
+export type GetBagPositionsResponse = GetBagPositionsResponses[keyof GetBagPositionsResponses];
+
+export type RecordBagLegData = {
+    body?: RecordBagLegRequest;
+    path?: never;
+    query?: never;
+    url: '/positions/legs';
+};
+
+export type RecordBagLegErrors = {
+    /**
+     * Not your transaction, not a USDC<->asset swap, mint not in the bag, or the transaction failed
+     */
+    400: BagLegError;
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+    /**
+     * Bag not found
+     */
+    404: _Error;
+    /**
+     * Signature already linked to a different bag
+     */
+    409: BagLegError;
+    /**
+     * Transaction provider not configured or unavailable
+     */
+    503: BagLegError;
+};
+
+export type RecordBagLegError = RecordBagLegErrors[keyof RecordBagLegErrors];
+
+export type RecordBagLegResponses = {
+    /**
+     * The confirmed swap leg linked to the bag (amounts derived from the chain, side inferred); idempotent for the same signature and bag
+     */
+    200: BagLotResponse;
+    /**
+     * Transaction not yet visible on-chain; retry shortly
+     */
+    202: PendingBagLeg;
+};
+
+export type RecordBagLegResponse = RecordBagLegResponses[keyof RecordBagLegResponses];
 
 export type QuoteBagTradeData = {
     body?: TradeRequest;

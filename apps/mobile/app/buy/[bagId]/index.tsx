@@ -3,7 +3,7 @@ import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
 import { bagTradable, researchOnlyReason } from "@/components/stockpile/bag-card";
-import { Chip, SlippageControl } from "@/components/stockpile/buy/controls";
+import { Chip, heroSize, SlippageControl } from "@/components/stockpile/buy/controls";
 import { useBuyFlow } from "@/components/stockpile/buy/flow-context";
 import { MessageState, Skeleton } from "@/components/stockpile/layout";
 import { PrimaryButton } from "@/components/stockpile/primary-button";
@@ -216,14 +216,6 @@ export default function BuyAmountScreen() {
       )}
     </View>
   );
-}
-
-// Fixed steps instead of `adjustsFontSizeToFit`: inside a height-constrained flex column iOS
-// shrinks auto-fit text far below `minimumFontScale`, leaving a dot where the amount should be.
-function heroSize(text: string) {
-  if (text.length <= 6) return { fontSize: 72, lineHeight: 84, letterSpacing: -2.5 };
-  if (text.length <= 9) return { fontSize: 56, lineHeight: 68, letterSpacing: -2 };
-  return { fontSize: 42, lineHeight: 52, letterSpacing: -1.2 };
 }
 
 const styles = StyleSheet.create((theme) => ({

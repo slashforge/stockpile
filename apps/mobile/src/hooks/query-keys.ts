@@ -12,6 +12,9 @@ export const queryKeys = {
   saved: ["private", "saved-bags"] as const,
   portfolio: ["private", "portfolio"] as const,
   activity: ["private", "activity"] as const,
+  positions: ["private", "positions"] as const,
+  sellQuote: (bagId: string, portionBps: number, slippageBps: number) =>
+    ["private", "sell-quote", bagId, portionBps, slippageBps] as const,
   mintDecimals: (mints: string[]) =>
     ["solana", "mint-decimals", ...mints] as const,
 };

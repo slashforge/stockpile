@@ -7,8 +7,9 @@ import { findBag } from "../lib/bags";
 import { syncUser, verifyIdentity, type Identity } from "../lib/identity";
 import { readPortfolio, unavailablePortfolio } from "../lib/portfolio";
 import { cursorPattern, HELIUS_MAX_LIMIT, readActivity } from "../lib/activity";
-import { prepareBag, quoteBag, toQuoteLeg, type TradeError } from "../lib/trade";
-import { ActivityResponseSchema, ErrorSchema, MeResponseSchema, PortfolioSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema } from "../schemas";
+import { applyBagLinks, readPositions, recordLeg } from "../lib/positions";
+import { prepareBag, quoteBag, toQuoteLeg, tradeSide, type TradeError, type TradeRequest } from "../lib/trade";
+import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema } from "../schemas";
 
 export type Variables = { identity: Identity };
 export const app = new OpenAPIHono<{ Variables: Variables }>();
@@ -23,7 +24,7 @@ const requireIdentity = createMiddleware<{ Variables: Variables }>(async (c, nex
   c.set("identity", identity);
   await next();
 });
-for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/activity", "/trade/*"]) app.use(path, requireIdentity);
+for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/activity", "/trade/*", "/positions", "/positions/*"]) app.use(path, requireIdentity);
 
 async function listIds(userId: string) {
   const rows = await db.select({ bagId: savedBags.bagId }).from(savedBags).where(eq(savedBags.userId, userId));
@@ -53,32 +54,58 @@ app.openapi(createRoute({ method: "get", path: "/portfolio", operationId: "getPo
 const activityQuery = z.object({ cursor: z.string().regex(cursorPattern).optional(), limit: z.coerce.number().int().min(1).max(HELIUS_MAX_LIMIT).optional() });
 app.openapi(createRoute({ method: "get", path: "/activity", operationId: "listActivity", tags: ["account"], request: { query: activityQuery }, responses: { 200: response(ActivityResponseSchema, "Parsed wallet history (newest first), or unavailable with a typed error"), 400: response(ErrorSchema, "Invalid cursor or limit"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => {
   const { cursor, limit = 20 } = c.req.valid("query");
-  const walletAddress = c.get("identity").walletAddress;
+  const identity = c.get("identity");
+  const walletAddress = identity.walletAddress;
   const result = await readActivity(walletAddress, cursor, limit);
   if (!result.ok && result.error.code === "INVALID_CURSOR") return c.json({ error: result.error.message }, 400);
   if (!result.ok) return c.json({ status: "unavailable" as const, walletAddress, items: [], nextCursor: null, asOf: null, error: result.error, message: result.error.message }, 200);
-  return c.json({ status: "live" as const, walletAddress, ...result.value, error: null, message: null }, 200);
+  const page = await applyBagLinks(result.value, identity.id).catch(() => result.value);
+  return c.json({ status: "live" as const, walletAddress, ...page, error: null, message: null }, 200);
+});
+
+app.openapi(createRoute({ method: "get", path: "/positions", operationId: "getBagPositions", tags: ["positions"], responses: { 200: response(PositionsResponseSchema, "Per-bag positions from the user's recorded lots, reconciled against live wallet balances and priced; explicitly unavailable when balances cannot be read"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => c.json(await readPositions(c.get("identity")), 200));
+app.openapi(createRoute({ method: "post", path: "/positions/legs", operationId: "recordBagLeg", tags: ["positions"], request: { body: { content: { "application/json": { schema: RecordBagLegRequestSchema } } } }, responses: {
+  200: response(BagLotResponseSchema, "The confirmed swap leg linked to the bag (amounts derived from the chain, side inferred); idempotent for the same signature and bag"),
+  202: response(PendingLegSchema, "Transaction not yet visible on-chain; retry shortly"), 400: response(LegErrorSchema, "Not your transaction, not a USDC<->asset swap, mint not in the bag, or the transaction failed"),
+  401: response(ErrorSchema, "Unauthorized"), 404: response(ErrorSchema, "Bag not found"), 409: response(LegErrorSchema, "Signature already linked to a different bag"), 503: response(LegErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
+  const { bagId, signature } = c.req.valid("json");
+  const identity = c.get("identity");
+  await syncUser(identity);
+  const result = await recordLeg(identity, bagId, signature);
+  switch (result.status) {
+    case 200: return c.json({ lot: result.lot }, 200);
+    case 202: return c.json({ status: "pending" as const, message: "Transaction not confirmed yet; retry in a few seconds" }, 202);
+    case 404: return c.json({ error: result.error }, 404);
+    case 409: return c.json({ error: result.error, code: result.code, bagId: result.bagId }, 409);
+    case 503: return c.json({ error: result.error, code: result.code }, 503);
+    default: return c.json({ error: result.error, code: result.code }, 400);
+  }
 });
 
 const tradeResponses = { 401: response(ErrorSchema, "Unauthorized"), 404: response(ErrorSchema, "Bag not found") };
+const echoOf = (request: TradeRequest) => ({ bagId: request.bagId, side: tradeSide(request), inputMint: tradeSide(request) === "buy" ? request.inputMint ?? null : null, amount: tradeSide(request) === "buy" ? request.amount ?? null : null, portionBps: tradeSide(request) === "sell" ? request.portionBps ?? null : null, slippageBps: request.slippageBps });
+const totalOut = (side: "buy" | "sell", legs: { outAmount: string }[]) => (side === "sell" ? legs.reduce((sum, leg) => sum + BigInt(leg.outAmount), 0n).toString() : null);
 app.openapi(createRoute({ method: "post", path: "/trade/quote", operationId: "quoteBagTrade", tags: ["trade"], request: { body: { content: { "application/json": { schema: TradeRequestSchema } } } }, responses: { 200: response(QuoteSchema, "Indicative Jupiter quote per leg, or unavailable with a typed error"), ...tradeResponses } }), async (c) => {
   const request = c.req.valid("json");
   if (!findBag(request.bagId)) return c.json({ error: "Bag not found" }, 404);
-  const echo = { bagId: request.bagId, inputMint: request.inputMint, amount: request.amount, slippageBps: request.slippageBps };
-  const result = await quoteBag(request);
-  if (!result.ok) return c.json({ status: "unavailable" as const, ...echo, legs: [], error: result.error, message: result.error.message }, 200);
-  return c.json({ status: "available" as const, ...echo, legs: result.value.legs.map((leg, i) => toQuoteLeg(leg, result.value.quotes[i]!)), error: null, message: "Indicative quote only; routes and output amounts can change before you sign." }, 200);
+  const echo = echoOf(request);
+  const identity = c.get("identity");
+  const result = await quoteBag(request, { userId: identity.id, walletAddress: identity.walletAddress });
+  if (!result.ok) return c.json({ status: "unavailable" as const, ...echo, totalOutAmount: null, legs: [], error: result.error, message: result.error.message }, 200);
+  const legs = result.value.legs.map((leg, i) => toQuoteLeg(leg, result.value.quotes[i]!));
+  return c.json({ status: "available" as const, ...echo, totalOutAmount: totalOut(echo.side, legs), legs, error: null, message: "Indicative quote only; routes and output amounts can change before you sign." }, 200);
 });
 
 app.openapi(createRoute({ method: "post", path: "/trade/prepare", operationId: "prepareBagTrade", tags: ["trade"], request: { body: { content: { "application/json": { schema: TradeRequestSchema } } } }, responses: { 200: response(PrepareSchema, "Unsigned per-leg transactions, or unavailable with a typed error"), ...tradeResponses } }), async (c) => {
   const request = c.req.valid("json");
   if (!findBag(request.bagId)) return c.json({ error: "Bag not found" }, 404);
-  const walletAddress = c.get("identity").walletAddress;
-  const echo = { bagId: request.bagId, inputMint: request.inputMint, amount: request.amount, slippageBps: request.slippageBps, walletAddress };
-  const unavailable = (error: TradeError) => c.json({ status: "unavailable" as const, ...echo, transactions: [], error, message: error.message }, 200);
+  const identity = c.get("identity");
+  const walletAddress = identity.walletAddress;
+  const echo = { ...echoOf(request), walletAddress };
+  const unavailable = (error: TradeError) => c.json({ status: "unavailable" as const, ...echo, totalOutAmount: null, transactions: [], error, message: error.message }, 200);
   if (!walletAddress) return unavailable({ code: "NO_WALLET", message: "No verified Solana wallet linked to this Privy identity", legIndex: null, symbol: null });
-  const result = await prepareBag(request, walletAddress);
+  const result = await prepareBag(request, walletAddress, { userId: identity.id, walletAddress });
   if (!result.ok) return unavailable(result.error);
-  return c.json({ status: "ready" as const, ...echo, transactions: result.value, error: null, message: "Unsigned transactions only. Review and sign each leg in your wallet; quotes can expire and fills are not guaranteed." }, 200);
+  return c.json({ status: "ready" as const, ...echo, totalOutAmount: totalOut(echo.side, result.value), transactions: result.value, error: null, message: "Unsigned transactions only. Review and sign each leg in your wallet; quotes can expire and fills are not guaranteed." }, 200);
 });
 export default app;

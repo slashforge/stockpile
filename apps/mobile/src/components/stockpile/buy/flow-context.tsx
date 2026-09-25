@@ -3,50 +3,38 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useFundSheet } from "@/components/stockpile/fund-sheet";
 import { usePortfolio } from "@/hooks/use-account";
 import { useBag } from "@/hooks/use-bags";
+import { useLotRecorder } from "@/hooks/use-positions";
 import { useLegSigning, usePrepareTrade } from "@/hooks/use-trade";
 import { USDC_DECIMALS, USDC_MINT } from "@/lib/solana/transaction";
 import { belowOneUnit, defaultBuyAmount, exceedsBalance, spendableUsdc } from "@/lib/trade/balance";
+import { legAssetMint, type TradeSide } from "@/lib/trade/legs";
 import { purchaseStatus } from "@/lib/trade/purchase";
 import { boughtMints, isPreparedExpired, secondsUntilExpiry } from "@/lib/trade/signing";
 import type { PreparedTrade, TradeRequest } from "@/services/api/types";
 import { toBaseUnits } from "@/utils/amounts";
 
-function useBuyFlowState(bagId: string) {
+/**
+ * Everything a buy or sell of a whole bag shares: one prepared set of per-leg transactions, their
+ * signing, retries that skip legs already done, expiry, and linking confirmed swaps to the bag.
+ */
+export function useTradeFlowCore(bagId: string, side: TradeSide) {
   const navigation = useNavigation();
   const bag = useBag(bagId);
-  const portfolio = usePortfolio();
-  const { openFund } = useFundSheet();
-
-  // null until the user edits: until then the amount follows the balance-based default.
-  const [editedAmount, setEditedAmount] = useState<string | null>(null);
-  const [slippageBps, setSlippageBps] = useState(100);
   const prepare = usePrepareTrade();
   const signing = useLegSigning();
+  const lots = useLotRecorder(bagId);
+  const [slippageBps, setSlippageBps] = useState(100);
   const [prepared, setPrepared] = useState<PreparedTrade | null>(null);
   const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  // Output mints bought in earlier prepared sets of this purchase (survives every rebuild).
+  // Bag token mints traded in earlier prepared sets of this run (survives every rebuild).
   const [alreadyBought, setAlreadyBought] = useState<ReadonlySet<string>>(() => new Set());
 
-  const balance = spendableUsdc(portfolio.data);
-  const balanceSettled = !!portfolio.data || portfolio.isError;
-  const amountInput = editedAmount ?? (balanceSettled ? defaultBuyAmount(balance) : "");
-  const amountPending = editedAmount == null && !balanceSettled;
-  const amount = toBaseUnits(amountInput, USDC_DECIMALS);
-  const insufficient = exceedsBalance(amount, balance);
-  const needsFunds =
-    insufficient ||
-    (balance.status === "known" && balance.raw === 0n) ||
-    (belowOneUnit(balance) && !amount);
-  const request: TradeRequest | null = amount
-    ? { bagId, inputMint: USDC_MINT, amount, slippageBps }
-    : null;
-
-  const outputMints = useMemo(
-    () => (prepared?.status === "ready" ? prepared.transactions.map((tx) => tx.outputMint) : []),
-    [prepared],
+  const assetMints = useMemo(
+    () => (prepared?.status === "ready" ? prepared.transactions.map((tx) => legAssetMint(tx, side)) : []),
+    [prepared, side],
   );
-  const status = purchaseStatus(outputMints, signing.states, alreadyBought, signing.inFlight);
+  const status = purchaseStatus(assetMints, signing.states, alreadyBought, signing.inFlight);
 
   useEffect(() => {
     if (preparedAt == null) return;
@@ -54,7 +42,15 @@ function useBuyFlowState(bagId: string) {
     return () => clearInterval(timer);
   }, [preparedAt]);
 
-  /** Builds a fresh signable set. `carry` keeps assets bought so far so a retry never re-buys them. */
+  // Link every confirmed swap to the bag's position; earlier sets were linked when they confirmed.
+  const { record } = lots;
+  useEffect(() => {
+    for (const state of Object.values(signing.states)) {
+      if (state.status === "confirmed") record(state.signature);
+    }
+  }, [signing.states, record]);
+
+  /** Builds a fresh signable set. `carry` keeps legs done so far so a retry never repeats them. */
   const runPrepare = useCallback(
     (
       next: TradeRequest,
@@ -64,7 +60,7 @@ function useBuyFlowState(bagId: string) {
       } = {},
     ) => {
       const carried = options.carry
-        ? new Set([...alreadyBought, ...boughtMints(outputMints, signing.states)])
+        ? new Set([...alreadyBought, ...boughtMints(assetMints, signing.states)])
         : new Set<string>();
       prepare.mutate(next, {
         onSuccess: (data) => {
@@ -77,19 +73,13 @@ function useBuyFlowState(bagId: string) {
         },
       });
     },
-    [alreadyBought, outputMints, signing, prepare],
+    [alreadyBought, assetMints, signing, prepare],
   );
 
   const close = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
     else router.replace("/");
   }, [navigation]);
-
-  // One modal at a time: dismiss the buy flow, then present funding once it has animated out.
-  const addFunds = useCallback(() => {
-    close();
-    setTimeout(openFund, 450);
-  }, [close, openFund]);
 
   // No swipe-to-dismiss while swaps are being signed and sent.
   const running = status === "running";
@@ -98,18 +88,11 @@ function useBuyFlowState(bagId: string) {
   }, [navigation, running]);
 
   return {
+    side,
     bagId,
     bag,
-    balance,
-    amountInput,
-    amountPending,
-    amount,
-    insufficient,
-    needsFunds,
-    setAmount: setEditedAmount,
     slippageBps,
     setSlippageBps,
-    request,
     prepare,
     prepared,
     preparedAt,
@@ -119,9 +102,55 @@ function useBuyFlowState(bagId: string) {
     runPrepare,
     signing,
     alreadyBought,
-    outputMints,
+    assetMints,
     status,
     close,
+    lots,
+  };
+}
+
+export type TradeFlowCore = ReturnType<typeof useTradeFlowCore>;
+
+function useBuyFlowState(bagId: string) {
+  const core = useTradeFlowCore(bagId, "buy");
+  const portfolio = usePortfolio();
+  const { openFund } = useFundSheet();
+
+  // null until the user edits: until then the amount follows the balance-based default.
+  const [editedAmount, setEditedAmount] = useState<string | null>(null);
+
+  const balance = spendableUsdc(portfolio.data);
+  const balanceSettled = !!portfolio.data || portfolio.isError;
+  const amountInput = editedAmount ?? (balanceSettled ? defaultBuyAmount(balance) : "");
+  const amountPending = editedAmount == null && !balanceSettled;
+  const amount = toBaseUnits(amountInput, USDC_DECIMALS);
+  const insufficient = exceedsBalance(amount, balance);
+  const needsFunds =
+    insufficient ||
+    (balance.status === "known" && balance.raw === 0n) ||
+    (belowOneUnit(balance) && !amount);
+  const request: TradeRequest | null = amount
+    ? { bagId, inputMint: USDC_MINT, amount, slippageBps: core.slippageBps }
+    : null;
+
+  // One modal at a time: dismiss the buy flow, then present funding once it has animated out.
+  const { close } = core;
+  const addFunds = useCallback(() => {
+    close();
+    setTimeout(openFund, 450);
+  }, [close, openFund]);
+
+  return {
+    ...core,
+    balance,
+    amountInput,
+    amountPending,
+    amount,
+    insufficient,
+    needsFunds,
+    setAmount: setEditedAmount,
+    request,
+    outputMints: core.assetMints,
     addFunds,
   };
 }
