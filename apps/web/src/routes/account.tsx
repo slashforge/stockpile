@@ -16,7 +16,7 @@ import { useFundSheet } from "@/components/sheets/fund-sheet";
 import { useSignInSheet } from "@/components/sheets/sign-in-sheet";
 import { GradientCard, HeroState } from "@/components/stockpile/hero-state";
 import { PrimaryButton } from "@/components/ui/button";
-import { Card, Collapsible, Divider, ListRow, Page } from "@/components/ui/layout";
+import { Card, Collapsible, Divider, ListRow, Page, Section } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { API_URL } from "@/config/env";
 import { useMe } from "@/hooks/use-account";
@@ -135,16 +135,18 @@ function AccountScreen() {
   const local = apiHost.startsWith("localhost") || apiHost.startsWith("127.");
 
   return (
-    <Page title="Account">
-      {!auth.configured ? (
-        <HeroState
-          gradient="coral"
-          icon={IoLockClosed}
-          title="Sign-in is off in this build"
-          body="Add the Privy app id to the web app config to enable accounts."
-        />
-      ) : auth.authenticated ? (
-        <>
+    <Page title="Account" wide>
+      <div className="grid gap-x-8 gap-y-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
+          {!auth.configured ? (
+            <HeroState
+              gradient="coral"
+              icon={IoLockClosed}
+              title="Sign-in is off in this build"
+              body="Add the Privy app id to the web app config to enable accounts."
+            />
+          ) : auth.authenticated ? (
+            <>
           <GradientCard gradient="rose">
             <div className="flex items-center gap-3">
               <div className="flex size-[60px] shrink-0 items-center justify-center rounded-full bg-white/25">
@@ -162,13 +164,14 @@ function AccountScreen() {
               </div>
             </div>
           </GradientCard>
+          <Section title="Wallet" className="mt-0">
           <Card padded={false} className="gap-0 overflow-hidden">
             {walletAddress ? (
               <>
                 <CopyRow label="Solana wallet" value={walletAddress} />
                 <Divider inset={16} />
                 <ListRow title="Add funds" detail="Receive USDC on Solana" icon={IoAddCircle} onClick={openFund} />
-                <Divider inset={16} />
+                <Divider inset={60} />
                 <ListRow
                   title="View on Solscan"
                   detail="Your wallet’s on-chain history"
@@ -180,34 +183,39 @@ function AccountScreen() {
               <ListRow title="Solana wallet" detail="Setting up your wallet…" icon={IoWallet} />
             )}
           </Card>
+          </Section>
           {me.isError ? (
             <T variant="footnote" tone="danger">
               Couldn’t reach your Stockpile profile: {me.error.message}
             </T>
           ) : null}
-        </>
-      ) : (
-        <HeroState
-          gradient="rose"
-          icon={IoPerson}
-          accents={[IoMail, IoShieldCheckmark]}
-          title="Sign in to Stockpile"
-          body="Save bags, see your balance and put money in a bag."
-          actionLabel="Sign in"
-          actionIcon={IoMail}
-          onAction={() => requestSignIn()}
-        />
-      )}
+            </>
+          ) : (
+            <HeroState
+              gradient="rose"
+              icon={IoPerson}
+              accents={[IoMail, IoShieldCheckmark]}
+              title="Sign in to Stockpile"
+              body="Save bags, see your balance and put money in a bag."
+              actionLabel="Sign in"
+              actionIcon={IoMail}
+              onAction={() => requestSignIn()}
+            />
+          )}
+        </div>
 
-      <Disclosures />
-
-      {auth.authenticated ? (
-        <PrimaryButton label="Sign out" variant="outline" icon={IoLogOutOutline} loading={signingOut} onClick={signOut} />
-      ) : null}
-
-      <T variant="caption" tone="tertiary" align="center" className="mt-1">
-        Stockpile for web{import.meta.env.DEV || local ? ` · ${apiHost}` : ""}
-      </T>
+        <div className="flex min-w-0 flex-col gap-5">
+          <Section title="About" className="mt-0">
+            <Disclosures />
+          </Section>
+          {auth.authenticated ? (
+            <PrimaryButton label="Sign out" variant="outline" icon={IoLogOutOutline} loading={signingOut} onClick={signOut} />
+          ) : null}
+          <T variant="caption" tone="tertiary" align="center">
+            Stockpile for web{import.meta.env.DEV || local ? ` · ${apiHost}` : ""}
+          </T>
+        </div>
+      </div>
     </Page>
   );
 }

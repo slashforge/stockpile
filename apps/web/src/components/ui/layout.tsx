@@ -353,9 +353,19 @@ export function Page({
   );
 }
 
-export function Section({ title, trailing, children }: { title: string; trailing?: ReactNode; children: ReactNode }) {
+export function Section({
+  title,
+  trailing,
+  className,
+  children,
+}: {
+  title: string;
+  trailing?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="mt-2 flex flex-col gap-2">
+    <section className={cn("mt-2 flex flex-col gap-2", className)}>
       <div className="flex items-baseline justify-between gap-2.5">
         <T as="h2" className="shrink text-[20px] leading-[25px] font-semibold tracking-[-0.2px]">
           {title}

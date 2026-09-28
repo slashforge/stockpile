@@ -61,7 +61,7 @@ function SavedList() {
 
 function SavedScreen() {
   return (
-    <Page title="Saved">
+    <Page title="Saved" wide>
       <AuthGate
         gradient="mint"
         icon={IoBookmark}

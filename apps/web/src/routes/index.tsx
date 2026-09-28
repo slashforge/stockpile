@@ -115,8 +115,24 @@ function FeedState({
 
 function ReelFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-reel md:h-[calc(100dvh-48px)] md:w-auto md:max-w-full md:aspect-[9/16] md:rounded-[28px] md:shadow-[0_20px_50px_rgba(9,11,20,0.28)]">
+    <div className="relative h-dvh w-full overflow-hidden bg-reel md:w-auto md:max-w-full md:aspect-[9/16] md:bg-transparent">
       {children}
+    </div>
+  );
+}
+
+/** One story: full-bleed on phones, a floating rounded card (peeking neighbours) on larger screens. */
+function ReelCard({ children, active = true }: { children: ReactNode; active?: boolean }) {
+  return (
+    <div className="h-full md:px-1 md:py-3">
+      <div
+        className={cn(
+          "h-full overflow-hidden bg-reel md:rounded-[28px] md:shadow-[0_18px_44px_-12px_rgba(9,11,20,0.45)] md:ring-1 md:ring-white/10 md:transition-[transform,opacity] md:duration-300",
+          !active && "md:scale-[0.96] md:opacity-60",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -124,12 +140,14 @@ function ReelFrame({ children }: { children: ReactNode }) {
 function FeedLoading() {
   return (
     <ReelFrame>
-      <div className="flex h-full flex-col justify-end gap-3 p-5 pb-32 md:pb-8" role="progressbar" aria-label="Loading stories">
-        <Skeleton height={32} width="80%" radius={10} className="opacity-20" />
-        <Skeleton height={32} width="60%" radius={10} className="opacity-20" />
-        <Skeleton height={18} width="90%" className="opacity-20" />
-        <Skeleton height={64} radius={24} className="opacity-20" />
-      </div>
+      <ReelCard>
+        <div className="flex h-full flex-col justify-end gap-3 p-5 pb-32 md:pb-8" role="progressbar" aria-label="Loading stories">
+          <Skeleton height={32} width="80%" radius={10} className="opacity-20" />
+          <Skeleton height={32} width="60%" radius={10} className="opacity-20" />
+          <Skeleton height={18} width="90%" className="opacity-20" />
+          <Skeleton height={64} radius={24} className="opacity-20" />
+        </div>
+      </ReelCard>
     </ReelFrame>
   );
 }
@@ -292,7 +310,7 @@ function ReelViewer({
   const related = useMemo(() => (active ? relatedBags(active, bagsById) : []), [active, bagsById]);
 
   return (
-    <div className="flex h-dvh items-center justify-center md:gap-5 md:p-6 xl:gap-8">
+    <div className="flex h-dvh items-center justify-center md:gap-5 md:px-6 xl:gap-8">
       <ReelFrame>
         <div
           ref={scroller}
@@ -304,15 +322,15 @@ function ReelViewer({
             if (next !== index) setIndex(next);
           }}
         >
-          {stories.map((story) => (
-            <div key={story.id} className="h-full">
+          {stories.map((story, storyIndex) => (
+            <ReelCard key={story.id} active={!wide || storyIndex === index}>
               <StoryReel
                 story={story}
                 bags={relatedBags(story, bagsById)}
                 bottomInset={wide ? 0 : TAB_INSET}
                 onOpenBag={openBag}
               />
-            </div>
+            </ReelCard>
           ))}
         </div>
       </ReelFrame>
@@ -360,7 +378,7 @@ function FeedScreen() {
 
   if (feed.isPending || collected.status === "pending") {
     return (
-      <div className="flex h-dvh items-center justify-center md:p-6">
+      <div className="flex h-dvh items-center justify-center md:px-6">
         <FeedLoading />
       </div>
     );
