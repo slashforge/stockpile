@@ -1,5 +1,5 @@
 ---
-import { SITE_TITLE } from '../consts';
+import { APP_URL, SITE_TITLE } from '../consts';
 ---
 
 <nav class="fixed top-3 sm:top-4 inset-x-0 z-50 px-3 sm:px-5" aria-label="Primary">
@@ -19,8 +19,8 @@ import { SITE_TITLE } from '../consts';
       <a href="/#bags" class="nav-link hidden sm:inline-flex">Bags</a>
       <a href="/#trust" class="nav-link hidden md:inline-flex">Safety</a>
       <a href="/blog" class="nav-link inline-flex">Blog</a>
-      <a href="/#get" class="ml-1 inline-flex items-center gap-1.5 rounded-full bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-hover active:scale-[0.97] transition shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
-        Get the app
+      <a href={APP_URL} class="ml-1 inline-flex items-center gap-1.5 rounded-full bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-hover active:scale-[0.97] transition shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
+        Open app
       </a>
     </div>
   </div>

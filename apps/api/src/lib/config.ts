@@ -20,7 +20,7 @@ export type FeatureName = "xstocks" | "prestocks" | "market" | "brandColors";
 
 type AppConfig = { dev: boolean; apiUrl: string; webUrl: string; corsOrigins: string[] };
 
-const LOCAL_CORS_ORIGINS = ["http://localhost:8081", "http://localhost:19006", "http://localhost:4321"];
+const LOCAL_CORS_ORIGINS = ["http://localhost:8081", "http://localhost:19006", "http://localhost:4321", "http://localhost:5173"];
 
 const links = Resource as unknown as Record<string, unknown>;
 const secretOverrides = new Map<SecretName, string | undefined>();

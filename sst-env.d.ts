@@ -54,6 +54,10 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "PrivyWebClientId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "PythApiKey": {
       "type": "sst.sst.Secret"
       "value": string
@@ -64,6 +68,10 @@ declare module "sst" {
     }
     "StockpileLanding": {
       "type": "sst.cloudflare.Astro"
+      "url": string
+    }
+    "StockpileWeb": {
+      "type": "sst.cloudflare.StaticSite"
       "url": string
     }
     "TokensApiKey": {

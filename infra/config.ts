@@ -10,7 +10,7 @@ export const appConfig = new sst.Linkable("AppConfig", {
         dev: false,
         apiUrl: `https://${domains.api}`,
         webUrl: `https://${domains.landing}`,
-        corsOrigins: [`https://${domains.landing}`],
+        corsOrigins: [`https://${domains.landing}`, `https://${domains.app}`],
         authFromEmail: AUTH_FROM_EMAIL,
         appScheme: APP_SCHEME,
       }
@@ -18,7 +18,7 @@ export const appConfig = new sst.Linkable("AppConfig", {
         dev: true,
         apiUrl: "http://localhost:4040",
         webUrl: "http://localhost:4321",
-        corsOrigins: ["http://localhost:8081", "http://localhost:19006", "http://localhost:4321"],
+        corsOrigins: ["http://localhost:8081", "http://localhost:19006", "http://localhost:4321", "http://localhost:5173"],
         authFromEmail: AUTH_FROM_EMAIL,
         appScheme: APP_SCHEME,
       },

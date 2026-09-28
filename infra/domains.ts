@@ -5,4 +5,5 @@ const HOST = "stockpile.cash";
 export const domains = {
   api: `${SUB}api.${HOST}`,
   landing: `${SUB}${HOST}`,
+  app: `${SUB}app.${HOST}`,
 };

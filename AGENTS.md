@@ -10,6 +10,7 @@ Read the doc(s) matching your task before editing. Multi-layer tasks (e.g. new A
 | ---------------------------------------------------------- | ----------------------- |
 | API routes, auth (Better Auth), OpenAPI, generated SDK     | `.agents/api.md`        |
 | Mobile app (Expo / React Native)                           | `.agents/mobile.md`     |
+| Web app (Vite / TanStack Router, app.stockpile.cash)       | `.agents/web.md`        |
 | Postgres schema, Drizzle, mobile SQLite schema, migrations | `.agents/database.md`   |
 | SST infra, secrets, deployment, landing page, dev-mcp      | `.agents/infra.md`      |
 | Cross-cutting (API + mobile, schema + API, etc.)           | All relevant docs above |
@@ -19,12 +20,13 @@ Read the doc(s) matching your task before editing. Multi-layer tasks (e.g. new A
 ```
 apps/api            Hono + @hono/zod-openapi API (Bun locally, Cloudflare Worker deployed)
 apps/mobile         Expo React Native app (@stockpile/mobile), Expo Router
+apps/web            Vite + React web app (@stockpile/web), TanStack Router/Query, deployed at app.<host>
 apps/landing        Astro landing/blog site (Cloudflare)
 apps/dev-mcp        Local-only MCP server for dev tooling (port 4444)
 packages/core       @stockpile/core — shared Drizzle Postgres schema + db client
 packages/api-client @stockpile/api-client — SDK generated from the API's OpenAPI spec
 functions           Placeholder workspace (package.json only)
-infra/              SST components (api, database, config, secrets, domains, expo, landing, dev-mcp, orm)
+infra/              SST components (api, database, config, secrets, domains, expo, landing, web, dev-mcp, orm)
 sst.config.ts       SST entrypoint; imports infra/* modules
 drizzle.config.ts   Root drizzle-kit config (Postgres, schema in packages/core/db/schema)
 scripts/setup.ts    Template rename script (`bun run setup`)

@@ -9,6 +9,8 @@ export const privyAppId = new sst.Secret("PrivyAppId");
 export const privyAppSecret = new sst.Secret("PrivyAppSecret");
 // Public Privy mobile client id, injected into the Expo bundle. Empty: the app runs browse-only.
 export const privyClientId = new sst.Secret("PrivyClientId", "");
+// Optional public Privy web client id (dashboard → App clients) for apps/web. Empty: the default web client is used.
+export const privyWebClientId = new sst.Secret("PrivyWebClientId", "");
 
 // Jupiter (quotes, swaps, token metadata, prices) and Helius (balances, activity, simulation).
 export const jupiterApiKey = new sst.Secret("JupiterApiKey");

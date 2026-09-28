@@ -1,0 +1,53 @@
+---
+import { APP_URL } from '../consts';
+
+interface Props {
+  /** `light` = white button for use on coloured backgrounds. */
+  tone?: 'dark' | 'light';
+  label?: string;
+}
+const { tone = 'dark', label = 'Open the web app' } = Astro.props;
+---
+
+<a href={APP_URL} class:list={['open-app', tone === 'light' && 'open-app--light']}>
+  <span>{label}</span>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7" /></svg>
+</a>
+
+<style>
+  .open-app {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 26px;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    box-shadow: 0 12px 28px -8px rgba(37, 99, 235, 0.55);
+    transition:
+      transform 0.15s,
+      background-color 0.2s;
+  }
+  .open-app:hover {
+    background: #1d4ed8;
+  }
+  .open-app:active {
+    transform: scale(0.97);
+  }
+  .open-app svg {
+    transition: transform 0.2s;
+  }
+  .open-app:hover svg {
+    transform: translateX(3px);
+  }
+  .open-app--light {
+    background: #fff;
+    color: #1d4ed8;
+    box-shadow: 0 12px 28px -8px rgba(6, 18, 43, 0.35);
+  }
+  .open-app--light:hover {
+    background: #eef4ff;
+  }
+</style>

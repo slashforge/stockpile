@@ -1,6 +1,6 @@
 ---
 import IPhone from './IPhone.astro';
-import StoreBadges from './StoreBadges.astro';
+import OpenApp from './OpenApp.astro';
 import type { LandingBag } from '../lib/bags';
 
 interface Props {
@@ -45,8 +45,11 @@ interface Props {
           stocks and pre-IPO names. Read the story, peek inside, and buy the whole bag with a single slide.
         </p>
 
-        <div class="reveal mt-8" style="--d:3">
-          <StoreBadges align="start" />
+        <div class="reveal mt-8 flex flex-col items-center lg:items-start gap-3" style="--d:3">
+          <OpenApp />
+          <a href="#get-app" class="text-sm font-semibold text-text-subtle hover:text-text transition">
+            iPhone &amp; Android apps coming soon ↓
+          </a>
         </div>
 
         <ul class="reveal mt-8 flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 text-sm font-semibold text-text-subtle" style="--d:4">

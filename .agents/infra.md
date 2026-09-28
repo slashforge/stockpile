@@ -15,6 +15,7 @@ domains.ts   stockpile.cash; stage-prefixed subdomains except prod (api.<host>, 
 database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
 api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
 landing.ts   Astro site deployment
+web.ts       apps/web Vite SPA as StaticSiteV2 (Worker static assets) at app.<host>; injects VITE_API_URL + Privy ids; local dev on :5173
 expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL and the Privy ids from secrets
 dev-mcp.ts   Local-only DevCommand for apps/dev-mcp on :4444 (/mcp)
 orm.ts       Local DevCommand: drizzle-kit studio
