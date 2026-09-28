@@ -1,9 +1,9 @@
-import { getIdentityToken, PrivyProvider, usePrivy, type User } from "@privy-io/react-auth";
+import { getIdentityToken, PrivyProvider, useIdentityToken, usePrivy, type User } from "@privy-io/react-auth";
 import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
-import { type ReactNode, useCallback, useEffect, useMemo } from "react";
+import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from "@/config/env";
 import { PRIVATE_QUERY_PREFIX } from "@/hooks/query-keys";
 import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
@@ -24,9 +24,13 @@ function embeddedSolanaAddress(user: User | null): string | null {
 function PrivyBridge({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { ready, authenticated: privyAuthenticated, user, logout: privyLogout } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const { wallets } = useWallets();
   const { signTransaction } = useSignTransaction();
-  const authenticated = ready && privyAuthenticated && !!user;
+  // Private queries only run once the identity token exists, so no request goes out without the header.
+  const authenticated = ready && privyAuthenticated && !!user && !!identityToken;
+  const identityTokenRef = useRef(identityToken);
+  identityTokenRef.current = identityToken;
 
   const embeddedAddress = embeddedSolanaAddress(user);
   const wallet = useMemo(
@@ -38,12 +42,13 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   );
   const walletAddress = wallet?.address ?? embeddedAddress;
 
-  useEffect(() => {
+  // Layout effect: registered before children's passive effects start fetching.
+  useLayoutEffect(() => {
     if (!authenticated) {
       clearIdentityTokenGetter();
       return;
     }
-    const getter = () => getIdentityToken();
+    const getter = async () => identityTokenRef.current ?? (await getIdentityToken());
     setIdentityTokenGetter(getter);
     queryClient.invalidateQueries({ queryKey: PRIVATE_QUERY_PREFIX });
     return () => clearIdentityTokenGetter(getter);

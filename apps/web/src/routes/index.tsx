@@ -139,16 +139,55 @@ function ReelCard({ children, active = true }: { children: ReactNode; active?: b
 
 function FeedLoading() {
   return (
-    <ReelFrame>
-      <ReelCard>
-        <div className="flex h-full flex-col justify-end gap-3 p-5 pb-32 md:pb-8" role="progressbar" aria-label="Loading stories">
-          <Skeleton height={32} width="80%" radius={10} className="opacity-20" />
-          <Skeleton height={32} width="60%" radius={10} className="opacity-20" />
-          <Skeleton height={18} width="90%" className="opacity-20" />
-          <Skeleton height={64} radius={24} className="opacity-20" />
+    <div
+      className="flex h-dvh items-center justify-center md:gap-5 md:px-6 xl:gap-8"
+      role="progressbar"
+      aria-label="Loading stories"
+    >
+      <ReelFrame>
+        <ReelCard>
+          <div className="flex h-full flex-col justify-end gap-3 p-5 pb-32 md:pb-8">
+            <Skeleton height={32} width="80%" radius={10} className="opacity-20" />
+            <Skeleton height={32} width="60%" radius={10} className="opacity-20" />
+            <Skeleton height={18} width="90%" className="opacity-20" />
+            <Skeleton height={64} radius={24} className="opacity-20" />
+          </div>
+        </ReelCard>
+      </ReelFrame>
+
+      <div className="hidden flex-col items-center gap-3 md:flex">
+        <Skeleton height={44} width={44} radius={22} />
+        <Skeleton height={12} width={32} />
+        <Skeleton height={44} width={44} radius={22} />
+      </div>
+
+      <aside className="hidden h-[calc(100dvh-48px)] w-[340px] shrink-0 flex-col gap-3 overflow-hidden xl:flex 2xl:w-[380px]">
+        <Skeleton height={12} width={140} />
+        <div className="overflow-hidden rounded-3xl bg-surface shadow-card">
+          <Skeleton height={116} radius={0} />
+          <div className="flex flex-col gap-2.5 p-4">
+            <Skeleton height={22} width="65%" />
+            <Skeleton height={14} width="85%" />
+            <Skeleton height={20} width="70%" radius={10} />
+            <Skeleton height={6} radius={3} />
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row} className="flex items-center gap-2.5 py-1">
+                <Skeleton height={28} width={28} radius={14} />
+                <Skeleton height={14} width="40%" />
+                <div className="flex-1" />
+                <Skeleton height={14} width={32} />
+              </div>
+            ))}
+            <Skeleton height={44} radius={22} className="mt-1" />
+          </div>
         </div>
-      </ReelCard>
-    </ReelFrame>
+        <div className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-card">
+          <Skeleton height={12} width={60} />
+          <Skeleton height={16} width="50%" />
+          <Skeleton height={12} width="70%" />
+        </div>
+      </aside>
+    </div>
   );
 }
 
@@ -377,11 +416,7 @@ function FeedScreen() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (feed.isPending || collected.status === "pending") {
-    return (
-      <div className="flex h-dvh items-center justify-center md:px-6">
-        <FeedLoading />
-      </div>
-    );
+    return <FeedLoading />;
   }
   if (feed.isError) {
     return (
