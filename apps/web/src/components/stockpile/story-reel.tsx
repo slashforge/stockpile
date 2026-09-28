@@ -126,9 +126,12 @@ function PosterBackdrop({ story, bag, showLead }: { story: Story; bag: Bag | und
       ) : null}
       {lead && showLead ? (
         <div className="absolute inset-x-4 top-[88px] flex flex-col gap-1.5 md:inset-x-6">
-          <span className="mb-2.5 self-start rounded-full border-2 border-white/20">
-            <TokenAvatar symbol={lead.symbol} iconUrl={lead.iconUrl} size={56} />
-          </span>
+          <TokenAvatar
+            symbol={lead.symbol}
+            iconUrl={lead.iconUrl}
+            size={56}
+            className="mb-2.5 self-start shadow-[0_0_0_2px_rgba(255,255,255,0.2)]"
+          />
           <span className="truncate text-[64px] leading-[68px] font-black tracking-[-2px] text-white">
             {displayTicker(lead.symbol)}
           </span>

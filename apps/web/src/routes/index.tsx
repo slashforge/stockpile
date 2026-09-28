@@ -161,7 +161,7 @@ function FeedLoading() {
         <Skeleton height={44} width={44} radius={22} />
       </div>
 
-      <aside className="hidden h-[calc(100dvh-48px)] w-[340px] shrink-0 flex-col gap-3 overflow-hidden xl:flex 2xl:w-[380px]">
+      <aside className="hidden h-dvh w-[340px] shrink-0 flex-col gap-3 overflow-hidden py-6 xl:flex 2xl:w-[380px]">
         <Skeleton height={12} width={140} />
         <div className="overflow-hidden rounded-3xl bg-surface shadow-card">
           <Skeleton height={116} radius={0} />
@@ -392,7 +392,7 @@ function ReelViewer({
       </div>
 
       {active ? (
-        <aside className="no-scrollbar hidden h-[calc(100dvh-48px)] w-[340px] shrink-0 overflow-y-auto xl:block 2xl:w-[380px]">
+        <aside className="no-scrollbar hidden h-dvh w-[340px] shrink-0 overflow-y-auto py-6 xl:block 2xl:w-[380px]">
           <StoryContext story={active} bags={related} />
           <T variant="caption" tone="tertiary" align="center" className="mt-4">
             Use ↑ ↓ to browse stories
