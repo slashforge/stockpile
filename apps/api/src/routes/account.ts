@@ -21,7 +21,8 @@ const requireIdentity = createMiddleware<{ Variables: Variables }>(async (c, nex
   const token = c.req.header("privy-id-token");
   if (!token) return c.json({ error: "Missing privy-id-token header" }, 401);
   if (!secret("PrivyAppId") || !secret("PrivyAppSecret")) return c.json({ error: "Privy is not configured" }, 503);
-  const identity = await verifyIdentity(token);
+  const identity = await verifyIdentity(token).catch(() => undefined);
+  if (identity === undefined) return c.json({ error: "Identity verification unavailable; retry shortly" }, 503);
   if (!identity) return c.json({ error: "Invalid or expired credentials" }, 401);
   c.set("identity", identity);
   await next();

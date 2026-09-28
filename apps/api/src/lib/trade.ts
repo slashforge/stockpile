@@ -35,6 +35,19 @@ const jupiterHeaders = () => ({ "x-api-key": secret("JupiterApiKey") ?? "", "Con
 export const tradeSide = (request: TradeRequest): TradeSide => request.side ?? "buy";
 /** Slippage used for indicative quotes when the user leaves protection on automatic. */
 const INDICATIVE_SLIPPAGE_BPS = 50;
+/** Codes worth one more attempt for the same leg: flaky upstreams, not user or route problems. */
+const TRANSIENT: ReadonlySet<TradeErrorCode> = new Set(["PROVIDER_ERROR", "PROVIDER_TIMEOUT", "QUOTE_MISMATCH"]);
+
+/** Runs one leg's upstream work, retrying a transient failure once; the final failure is logged with its real cause. */
+async function withLegRetry<T>(leg: Leg, stage: string, run: () => Promise<Result<T>>): Promise<Result<T>> {
+  let result = await run();
+  if (!result.ok && TRANSIENT.has(result.error.code)) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    result = await run();
+  }
+  if (!result.ok) console.warn(`trade ${stage} failed`, JSON.stringify(result.error));
+  return result;
+}
 
 /** Deterministic USDC split by weight; the last leg absorbs rounding so the legs sum to the requested amount. */
 export async function splitLegs(bag: Bag, amount: bigint): Promise<Result<Leg[]>> {
@@ -128,7 +141,7 @@ async function quoteLegs(legs: Leg[], slippageBps: number | null): Promise<Resul
   const auto = slippageBps == null;
   const quotes: JupiterQuote[] = [];
   for (const leg of legs) {
-    const quoted = await quoteLeg(leg, slippageBps ?? INDICATIVE_SLIPPAGE_BPS);
+    const quoted = await withLegRetry(leg, "quote", () => quoteLeg(leg, slippageBps ?? INDICATIVE_SLIPPAGE_BPS));
     if (!quoted.ok) return quoted;
     // With automatic protection the real minimum is only known once the swap is built.
     quotes.push(auto ? { ...quoted.value, otherAmountThreshold: undefined } : quoted.value);
@@ -203,23 +216,31 @@ async function prepareLegs(legs: Leg[], walletAddress: string, slippageBps: numb
   const payerKey = payer.publicKey.toBase58();
   const prepared: PreparedLeg[] = [];
   for (const leg of legs) {
-    const built = await buildLeg(leg, walletAddress, payerKey, slippageBps);
-    if (!built.ok) return built;
-    const build = built.value;
-    let sponsored: Awaited<ReturnType<typeof compileSponsored>>;
-    try { sponsored = await compileSponsored(build, walletAddress, payer, url); }
-    catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be built`, at(leg)); }
-    if (!sponsored.ok) {
-      if (sponsored.reason === "slippage") return fail("SLIPPAGE_REJECTED", `${leg.asset.symbol}: ${sponsored.message}`, at(leg));
-      if (sponsored.reason === "rpc") return fail("PROVIDER_ERROR", `Couldn't prepare ${leg.asset.symbol}: ${sponsored.message}`, at(leg));
-      if (sponsored.reason === "simulation") return fail("PROVIDER_ERROR", `${leg.asset.symbol} swap would fail: ${sponsored.message}`, at(leg));
-      return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction was refused: ${sponsored.message}`, at(leg));
-    }
-    try {
-      const summary = inspectTransaction(sponsored.transaction);
-      if (summary.feePayer !== payerKey || summary.feePayer === walletAddress) return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction is not sponsored`, at(leg));
-    } catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be inspected`, at(leg)); }
-    prepared.push({ ...toQuoteLeg(leg, build as JupiterQuote), transaction: sponsored.transaction, lastValidBlockHeight: sponsored.lastValidBlockHeight, slippageBps: typeof build.slippageBps === "number" ? build.slippageBps : null, feePayer: payerKey });
+    // A fresh build per attempt: a retry after a failed simulation must not reuse the stale route or blockhash.
+    const result = await withLegRetry(leg, "prepare", () => prepareLeg(leg, walletAddress, payer, url, slippageBps));
+    if (!result.ok) return result;
+    prepared.push(result.value);
   }
   return { ok: true, value: prepared };
+}
+
+async function prepareLeg(leg: Leg, walletAddress: string, payer: NonNullable<ReturnType<typeof paymaster>>, url: string, slippageBps: number | null): Promise<Result<PreparedLeg>> {
+  const payerKey = payer.publicKey.toBase58();
+  const built = await buildLeg(leg, walletAddress, payerKey, slippageBps);
+  if (!built.ok) return built;
+  const build = built.value;
+  let sponsored: Awaited<ReturnType<typeof compileSponsored>>;
+  try { sponsored = await compileSponsored(build, walletAddress, payer, url); }
+  catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be built`, at(leg)); }
+  if (!sponsored.ok) {
+    if (sponsored.reason === "slippage") return fail("SLIPPAGE_REJECTED", `${leg.asset.symbol}: ${sponsored.message}`, at(leg));
+    if (sponsored.reason === "rpc") return fail("PROVIDER_ERROR", `Couldn't prepare ${leg.asset.symbol}: ${sponsored.message}`, at(leg));
+    if (sponsored.reason === "simulation") return fail("PROVIDER_ERROR", `${leg.asset.symbol} swap would fail: ${sponsored.message}`, at(leg));
+    return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction was refused: ${sponsored.message}`, at(leg));
+  }
+  try {
+    const summary = inspectTransaction(sponsored.transaction);
+    if (summary.feePayer !== payerKey || summary.feePayer === walletAddress) return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction is not sponsored`, at(leg));
+  } catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be inspected`, at(leg)); }
+  return { ok: true, value: { ...toQuoteLeg(leg, build as JupiterQuote), transaction: sponsored.transaction, lastValidBlockHeight: sponsored.lastValidBlockHeight, slippageBps: typeof build.slippageBps === "number" ? build.slippageBps : null, feePayer: payerKey } };
 }

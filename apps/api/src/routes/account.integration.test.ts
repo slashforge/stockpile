@@ -305,10 +305,16 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
   });
   it("returns no partial preparation after a leg error", async () => {
     allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
-    const { quoteCalls, buildCalls } = jupiter((call, url) => call === 2 ? new Response("fail", { status: 503 }) : buildFor(url));
+    const { quoteCalls, buildCalls } = jupiter((call, url) => call === 2 || call === 3 ? new Response("fail", { status: 503 }) : buildFor(url));
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "PROVIDER_ERROR", legIndex: 1, symbol: "MSFTx" } });
     expect(quoteCalls()).toBe(0);
-    expect(buildCalls()).toBe(2);
+    expect(buildCalls()).toBe(3);
+  });
+  it("retries a leg once after a transient provider error", async () => {
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
+    const { buildCalls } = jupiter((call, url) => call === 2 ? new Response("fail", { status: 503 }) : buildFor(url));
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ error: null });
+    expect(buildCalls()).toBeGreaterThan(2);
   });
   it("fails closed when sponsored fees are not configured", async () => {
     allMints(); setSecrets({ JupiterApiKey: "test" });

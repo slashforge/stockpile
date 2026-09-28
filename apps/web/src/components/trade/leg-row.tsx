@@ -3,6 +3,7 @@ import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { Spinner } from "@/components/ui/button";
 import { Pill } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
+import { usePortfolio } from "@/hooks/use-account";
 import { useMintDecimals } from "@/hooks/use-mint-decimals";
 import { explorerTxUrl, inspectTransaction, USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel, impactPercent, legAssetMint, legLabelProblems, type TradeSide } from "@/lib/trade/legs";
@@ -30,13 +31,15 @@ export function legBlocking(
 }
 
 /**
- * Formats a raw amount of the leg's bag token. Buys carry the decimals on the leg; sells (and legs
- * the API couldn't resolve) look them up on chain.
+ * Formats a raw amount of the leg's bag token. Buys carry the decimals on the leg; sells read them
+ * from the wallet's holdings (the API already resolved them), and only then from chain.
  */
 export function TokenAmount({ tx, raw, side = "buy" }: { tx: QuoteLeg; raw: string; side?: TradeSide }) {
   const mint = legAssetMint(tx, side);
-  const known = side === "buy" ? tx.outputDecimals : null;
-  const decimals = useMintDecimals(known == null ? [mint] : []);
+  const portfolio = usePortfolio();
+  const held = portfolio.data?.holdings.find((holding) => holding.mint === mint)?.decimals;
+  const known = side === "buy" ? tx.outputDecimals : (held ?? null);
+  const decimals = useMintDecimals(known == null && !portfolio.isPending ? [mint] : []);
   const value = known ?? decimals.data?.[mint];
   return <>{value != null ? formatTokenAmount(raw, value, tx.uiAmountMultiplier) : `${raw} units`}</>;
 }

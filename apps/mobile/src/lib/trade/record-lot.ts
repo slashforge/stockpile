@@ -28,7 +28,8 @@ export function classifyRecordResponse(status: number, body: unknown): RecordAtt
   const message = errorField(body, "error") ?? `Request failed (${status || "network"})`;
   if (status === 200 || status === 201) return { kind: "linked" };
   if (status === 202) return { kind: "pending" };
-  if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
+  // 401 is retried too: the identity token can be refreshing while legs confirm.
+  if (status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429) {
     return { kind: "rejected", code, message };
   }
   return { kind: "error", message };

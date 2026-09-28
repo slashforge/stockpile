@@ -7,6 +7,9 @@ import { isDeployed } from "./utils";
 function hyperdrive() {
   const origin = databaseUrl.value.apply((value) => new URL(value));
   return new sst.cloudflare.Hyperdrive("Database", {
+    // Reads must see writes immediately (lots, saved bags, users); a cached SELECT after an insert
+    // made swap linking return 409 and positions lag behind trades.
+    caching: false,
     origin: {
       scheme: "postgres",
       host: origin.apply((url) => url.hostname),

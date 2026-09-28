@@ -1,4 +1,4 @@
-import { getIdentityToken, PrivyProvider, useIdentityToken, usePrivy, type User } from "@privy-io/react-auth";
+import { getAccessToken, getIdentityToken, PrivyProvider, useIdentityToken, usePrivy, type User } from "@privy-io/react-auth";
 import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,35 @@ import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction"
 import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
 import { clearIdentityTokenGetter, setIdentityTokenGetter } from "@/services/api/identity-token";
 import { submitSignedTransaction } from "@/services/api/stockpile";
+
+/** True when the JWT is missing an `exp` or expires within a minute. */
+function tokenExpiring(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return !payload.exp || payload.exp * 1000 - Date.now() < 60_000;
+  } catch {
+    return true;
+  }
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+/**
+ * Privy re-issues the identity token when the session refreshes (`getAccessToken` with an expired
+ * access token). `getIdentityToken()` calls Privy's API on every use, so it's only the last resort,
+ * and concurrent requests share one refresh.
+ */
+function refreshIdentityToken(current: () => string | null): Promise<string | null> {
+  refreshing ??= (async () => {
+    await getAccessToken().catch(() => null);
+    const token = current();
+    if (token && !tokenExpiring(token)) return token;
+    return getIdentityToken().catch(() => token);
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
 
 /** The Privy-managed (embedded) Solana wallet address, if the user has one yet. */
 function embeddedSolanaAddress(user: User | null): string | null {
@@ -48,7 +77,11 @@ function PrivyBridge({ children }: { children: ReactNode }) {
       clearIdentityTokenGetter();
       return;
     }
-    const getter = async () => identityTokenRef.current ?? (await getIdentityToken());
+    const getter = async () => {
+      const cached = identityTokenRef.current;
+      if (cached && !tokenExpiring(cached)) return cached;
+      return refreshIdentityToken(() => identityTokenRef.current);
+    };
     setIdentityTokenGetter(getter);
     queryClient.invalidateQueries({ queryKey: PRIVATE_QUERY_PREFIX });
     return () => clearIdentityTokenGetter(getter);
