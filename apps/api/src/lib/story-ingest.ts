@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { db } from "@stockpile/core/db";
 import { stories } from "@stockpile/core/db/schema";
 import { canonicalUrl, curate, editorial, safeText, stance, storyId, type Draft } from "./story-curator";
+import { fetchNoRedirect } from "./strict-fetch";
 
 /** Companies whose explicit mention in a multi-company feed maps a story to bags. Pre-IPO names map to PreStocks-backed bags. */
 export const companies = [
@@ -80,7 +81,7 @@ async function boundedBody(response: Response, maxBytes: number) {
 }
 
 async function readLimited(url: string, maxBytes = 512_000) {
-  const response = await fetch(url, { redirect: "error", headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(10000) });
+  const response = await fetchNoRedirect(url, { headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(10000) });
   const type = response.headers.get("content-type") ?? "";
   if (type && !/xml|rss|atom/i.test(type)) throw new Error("Feed content type rejected");
   const text = await boundedBody(response, maxBytes);
@@ -240,8 +241,8 @@ export function parsePodcastEpisodes(data: unknown): Draft[] {
 }
 
 async function fetchPodcastEpisodes() {
-  const response = await fetch("https://itunes.apple.com/lookup?id=1186480811&entity=podcastEpisode&limit=6", {
-    redirect: "error", signal: AbortSignal.timeout(7000), headers: { Accept: "application/json" },
+  const response = await fetchNoRedirect("https://itunes.apple.com/lookup?id=1186480811&entity=podcastEpisode&limit=6", {
+    signal: AbortSignal.timeout(7000), headers: { Accept: "application/json" },
   });
   if (!/json|javascript/i.test(response.headers.get("content-type") ?? "")) throw new Error("Podcast directory content type rejected");
   const body = await boundedBody(response, 128_000);

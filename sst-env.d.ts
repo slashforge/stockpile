@@ -6,6 +6,7 @@
 
 declare module "sst" {
   export interface Resource {
+    "Api": import("@cloudflare/workers-types").Service
     "AppConfig": {
       "apiUrl": string
       "appScheme": string
@@ -23,6 +24,7 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "Database": import("@cloudflare/workers-types").Hyperdrive
     "DatabaseUrl": {
       "type": "sst.sst.Secret"
       "value": string
@@ -39,6 +41,7 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "PriceSnapshotsHandler": import("@cloudflare/workers-types").Service
     "PrivyAppId": {
       "type": "sst.sst.Secret"
       "value": string

@@ -20,7 +20,7 @@ export const rangeSeconds: Record<Range, number> = { "24h": 86400, "7d": 7 * 864
 export const rangeInterval: Record<Range, TokensInterval> = { "24h": "15m", "7d": "1H", "30d": "4H", "1y": "1D" };
 const snapshotStepSeconds: Record<Range, number> = { "24h": 3600, "7d": 3600, "30d": 4 * 3600, "1y": 24 * 3600 };
 
-/** `bun run prices:snapshot` (also hourly in-process): one usdPrice row per tracked mint, keyed to the start of the current hour so reruns are idempotent. */
+/** `bun run prices:snapshot` (hourly: dev.ts interval locally, cron.ts Worker when deployed): one usdPrice row per tracked mint, keyed to the start of the current hour so reruns are idempotent. */
 export async function snapshotPrices(now = new Date()) {
   trackAllMints();
   const current = await marketSnapshot();

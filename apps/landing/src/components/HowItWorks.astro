@@ -1,51 +1,183 @@
 ---
+import IPhone from './IPhone.astro';
+
 const steps = [
   {
-    n: '01',
-    title: 'Swipe a story',
-    body: 'A vertical feed of real news, podcasts, and STOCK Act disclosures. Each one is mapped to the bag it touches, with a note on why.',
-    tone: 'bg-grad-blue',
-    icon: 'M4 6h16M4 12h16M4 18h10',
+    title: 'Swipe the news',
+    body: 'A full-screen feed of real stories from the outlets you already read. Every one is tied to the bag it moves, so you go from “huh, interesting” to “what does that mean for me?” in one swipe.',
+    tag: 'Feed',
+    tone: 'bg-brand-soft text-brand',
+    shot: '/screens/feed-2.webp',
+    alt: 'Feed story about Meta and consumer AI devices, linked to the Frontier AI Labs pre-IPO bag',
   },
   {
-    n: '02',
-    title: 'See the bag & evidence',
-    body: 'Holdings, weights, curator, and the source behind every position. Live 24h change, liquidity, and premium vs the underlying stock.',
-    tone: 'bg-grad-sky',
-    icon: 'M9 12l2 2 4-4m5.6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    title: 'Peek inside the bag',
+    body: 'Tap the bag to see exactly what’s in it: every token, its logo, and its weight. No mystery funds, no jargon. Save the ones you like for later.',
+    tag: 'Bag',
+    tone: 'bg-coral-soft text-[#C0392B]',
+    shot: '/screens/bag-sheet.webp',
+    alt: 'The Consumer Frontiers bag sheet listing Amazon, Tesla, Meta, Netflix, McDonald’s, Walmart and Robinhood with weights',
   },
   {
-    n: '03',
-    title: 'Buy in one flow',
-    body: 'Fund with USDC, pick an amount, and approve the swaps from your embedded wallet. Non-custodial: Stockpile never holds your keys or submits for you.',
-    tone: 'bg-grad-mint',
-    icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+    title: 'Pick an amount',
+    body: 'Type how much you want to put in, in dollars. Stockpile splits it across the bag for you using the weights you just saw.',
+    tag: 'Amount',
+    tone: 'bg-mint-soft text-positive',
+    shot: '/screens/buy.webp',
+    alt: 'Buy bag keypad with a nine dollar amount and quick picks for 10, 25, 50 and 100 dollars',
+  },
+  {
+    title: 'Slide to buy',
+    body: 'Review every swap before it happens (amounts, minimums, and a fresh quote), then slide once. Your wallet signs, and the whole bag lands in your portfolio.',
+    tag: 'Review',
+    tone: 'bg-tertiary-soft text-tertiary',
+    shot: '/screens/review.webp',
+    alt: 'Review screen listing seven swaps for the Consumer Frontiers bag with a Swipe to buy button',
   },
 ];
 ---
 
-<section id="how" class="section">
+<section id="how" class="section relative">
   <div class="max-w-6xl mx-auto px-5 sm:px-6">
-    <div class="max-w-2xl mb-12 md:mb-16">
-      <p class="eyebrow mb-3">How it works</p>
-      <h2 class="text-4xl sm:text-5xl text-text text-balance">Three swipes from a headline to a holding.</h2>
+    <div class="max-w-2xl mx-auto text-center mb-14 lg:mb-6" data-reveal>
+      <p class="pill-label">How it works</p>
+      <h2 class="mt-4 text-4xl sm:text-[56px] sm:leading-[1.02] font-extrabold tracking-[-0.035em] text-text text-balance">
+        From headline to holding in four little steps.
+      </h2>
     </div>
 
-    <ol class="grid md:grid-cols-3 gap-4 md:gap-6">
-      {steps.map((s) => (
-        <li class="card squircle p-7 flex flex-col gap-5 hover-lift">
-          <div class="flex items-center justify-between">
-            <span class:list={['w-12 h-12 rounded-2xl squircle grid place-items-center text-white shadow-md', s.tone]}>
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d={s.icon} /></svg>
-            </span>
-            <span class="font-mono text-sm text-text-muted">{s.n}</span>
+    <div class="grid lg:grid-cols-2 gap-10 lg:gap-16">
+      <ol class="how-steps">
+        {steps.map((s, i) => (
+          <li class="how-step" data-step={i}>
+            <div class="how-step__card">
+              <div class="flex items-center gap-3">
+                <span class="step-num">{i + 1}</span>
+                <span class:list={['rounded-full px-3 py-1 text-xs font-bold', s.tone]}>{s.tag}</span>
+              </div>
+              <h3 class="mt-5 text-3xl sm:text-[40px] sm:leading-[1.05] font-extrabold tracking-[-0.03em] text-text">{s.title}</h3>
+              <p class="mt-4 text-lg text-text-subtle text-pretty max-w-md">{s.body}</p>
+            </div>
+            <div class="lg:hidden mt-8 mx-auto w-[240px] sm:w-[270px]">
+              <IPhone src={s.shot} alt={s.alt} />
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div class="hidden lg:block">
+        <div class="sticky top-[max(7rem,calc(50vh-330px))]">
+          <div class="relative mx-auto w-[300px]">
+            <div class="how-glow" aria-hidden="true"></div>
+            <IPhone src={steps[0].shot} alt="">
+              {steps.map((s, i) => (
+                <img src={s.shot} alt={s.alt} class="how-shot" data-shot={i} width="780" height="1696" loading="lazy" decoding="async" />
+              ))}
+            </IPhone>
+            <div class="mt-8 flex justify-center gap-2" aria-hidden="true">
+              {steps.map((_, i) => <span class="how-dot" data-dot={i}></span>)}
+            </div>
           </div>
-          <div>
-            <h3 class="text-2xl text-text">{s.title}</h3>
-            <p class="mt-2 text-text-subtle text-pretty">{s.body}</p>
-          </div>
-        </li>
-      ))}
-    </ol>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
+
+<style>
+  .step-num {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: #10131f;
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+  }
+  .how-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 72px;
+  }
+  @media (min-width: 1024px) {
+    .how-steps {
+      gap: 0;
+    }
+    .how-step {
+      min-height: 78vh;
+      display: flex;
+      align-items: center;
+    }
+    .how-step__card {
+      opacity: 0.28;
+      transform: translateX(-6px);
+      transition:
+        opacity 0.5s ease,
+        transform 0.5s ease;
+    }
+    .how-step.is-active .how-step__card {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .how-glow {
+    position: absolute;
+    inset: 10% -30%;
+    border-radius: 999px;
+    background: radial-gradient(closest-side, rgba(56, 189, 248, 0.35), rgba(37, 99, 235, 0.12), transparent);
+    filter: blur(20px);
+    z-index: -1;
+  }
+  .how-shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1.03);
+    transition:
+      opacity 0.45s ease,
+      transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .how-shot.is-active {
+    opacity: 1;
+    transform: none;
+  }
+  .how-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #d3d7e4;
+    transition:
+      width 0.3s ease,
+      background 0.3s ease;
+  }
+  .how-dot.is-active {
+    width: 28px;
+    background: #2563eb;
+  }
+</style>
+
+<script>
+  const steps = Array.from(document.querySelectorAll<HTMLElement>('.how-step'));
+  const shots = Array.from(document.querySelectorAll<HTMLElement>('.how-shot'));
+  const dots = Array.from(document.querySelectorAll<HTMLElement>('.how-dot'));
+  const activate = (index: number) => {
+    steps.forEach((el, i) => el.classList.toggle('is-active', i === index));
+    shots.forEach((el, i) => el.classList.toggle('is-active', i === index));
+    dots.forEach((el, i) => el.classList.toggle('is-active', i === index));
+  };
+  activate(0);
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) activate(Number((entry.target as HTMLElement).dataset.step));
+      }
+    },
+    { rootMargin: '-45% 0px -45% 0px' },
+  );
+  steps.forEach((el) => observer.observe(el));
+</script>

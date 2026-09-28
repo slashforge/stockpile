@@ -7,6 +7,7 @@ import { and, desc, gte, inArray, lte } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { db } from "@stockpile/core/db";
 import { congressDisclosures, stories } from "@stockpile/core/db/schema";
+import { fetchNoRedirect } from "./strict-fetch";
 
 export const CONGRESS_SOURCE = "congressinvests";
 const base = "https://congressinvests.com";
@@ -51,7 +52,7 @@ async function fetchTicker(ticker: string): Promise<Disclosure[]> {
   const headers: Record<string, string> = { Accept: "application/json", "User-Agent": "Stockpile/1.0 (+https://stockpile.app)" };
   const apiKey = secret("CongressApiKey");
   if (apiKey) headers["X-Api-Key"] = apiKey;
-  const response = await fetch(`${base}/trades/${encodeURIComponent(ticker)}?limit=500`, { redirect: "error", headers, signal: AbortSignal.timeout(15000) });
+  const response = await fetchNoRedirect(`${base}/trades/${encodeURIComponent(ticker)}?limit=500`, { headers, signal: AbortSignal.timeout(15000) });
   if (!response.ok || Number(response.headers.get("content-length") || 0) > maxBytes) throw new Error(`CongressInvests ${response.status} for ${ticker}`);
   const text = await response.text();
   if (text.length > maxBytes) throw new Error("CongressInvests response too large");

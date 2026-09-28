@@ -1,11 +1,13 @@
 # API (`apps/api`) and generated SDK (`packages/api-client`)
 
-Hono API defined with `@hono/zod-openapi`. Runs on Bun locally (port 4040, `apps/api/index.ts`) and as a Cloudflare Worker when deployed (`infra/api.ts`). Do not start the server — it requires SST-linked resources.
+Hono API defined with `@hono/zod-openapi`. Runs on Bun locally (port 4040, `apps/api/dev.ts`) and as a Cloudflare Worker when deployed (`apps/api/index.ts` + hourly cron `apps/api/cron.ts`, see `infra/api.ts`). Worker code must not do I/O, timers or randomness at module scope, and must not use `fetch(..., { redirect: "error" })` (use `fetchNoRedirect` from `src/lib/strict-fetch.ts`). Do not start the server — it requires SST-linked resources.
 
 ## Layout
 
 ```
-apps/api/index.ts              Bun server entry (port 4040)
+apps/api/dev.ts                Bun server entry (local, port 4040, background refresh)
+apps/api/index.ts              Cloudflare Worker entry (deployed)
+apps/api/cron.ts               Cron Worker: hourly price snapshots (deployed)
 apps/api/src/app.ts            OpenAPIHono app: CORS, logger, /health, mounts /auth, serves /openapi.json
 apps/api/src/routes/           Route modules (auth.ts) + index.ts re-exports
 apps/api/src/schemas/index.ts  Shared zod response schemas (ErrorSchema, MeResponseSchema, ...)

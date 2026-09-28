@@ -1,0 +1,221 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { LEGAL_UPDATED, SUPPORT_EMAIL } from '../consts';
+---
+
+<Legal
+	title="Privacy Policy"
+	description="How Stockpile collects, uses, and protects your information, and which third-party services (Privy, Jupiter, Helius and others) are involved."
+	updated={LEGAL_UPDATED}
+>
+	<p class="lead">
+		Stockpile is a non-custodial app that turns news stories into bags of tokenized stocks and pre-IPO tokens on Solana. This
+		Privacy Policy explains what information we collect when you use the Stockpile mobile app and website (the "Service"), how we
+		use it, and who we share it with.
+	</p>
+	<div class="callout">
+		<strong>The short version:</strong> we never have your private keys or recovery phrase. We store your email, your public
+		wallet address, the bags you save, and the swaps you attribute to bags. We use no advertising or analytics trackers, and we
+		never sell your data. Anything you do on the Solana blockchain is public by design.
+	</div>
+
+	<h2 id="collect">1. Information we collect</h2>
+	<h3>Information you provide</h3>
+	<ul>
+		<li><strong>Sign-in details.</strong> The email address you sign in with. Sign-in and one-time codes are handled by Privy.</li>
+		<li><strong>Profile.</strong> An optional username and display name.</li>
+		<li><strong>Saved bags.</strong> The bags you bookmark.</li>
+		<li><strong>Support messages.</strong> Anything you send us when you contact support or give feedback.</li>
+	</ul>
+
+	<h3>Information created when you use the Service</h3>
+	<ul>
+		<li>
+			<strong>Wallet address.</strong> The public address of the embedded Solana wallet Privy creates for you, together with your Privy
+			user ID.
+		</li>
+		<li>
+			<strong>Trade requests.</strong> When you ask for a quote or build a swap, we receive the tokens, amounts, and wallet address
+			involved so we can fetch quotes from Jupiter and prepare the transactions.
+		</li>
+		<li>
+			<strong>Signed transactions.</strong> Transactions you sign on your device are sent to our API, which relays them to the Solana
+			network through Helius and tracks whether they confirm.
+		</li>
+		<li>
+			<strong>Bag positions.</strong> For each confirmed swap you attribute to a bag, we store the transaction signature, token,
+			direction, amounts, and block time. We read these from the blockchain, not from your device, and use them to show your cost
+			basis and performance per bag.
+		</li>
+		<li>
+			<strong>Portfolio and activity.</strong> We read your wallet's public balances and transaction history from the blockchain so we
+			can show them in the app. We fetch these when you ask for them and do not keep a separate copy beyond the bag positions above.
+		</li>
+	</ul>
+
+	<h3>Collected automatically</h3>
+	<ul>
+		<li>
+			<strong>Technical data.</strong> When your device talks to our servers, our hosting provider (Cloudflare) processes your IP
+			address, request metadata, and basic device and app-version information as part of normal operation and security.
+		</li>
+		<li><strong>App updates.</strong> The app checks Expo's update service for new versions, which shares your app version and platform.</li>
+	</ul>
+
+	<h3>What we do not collect</h3>
+	<ul>
+		<li>
+			<strong>Private keys and recovery phrases.</strong> Your embedded wallet's keys are secured by Privy's key-management system and
+			are never available to Stockpile. We cannot move your funds and cannot recover your wallet.
+		</li>
+		<li><strong>Advertising or analytics trackers.</strong> The app has no third-party analytics, advertising, or cross-app tracking SDKs.</li>
+		<li><strong>Device data.</strong> We do not access your contacts, photos, camera, microphone, or precise location.</li>
+		<li><strong>Bank or card details.</strong> Stockpile does not process fiat payments.</li>
+	</ul>
+
+	<h2 id="blockchain">2. Public blockchain data</h2>
+	<p>
+		Solana is a public blockchain. Your wallet address, balances, and every transaction you make are permanently and publicly
+		visible to anyone, and can be linked to you if your address is ever associated with your identity. Stockpile cannot change,
+		hide, or delete information recorded on-chain.
+	</p>
+
+	<h2 id="use">3. How we use your information</h2>
+	<ul>
+		<li>To create and secure your account and embedded wallet.</li>
+		<li>To show your saved bags, portfolio, activity, and per-bag performance.</li>
+		<li>To get swap quotes, prepare transactions, sponsor network fees, and relay your signed transactions to Solana.</li>
+		<li>To enforce eligibility and restrictions, and to detect and prevent fraud, abuse, and security incidents.</li>
+		<li>To operate, debug, and improve the Service.</li>
+		<li>To reply to support requests and send important service or policy notices.</li>
+		<li>To comply with legal obligations.</li>
+	</ul>
+	<p>We do not use your information for advertising, and we do not sell or rent it.</p>
+
+	<h2 id="third-parties">4. Third-party services</h2>
+	<p>Stockpile relies on these providers. Each has its own privacy policy and terms.</p>
+	<h3>Providers that process data about you</h3>
+	<ul>
+		<li>
+			<strong><a href="https://www.privy.io/privacy-policy" target="_blank" rel="noopener noreferrer">Privy</a></strong>: sign-in,
+			email one-time codes, and embedded wallet infrastructure. Privy processes your email, device and session details, and wallet
+			keys under its own security model.
+		</li>
+		<li>
+			<strong><a href="https://jup.ag/privacy-policy" target="_blank" rel="noopener noreferrer">Jupiter</a></strong>: token swap
+			aggregation and routing across Solana liquidity, plus token metadata and prices. Jupiter receives the wallet address, tokens,
+			and amounts involved in each quote and swap.
+		</li>
+		<li>
+			<strong><a href="https://www.helius.dev/privacy-policy" target="_blank" rel="noopener noreferrer">Helius</a></strong>: Solana RPC
+			infrastructure. We use it to read balances and transaction history, simulate transactions, and send your signed transactions to
+			the network.
+		</li>
+		<li>
+			<strong><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare</a></strong>:
+			hosting for our API and website, content delivery, and security. It also connects our API to our managed Postgres database.
+		</li>
+		<li>
+			<strong><a href="https://expo.dev/privacy" target="_blank" rel="noopener noreferrer">Expo</a></strong>: delivers over-the-air app
+			updates.
+		</li>
+		<li><strong>Apple App Store and Google Play</strong>: app distribution, under their own policies.</li>
+	</ul>
+	<h3>Data and content providers (no personal data sent by us)</h3>
+	<ul>
+		<li>
+			<strong>Backed Finance (<a href="https://xstocks.fi" target="_blank" rel="noopener noreferrer">xStocks</a>)</strong> and
+			<strong><a href="https://prestocks.com" target="_blank" rel="noopener noreferrer">PreStocks</a></strong>: token issuers whose
+			product metadata and logos we display.
+		</li>
+		<li><strong>tokens.xyz</strong>: price chart data.</li>
+		<li><strong>Pyth Network</strong>: reference prices for the underlying assets.</li>
+		<li>
+			<strong>CongressInvests</strong> and the official U.S. House and Senate disclosure sites: public STOCK Act trading disclosures
+			used to build disclosure bags.
+		</li>
+		<li>
+			<strong>OpenAI</strong>: helps us curate and summarize public news stories on our servers. None of your personal data is sent to
+			OpenAI.
+		</li>
+		<li><strong>DiceBear</strong>: generates default profile avatars from a seed value.</li>
+		<li>
+			<strong>News publishers</strong>: the stories we link to belong to their publishers. When you tap "Read story", the publisher's
+			site opens and its own privacy policy applies.
+		</li>
+	</ul>
+	<p>
+		Some images, such as token logos, news images, and avatars, load directly from these providers' servers. Like any web request,
+		this exposes your IP address to the host.
+	</p>
+
+	<h2 id="sharing">5. How we share information</h2>
+	<p>We share information only:</p>
+	<ul>
+		<li>with the service providers above, as needed to run the Service;</li>
+		<li>when required by law, regulation, subpoena, or other legal process;</li>
+		<li>to protect the rights, property, or safety of Stockpile, our users, or others, including to investigate fraud or sanctions violations;</li>
+		<li>as part of a merger, acquisition, financing, or sale of assets, subject to this Policy; or</li>
+		<li>with your consent.</li>
+	</ul>
+
+	<h2 id="retention">6. Data retention</h2>
+	<p>
+		We keep account data (email, username, wallet address, saved bags, and bag positions) for as long as your account is active.
+		When you delete your account, we delete this data within 30 days, except where we must keep it to meet legal obligations,
+		resolve disputes, or enforce our agreements. Server logs are kept for a short period for security and debugging. Data held by
+		Privy and other providers follows their own retention policies. On-chain data cannot be deleted.
+	</p>
+	<p>Some data, such as cached bags and preferences, is stored on your device and is removed when you sign out or delete the app.</p>
+
+	<h2 id="security">7. Security</h2>
+	<p>
+		All traffic between the app and our servers is encrypted with TLS. Access to our database and secrets is restricted, and the
+		transactions we prepare are checked and simulated before you are asked to sign them. No system is perfectly secure, however,
+		and you are responsible for keeping your device and your sign-in email secure.
+	</p>
+
+	<h2 id="rights">8. Your rights and choices</h2>
+	<p>Depending on where you live (for example under the GDPR, UK GDPR, or CCPA/CPRA), you may have the right to:</p>
+	<ul>
+		<li>access the personal data we hold about you and receive a portable copy;</li>
+		<li>correct inaccurate data;</li>
+		<li>delete your account and personal data;</li>
+		<li>object to or restrict certain processing; and</li>
+		<li>withdraw consent where processing is based on consent.</li>
+	</ul>
+	<p>
+		To use any of these rights, email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from the address linked to your
+		account. We will respond within the time required by law. We do not sell or "share" personal information for cross-context
+		behavioral advertising as those terms are defined under California law. You may also complain to your local data protection
+		authority.
+	</p>
+	<p>
+		Deleting your Stockpile account does not delete your wallet or its funds. Before you delete your account, move your assets or
+		export your wallet through Privy.
+	</p>
+
+	<h2 id="children">9. Children</h2>
+	<p>
+		Stockpile is not intended for anyone under 18. We do not knowingly collect information from minors. If we learn that we have, we
+		will delete it.
+	</p>
+
+	<h2 id="international">10. International transfers</h2>
+	<p>
+		We and our providers operate in the United States and other countries. Your information may be processed outside your country,
+		under data protection laws that may differ from yours. Where required, we rely on appropriate safeguards such as standard
+		contractual clauses.
+	</p>
+
+	<h2 id="changes">11. Changes to this policy</h2>
+	<p>
+		We may update this Policy from time to time. If we make material changes, we will notify you in the app or on this page before
+		they take effect. The "Last updated" date shows the latest version.
+	</p>
+
+	<h2 id="contact">12. Contact</h2>
+	<p>
+		Questions about this Policy or our data practices? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+	</p>
+</Legal>

@@ -1,0 +1,52 @@
+---
+import TokenAvatar from './TokenAvatar.astro';
+import { uniqueAssets, type LandingBag } from '../lib/bags';
+
+interface Props {
+  bags: LandingBag[];
+}
+
+const assets = uniqueAssets(Astro.props.bags);
+const label = (symbol: string) => symbol.replace(/x$/, '');
+---
+
+<section class="relative py-8 sm:py-10" aria-label="Tokens available in Stockpile bags">
+  <p class="text-center text-sm font-semibold text-text-muted mb-5 px-5">
+    {assets.length} tokenized stocks, ETFs &amp; pre-IPO names, from <span class="text-text">xStocks</span> and <span class="text-text">PreStocks</span>
+  </p>
+  <div class="marquee">
+    {[0, 1].map((copy) => (
+      <ul class="marquee__track" aria-hidden={copy === 1 ? 'true' : undefined}>
+        {assets.map((a, i) => (
+          <li class="inline-flex items-center gap-2.5 rounded-full bg-white border border-border pl-1.5 pr-4 py-1.5 shadow-sm">
+            <TokenAvatar symbol={a.symbol} name={a.name} iconUrl={a.iconUrl} brandColor={a.brandColor} size={30} index={i} />
+            <span class="text-sm font-bold text-text whitespace-nowrap">{label(a.symbol)}</span>
+          </li>
+        ))}
+      </ul>
+    ))}
+  </div>
+</section>
+
+<style>
+  .marquee {
+    display: flex;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .marquee__track {
+    display: flex;
+    flex: none;
+    gap: 10px;
+    padding-right: 10px;
+    animation: marquee 60s linear infinite;
+  }
+  .marquee:hover .marquee__track {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+</style>

@@ -35,6 +35,11 @@ await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: width < 700 });
 await send('Page.navigate', { url });
 await new Promise((r) => setTimeout(r, 3000));
+// Scroll-triggered reveals never fire in a single capture; show them all.
+await send('Runtime.evaluate', {
+  expression: `document.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-in'))`,
+});
+await new Promise((r) => setTimeout(r, 900));
 const metrics = await send('Page.getLayoutMetrics');
 const fullHeight = Math.ceil(metrics.cssContentSize?.height ?? metrics.contentSize.height);
 const clipHeight = full === '1' ? fullHeight : height;

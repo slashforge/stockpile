@@ -13,7 +13,7 @@ config.ts    AppConfig Linkable: apiUrl/webUrl/corsOrigins/authFromEmail/appSche
 secrets.ts   SST secrets: DatabaseUrl, Privy*, JupiterApiKey, HeliusApiKey, SolanaPaymasterKey, TokensApiKey, PythApiKey, CongressApiKey, OpenaiApiKey, BlockedMints (`apiSecrets` = those linked to the API)
 domains.ts   stockpile.cash; stage-prefixed subdomains except prod (api.<host>, <host>)
 database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
-api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version). Local: DevCommand `bun dev` in apps/api on :4040. No env vars, links only
+api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
 landing.ts   Astro site deployment
 expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL and the Privy ids from secrets
 dev-mcp.ts   Local-only DevCommand for apps/dev-mcp on :4444 (/mcp)

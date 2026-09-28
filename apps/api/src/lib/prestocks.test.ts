@@ -17,7 +17,7 @@ function provider(options: { directory?: () => Response; token?: Record<string, 
   const calls = { directory: 0, search: 0, quote: 0, price: 0 };
   globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
-    if (url === PRESTOCKS_DIRECTORY_URL) { calls.directory++; expect(init?.redirect).toBe("error"); return options.directory ? options.directory() : directoryResponse([row()]); }
+    if (url === PRESTOCKS_DIRECTORY_URL) { calls.directory++; expect(init?.redirect).toBe("manual"); return options.directory ? options.directory() : directoryResponse([row()]); }
     expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test");
     if (url.includes("/tokens/v2/search")) { calls.search++; return Response.json(options.token === null ? [] : [{ id: MINT2, symbol: "ANTHROPIC" }, options.token ?? jupiterToken()]); }
     if (url.includes("/swap/v1/quote")) { calls.quote++; return options.quote ? options.quote() : Response.json({ inputMint: USDC, outputMint: new URL(url).searchParams.get("outputMint"), inAmount: "1000000", outAmount: "490615" }); }

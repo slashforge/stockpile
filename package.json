@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "setup": "bun scripts/setup.ts",
-    "api:dev": "sst shell -- bun --watch apps/api/index.ts",
+    "api:dev": "sst shell -- bun --watch apps/api/dev.ts",
     "db:generate": "sst shell -- drizzle-kit generate",
     "db:migrate": "sst shell -- drizzle-kit migrate",
     "stories:ingest": "sst shell -- bun apps/api/scripts/ingest-stories.ts",

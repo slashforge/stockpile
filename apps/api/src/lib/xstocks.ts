@@ -4,6 +4,7 @@
 import { feature } from "./config";
 import { base58Mint } from "./constants";
 import { boundedJson } from "./prestocks";
+import { fetchNoRedirect } from "./strict-fetch";
 
 export const XSTOCKS_API = "https://api.xstocks.fi/api/v2/public/assets";
 export type XStockListing = { symbol: string; mint: string; name: string; logoUrl: string | null };
@@ -35,7 +36,7 @@ export function parseXStock(value: unknown, symbol: string): XStockListing | nul
 class NotListed extends Error {}
 
 async function fetchListing(symbol: string): Promise<XStockListing | null> {
-  const response = await fetch(`${XSTOCKS_API}/${encodeURIComponent(symbol)}`, { redirect: "error", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) });
+  const response = await fetchNoRedirect(`${XSTOCKS_API}/${encodeURIComponent(symbol)}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) });
   if (response.status === 404) throw new NotListed();
   return parseXStock(await boundedJson(response, maxBytes), symbol);
 }

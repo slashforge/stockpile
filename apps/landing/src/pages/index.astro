@@ -2,10 +2,11 @@
 import BaseHead from '../components/BaseHead.astro';
 import Nav from '../components/Nav.astro';
 import Hero from '../components/Hero.astro';
+import Ticker from '../components/Ticker.astro';
 import HowItWorks from '../components/HowItWorks.astro';
 import Bags from '../components/Bags.astro';
-import Receipts from '../components/Receipts.astro';
-import Builders from '../components/Builders.astro';
+import Trust from '../components/Trust.astro';
+import GetApp from '../components/GetApp.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 import { loadBagCatalogue } from '../lib/bags';
@@ -22,15 +23,30 @@ const heroBag =
 	<head>
 		<BaseHead title={`${SITE_TITLE} — Swipe the news, buy the bag`} description={SITE_DESCRIPTION} />
 	</head>
-	<body class="bg-background text-text antialiased">
+	<body class="bg-background text-text antialiased overflow-x-hidden">
 		<Nav />
 		<main>
 			<Hero bag={heroBag} />
+			<Ticker bags={catalogue.bags} />
 			<HowItWorks />
 			<Bags catalogue={catalogue} />
-			<Receipts />
-			<Builders />
+			<Trust />
+			<GetApp />
 		</main>
 		<Footer />
+		<script>
+			const els = document.querySelectorAll<HTMLElement>('[data-reveal]');
+			const io = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						if (!entry.isIntersecting) continue;
+						entry.target.classList.add('is-in');
+						io.unobserve(entry.target);
+					}
+				},
+				{ rootMargin: '0px 0px -10% 0px' },
+			);
+			els.forEach((el) => io.observe(el));
+		</script>
 	</body>
 </html>

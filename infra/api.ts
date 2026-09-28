@@ -19,6 +19,15 @@ const WORKER_TRANSFORM = {
   },
 };
 
+const WORKER_BUILD = {
+  esbuild: {
+    define: {
+      "process.version": '"v20.0.0"',
+      "process.versions.node": '"20.0.0"',
+    },
+  },
+};
+
 export const api = !isDeployed()
   ? new sst.x.DevCommand("Api", {
       link: [...API_LINKS, databaseUrl],
@@ -27,14 +36,7 @@ export const api = !isDeployed()
   : new sst.cloudflare.Worker("Api", {
       url: true,
       handler: "apps/api/index.ts",
-      build: {
-        esbuild: {
-          define: {
-            "process.version": '"v20.0.0"',
-            "process.versions.node": '"20.0.0"',
-          },
-        },
-      },
+      build: WORKER_BUILD,
       link: [...API_LINKS, database!],
       domain: domains.api,
       placement: {
@@ -42,6 +44,19 @@ export const api = !isDeployed()
       },
       transform: WORKER_TRANSFORM,
     });
+
+// Hourly price snapshots (apps/api/cron.ts). Locally the Bun dev server (apps/api/dev.ts) runs this on an interval.
+export const priceSnapshots = isDeployed()
+  ? new sst.cloudflare.Cron("PriceSnapshots", {
+      schedules: ["0 * * * *"],
+      worker: {
+        handler: "apps/api/cron.ts",
+        build: WORKER_BUILD,
+        link: [...API_LINKS, database!],
+        transform: WORKER_TRANSFORM,
+      },
+    })
+  : undefined;
 
 export const apiUrl = isDeployed()
   ? $interpolate`https://${domains.api}`

@@ -325,20 +325,49 @@ export async function loadBagCatalogue(): Promise<BagCatalogue> {
 /** Fallback palette (mobile `theme.chart`) when a token has no brand colour. */
 export const CHART_PALETTE = ['#2563EB', '#FF7A66', '#22C29A', '#0E9AB5', '#FFB23F', '#2FA8E8', '#FF6FA3', '#64748B'];
 
-export const BAG_GRADIENTS: Record<string, string> = {
-  'megacap-builders': 'bg-grad-blue',
-  'ai-infrastructure': 'bg-grad-mint',
-  'consumer-frontiers': 'bg-grad-coral',
-  'crypto-fintech-rails': 'bg-grad-sky',
-  'cloud-software': 'bg-grad-rose',
-  'everyday-brands': 'bg-grad-mint',
-  'index-basics': 'bg-grad-blue',
-  'frontier-ai-labs': 'bg-grad-rose',
-  'prediction-markets': 'bg-grad-sky',
-  'defense-space': 'bg-grad-blue',
-  'pelosi-tracker': 'bg-grad-coral',
-  'congress-consensus': 'bg-grad-mint',
-};
+/** Mirrors mobile `theme.gradients.light`. */
+export const GRADIENTS = {
+  blue: ['#2563EB', '#38BDF8'],
+  coral: ['#FF8A6B', '#FFB86B'],
+  mint: ['#2BCFA3', '#4DA3FF'],
+  rose: ['#FF6F91', '#FF9E7A'],
+  sky: ['#4DA3FF', '#6FE0E8'],
+} as const;
+export type GradientName = keyof typeof GRADIENTS;
+
+// Same theme cues as mobile `bag-art.tsx` so a bag wears the same colours on web and in the app.
+const THEMES: { pattern: RegExp; gradient: GradientName }[] = [
+  { pattern: /\b(ai|compute|chip|semi|hardware|infrastructure)\b/i, gradient: 'blue' },
+  { pattern: /\b(consumer|commerce|retail|shopping|entertainment)\b/i, gradient: 'coral' },
+  { pattern: /\b(energy|power|utilit|grid|solar)\b/i, gradient: 'mint' },
+  { pattern: /\b(health|bio|pharma|medic)\b/i, gradient: 'rose' },
+  { pattern: /\b(financ|bank|payment|fintech)\b/i, gradient: 'sky' },
+  { pattern: /\b(megacap|platform|builder|software|cloud|computing)\b/i, gradient: 'rose' },
+];
+const FALLBACK: GradientName[] = ['blue', 'mint', 'coral', 'rose', 'sky'];
+
+export function hash(value: string) {
+  let h = 0;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export function bagGradient(bag: Pick<LandingBag, 'id' | 'title' | 'subtitle'>): readonly [string, string] {
+  const text = `${bag.title} ${bag.subtitle}`;
+  const match = THEMES.find(({ pattern }) => pattern.test(text));
+  return GRADIENTS[match?.gradient ?? FALLBACK[hash(bag.id) % FALLBACK.length]];
+}
+
+export function bagTradable(bag: LandingBag) {
+  return bag.tradable && bag.assets.length > 0;
+}
+
+/** Every distinct token across the catalogue, in first-seen order. */
+export function uniqueAssets(bags: LandingBag[]) {
+  const seen = new Map<string, LandingAsset>();
+  for (const bag of bags) for (const asset of bag.assets) if (!seen.has(asset.symbol)) seen.set(asset.symbol, asset);
+  return [...seen.values()];
+}
 
 export function monogram(symbol: string) {
   return symbol.replace(/x$/, '').slice(0, 2).toUpperCase();

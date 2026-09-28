@@ -1,0 +1,187 @@
+---
+import IPhone from './IPhone.astro';
+---
+
+<section id="trust" class="section relative">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6">
+    <div class="max-w-2xl mb-12" data-reveal>
+      <p class="pill-label">Peace of mind</p>
+      <h2 class="mt-4 text-4xl sm:text-[56px] sm:leading-[1.02] font-extrabold tracking-[-0.035em] text-text text-balance">
+        Friendly on the outside. Serious underneath.
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+      <!-- Keys -->
+      <article class="tile tile--hero md:col-span-2 lg:row-span-2" data-reveal>
+        <div class="relative z-10 max-w-sm">
+          <span class="icon bg-white/20 text-white">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          </span>
+          <h3 class="mt-5 text-3xl sm:text-4xl font-extrabold tracking-[-0.03em] text-white">Your keys. Your swaps.</h3>
+          <p class="mt-3 text-white/85 text-pretty">
+            Stockpile gives you your own Solana wallet, secured by Privy. Every trade is a Jupiter swap you see line by line and
+            sign on your phone. We never hold your funds, never sign for you, and never hit “buy” on your behalf.
+          </p>
+          <ul class="mt-6 flex flex-wrap gap-2 text-sm font-semibold">
+            <li class="rounded-full bg-white/15 px-3 py-1.5 text-white">Non-custodial</li>
+            <li class="rounded-full bg-white/15 px-3 py-1.5 text-white">Signed on-device</li>
+            <li class="rounded-full bg-white/15 px-3 py-1.5 text-white">Powered by Jupiter</li>
+          </ul>
+        </div>
+        <div class="tile__phone" aria-hidden="true">
+          <IPhone src="/screens/review.webp" alt="" />
+        </div>
+      </article>
+
+      <!-- Receipts -->
+      <article class="tile" data-reveal style="--d:1">
+        <span class="icon bg-brand-soft text-brand">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 12h6m-6 4h6M7 4h7l5 5v11a1 1 0 01-1 1H7a1 1 0 01-1-1V5a1 1 0 011-1z" /></svg>
+        </span>
+        <h3 class="tile__title">Receipts on every pick</h3>
+        <p class="tile__body">
+          Every holding shows where it came from: the issuer’s product listing, or the exact congressional filing, linked to the public record.
+        </p>
+      </article>
+
+      <!-- Quotes -->
+      <article class="tile" data-reveal style="--d:2">
+        <div class="flex items-center gap-2">
+          <span class="rounded-full bg-brand-soft text-brand text-sm font-bold px-3 py-1.5 inline-flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" stroke-linecap="round" /></svg>
+            Expires in <span class="countdown tabular-nums">54</span>s
+          </span>
+        </div>
+        <h3 class="tile__title">Fresh quotes, no surprises</h3>
+        <p class="tile__body">
+          You see each swap’s amount and minimum before you slide. Quotes expire quickly and are re-fetched, so you never sign a stale price.
+        </p>
+      </article>
+
+      <!-- Congress -->
+      <article class="tile" data-reveal>
+        <span class="icon bg-coral-soft text-[#C0392B]">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10m4 11V10m6 11V10m4 11V10M2 10l10-6 10 6" /></svg>
+        </span>
+        <h3 class="tile__title">Follow the filings</h3>
+        <p class="tile__body">
+          Pelosi Tracker and Congress Consensus are built from public STOCK Act reports. They lag 30–45 days and show ranges, and we say so right on the bag.
+        </p>
+      </article>
+
+      <!-- Pre-IPO -->
+      <article class="tile" data-reveal style="--d:1">
+        <span class="icon bg-tertiary-soft text-tertiary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9" /></svg>
+        </span>
+        <h3 class="tile__title">Pre-IPO, clearly labelled</h3>
+        <p class="tile__body">
+          Names like OpenAI, Anthropic and SpaceX come via PreStocks and wear a Pre-IPO tag, with the issuer mark shown next to every token.
+        </p>
+      </article>
+
+      <!-- Fine print -->
+      <article class="tile" data-reveal style="--d:2">
+        <span class="icon bg-mint-soft text-positive">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 12l2 2 4-4m5.6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </span>
+        <h3 class="tile__title">Honest about the fine print</h3>
+        <p class="tile__body">
+          Thin liquidity, issuer rules, and what you do (and don’t) own are spelled out in plain English. <a href="/disclosures" class="link">Read the disclosures</a>.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<style>
+  .tile {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    background: #fff;
+    border: 1px solid #e6e8f1;
+    padding: 28px;
+    box-shadow: 0 2px 10px rgba(16, 19, 31, 0.03);
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+  .tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 36px -16px rgba(27, 34, 80, 0.18);
+  }
+  .tile--hero {
+    border: none;
+    min-height: 420px;
+    padding: 32px;
+    background:
+      radial-gradient(120% 90% at 100% 100%, rgba(111, 224, 232, 0.55), transparent 55%),
+      linear-gradient(135deg, #2563eb 0%, #38bdf8 100%);
+    box-shadow: 0 24px 48px -20px rgba(37, 99, 235, 0.55);
+  }
+  .tile__phone {
+    position: absolute;
+    right: -24px;
+    bottom: -210px;
+    width: 250px;
+    transform: rotate(-8deg);
+    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .tile--hero:hover .tile__phone {
+    transform: rotate(-5deg) translateY(-14px);
+  }
+  @media (max-width: 767px) {
+    .tile--hero {
+      padding-bottom: 300px;
+    }
+    .tile__phone {
+      left: 50%;
+      right: auto;
+      margin-left: -110px;
+      width: 220px;
+      bottom: -200px;
+    }
+  }
+  @media (min-width: 1024px) {
+    .tile__phone {
+      right: 24px;
+      bottom: -120px;
+      width: 270px;
+    }
+  }
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+  }
+  .tile__title {
+    margin-top: 18px;
+    font-size: 21px;
+    line-height: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #10131f;
+  }
+  .tile__body {
+    margin-top: 8px;
+    font-size: 15px;
+    line-height: 23px;
+    color: #555c72;
+    text-wrap: pretty;
+  }
+</style>
+
+<script>
+  const el = document.querySelector<HTMLElement>('.countdown');
+  if (el) {
+    let n = 54;
+    setInterval(() => {
+      n = n <= 1 ? 60 : n - 1;
+      el.textContent = String(n);
+    }, 1000);
+  }
+</script>

@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --watch index.ts",
+    "dev": "bun run --watch dev.ts",
     "generate:openapi": "bun scripts/generate-openapi.ts"
   },
   "devDependencies": {

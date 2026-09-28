@@ -1,0 +1,68 @@
+---
+import IPhone from './IPhone.astro';
+import StoreBadges from './StoreBadges.astro';
+---
+
+<section class="px-3 sm:px-5 pb-16 sm:pb-24">
+  <div class="cta max-w-6xl mx-auto relative overflow-hidden rounded-[36px] sm:rounded-[44px]" data-reveal>
+    <div class="cta__rings" aria-hidden="true"></div>
+    <div class="relative grid lg:grid-cols-[1.15fr_0.85fr] items-center gap-6">
+      <div class="px-6 pt-12 sm:px-12 sm:pt-16 lg:py-20 text-center lg:text-left">
+        <h2 class="text-4xl sm:text-6xl font-extrabold tracking-[-0.04em] text-white text-balance leading-[1.02]">
+          Your first bag is one swipe away.
+        </h2>
+        <p class="mt-5 text-lg text-white/85 max-w-md mx-auto lg:mx-0 text-pretty">
+          Stockpile is landing on iPhone and Android soon, including the Solana Seeker. Be early.
+        </p>
+        <div class="mt-8">
+          <StoreBadges align="start" tone="light" />
+        </div>
+      </div>
+      <div class="relative h-[340px] sm:h-[420px] lg:h-[520px]">
+        <div class="cta__phone cta__phone--back"><IPhone src="/screens/feed-3.webp" alt="" /></div>
+        <div class="cta__phone cta__phone--front"><IPhone src="/screens/bags.webp" alt="Stockpile Bags tab" /></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta {
+    background:
+      radial-gradient(80% 120% at 0% 0%, rgba(255, 138, 107, 0.45), transparent 50%),
+      radial-gradient(70% 100% at 100% 100%, rgba(43, 207, 163, 0.5), transparent 55%),
+      linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #38bdf8 100%);
+    box-shadow: 0 40px 80px -30px rgba(37, 99, 235, 0.6);
+  }
+  .cta__rings {
+    position: absolute;
+    inset: 0;
+    background: repeating-radial-gradient(circle at 85% 60%, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 56px);
+  }
+  .cta__phone {
+    position: absolute;
+    left: 50%;
+  }
+  .cta__phone--front {
+    width: 240px;
+    top: 40px;
+    transform: translateX(-30%) rotate(6deg);
+    z-index: 2;
+  }
+  .cta__phone--back {
+    width: 210px;
+    top: 90px;
+    transform: translateX(-100%) rotate(-8deg);
+    opacity: 0.95;
+  }
+  @media (min-width: 1024px) {
+    .cta__phone--front {
+      width: 270px;
+      top: 70px;
+    }
+    .cta__phone--back {
+      width: 240px;
+      top: 120px;
+    }
+  }
+</style>

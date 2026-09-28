@@ -2,6 +2,7 @@
 // image dependency; `sharp` is only a dependency of apps/landing and is not Workers-compatible).
 // Only PNGs from the issuer / Jupiter icon hosts are fetched; any failure yields null.
 import { feature } from "./config";
+import { fetchNoRedirect } from "./strict-fetch";
 
 const allowedHost = (hostname: string) => hostname === "xstocks-metadata.backed.fi" || hostname === "www.prestocks.com" || hostname === "prestocks.com" || hostname === "jup.ag" || hostname.endsWith(".jup.ag");
 const maxBytes = 512 * 1024;
@@ -162,7 +163,7 @@ async function fetchBrandColor(iconUrl: string): Promise<string | null> {
     if (!location) return null;
     url = new URL(location, url);
     if (url.protocol !== "https:" || !allowedHost(url.hostname.toLowerCase())) return null;
-    response = await fetch(url, { redirect: "error", headers: { Accept: "image/png" }, signal: AbortSignal.timeout(4000) });
+    response = await fetchNoRedirect(url, { headers: { Accept: "image/png" }, signal: AbortSignal.timeout(4000) });
   }
   if (!response.ok || !response.body || !/^image\//i.test(response.headers.get("content-type") ?? "") || Number(response.headers.get("content-length") || 0) > maxBytes) return null;
   const chunks: Uint8Array[] = [];

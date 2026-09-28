@@ -1,0 +1,88 @@
+---
+/**
+ * iPhone 17 Pro frame around a real simulator capture (1206x2622; captures already include the
+ * status bar and Dynamic Island). Sized by its container width; everything scales in `cqw`.
+ */
+interface Props {
+  src: string;
+  alt: string;
+  loading?: 'eager' | 'lazy';
+  class?: string;
+}
+
+const { src, alt, loading = 'lazy', class: className = '' } = Astro.props;
+---
+
+<div class:list={['iphone-wrap', className]}>
+  <div class="iphone">
+    <span class="iphone__btn iphone__btn--action" aria-hidden="true"></span>
+    <span class="iphone__btn iphone__btn--vol-up" aria-hidden="true"></span>
+    <span class="iphone__btn iphone__btn--vol-down" aria-hidden="true"></span>
+    <span class="iphone__btn iphone__btn--power" aria-hidden="true"></span>
+    <div class="iphone__screen">
+      <img src={src} alt={alt} width="780" height="1696" loading={loading} decoding="async" draggable="false" />
+      <slot />
+    </div>
+  </div>
+</div>
+
+<style>
+  .iphone-wrap {
+    container-type: inline-size;
+    width: 100%;
+  }
+  .iphone {
+    position: relative;
+    padding: 3.3cqw;
+    border-radius: 16.4cqw;
+    background:
+      linear-gradient(145deg, #4a4f5c 0%, #1b1e26 22%, #0d0f14 50%, #1b1e26 78%, #3d424e 100%);
+    box-shadow:
+      inset 0 0 0 0.35cqw rgba(255, 255, 255, 0.18),
+      inset 0 0 0 1.1cqw #07080b,
+      0 2cqw 5cqw -1cqw rgba(16, 19, 31, 0.35),
+      0 12cqw 22cqw -8cqw rgba(37, 99, 235, 0.35);
+  }
+  .iphone__screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 13.1cqw;
+    aspect-ratio: 1206 / 2622;
+    background: #f5f6fb;
+    isolation: isolate;
+  }
+  .iphone__screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    user-select: none;
+  }
+  .iphone__btn {
+    position: absolute;
+    width: 0.9cqw;
+    border-radius: 0.6cqw;
+    background: linear-gradient(90deg, #2a2e38, #4a4f5c);
+  }
+  .iphone__btn--action {
+    left: -0.7cqw;
+    top: 22cqw;
+    height: 7cqw;
+  }
+  .iphone__btn--vol-up {
+    left: -0.7cqw;
+    top: 35cqw;
+    height: 13cqw;
+  }
+  .iphone__btn--vol-down {
+    left: -0.7cqw;
+    top: 51cqw;
+    height: 13cqw;
+  }
+  .iphone__btn--power {
+    right: -0.7cqw;
+    top: 40cqw;
+    height: 20cqw;
+    background: linear-gradient(270deg, #2a2e38, #4a4f5c);
+  }
+</style>

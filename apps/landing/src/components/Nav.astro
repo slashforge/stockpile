@@ -2,33 +2,66 @@
 import { SITE_TITLE } from '../consts';
 ---
 
-<nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="nav" aria-label="Primary">
-  <div class="max-w-6xl mx-auto px-5 sm:px-6 py-3.5 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2.5 group" aria-label={`${SITE_TITLE} home`}>
-      <span class="w-9 h-9 rounded-xl squircle bg-grad-blue grid place-items-center shadow-sm">
+<nav class="fixed top-3 sm:top-4 inset-x-0 z-50 px-3 sm:px-5" aria-label="Primary">
+  <div
+    id="nav"
+    class="nav-pill max-w-5xl mx-auto flex items-center justify-between gap-2 rounded-full pl-2 pr-2 py-2 transition-all duration-300"
+  >
+    <a href="/" class="flex items-center gap-2.5 pl-1 pr-2" aria-label={`${SITE_TITLE} home`}>
+      <span class="w-9 h-9 rounded-full bg-grad-blue grid place-items-center shadow-[0_4px_12px_rgba(37,99,235,0.35)]">
         <img src="/logo-mark.svg" alt="" class="w-5 h-5" width="20" height="20" />
       </span>
-      <span class="text-lg font-bold text-text tracking-tight">{SITE_TITLE}</span>
+      <span class="text-[17px] font-extrabold text-text tracking-tight">{SITE_TITLE}</span>
     </a>
 
-    <div class="flex items-center gap-1 sm:gap-2">
-      <a href="/#bags" class="btn-ghost text-sm hidden sm:inline-flex">Bags</a>
-      <a href="/#how" class="btn-ghost text-sm hidden sm:inline-flex">How it works</a>
-      <a href="/#builders" class="btn-ghost text-sm hidden md:inline-flex">Builders</a>
-      <a href="/blog" class="btn-ghost text-sm">Blog</a>
-      <a href="/#get" class="btn-primary text-sm py-2 px-4 ml-1">Get the app</a>
+    <div class="flex items-center gap-0.5 sm:gap-1">
+      <a href="/#how" class="nav-link hidden md:inline-flex">How it works</a>
+      <a href="/#bags" class="nav-link hidden sm:inline-flex">Bags</a>
+      <a href="/#trust" class="nav-link hidden md:inline-flex">Safety</a>
+      <a href="/blog" class="nav-link inline-flex">Blog</a>
+      <a href="/#get" class="ml-1 inline-flex items-center gap-1.5 rounded-full bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-hover active:scale-[0.97] transition shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
+        Get the app
+      </a>
     </div>
   </div>
 </nav>
 
+<style>
+  .nav-pill {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow:
+      0 1px 0 rgba(16, 19, 31, 0.04),
+      0 8px 28px -10px rgba(27, 34, 80, 0.18);
+  }
+  .nav-pill.is-scrolled {
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow:
+      0 1px 0 rgba(16, 19, 31, 0.05),
+      0 12px 32px -10px rgba(27, 34, 80, 0.26);
+  }
+  .nav-link {
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555c72;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
+  }
+  .nav-link:hover {
+    background: #eef0f7;
+    color: #10131f;
+  }
+</style>
+
 <script>
   const nav = document.getElementById('nav');
-  const scrolled = ['bg-background/85', 'backdrop-blur-md', 'border-b', 'border-border'];
-  const update = () => {
-    if (!nav) return;
-    if (window.scrollY > 24) nav.classList.add(...scrolled);
-    else nav.classList.remove(...scrolled);
-  };
+  const update = () => nav?.classList.toggle('is-scrolled', window.scrollY > 24);
   update();
   window.addEventListener('scroll', update, { passive: true });
 </script>

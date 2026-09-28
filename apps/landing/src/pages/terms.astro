@@ -1,0 +1,276 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { GITHUB_URL, LEGAL_UPDATED, SUPPORT_EMAIL } from '../consts';
+---
+
+<Legal
+	title="Terms of Service"
+	description="The terms that govern your use of Stockpile, including eligibility, restricted jurisdictions, third-party services (Jupiter, Privy, Helius), and the risks of tokenized assets."
+	updated={LEGAL_UPDATED}
+>
+	<p class="lead">
+		Welcome to Stockpile. These Terms of Service ("Terms") govern your use of the Stockpile mobile app, website, and related
+		services (the "Service"). By using the Service, you agree to these Terms. If you do not agree, do not use Stockpile.
+	</p>
+	<div class="callout">
+		<strong>Important:</strong> Stockpile is not a broker, exchange, bank, or investment adviser, and nothing in the app is investment
+		advice. Tokenized stocks and pre-IPO tokens are high-risk. You may lose everything you put in, and blockchain transactions cannot
+		be reversed.
+	</div>
+
+	<h2 id="acceptance">1. Acceptance of terms</h2>
+	<p>
+		By creating an account or otherwise using the Service, you confirm that you have read, understood, and agree to these Terms and
+		our <a href="/privacy">Privacy Policy</a>. You also agree to the terms of the third-party services described in Section 7.
+	</p>
+
+	<h2 id="eligibility">2. Eligibility</h2>
+	<p>
+		You must be at least 18 years old, or the age of majority where you live if that is higher, and able to enter into a binding
+		contract. By using Stockpile, you confirm that you meet these requirements and are not barred from using the Service under
+		applicable law.
+	</p>
+
+	<h2 id="jurisdictions">3. Geographic availability and restricted jurisdictions</h2>
+	<p>
+		Stockpile and its third-party services, including Jupiter for token swaps and the issuers of the tokens shown in the app, are
+		only available where they can operate legally. By using Stockpile, you confirm that:
+	</p>
+	<ul>
+		<li>you are located in a jurisdiction where using self-custodial wallets and swapping digital assets is permitted;</li>
+		<li>you are not subject to sanctions and are not listed on any sanctions list, such as OFAC's SDN List;</li>
+		<li>you meet the eligibility rules of each token issuer whose products you buy; and</li>
+		<li>you will follow all laws that apply to your digital asset transactions.</li>
+	</ul>
+	<p>
+		<strong>Restricted jurisdictions.</strong> The Service is not available to persons or entities located in, incorporated in, or
+		resident in any country or region under comprehensive sanctions by the U.S. Department of the Treasury's Office of Foreign
+		Assets Control (OFAC), the United Kingdom, the European Union, or the United Nations. These currently include:
+	</p>
+	<ul>
+		<li>Cuba</li>
+		<li>Iran</li>
+		<li>North Korea (Democratic People's Republic of Korea)</li>
+		<li>Syria</li>
+		<li>the Crimea, Donetsk, and Luhansk regions of Ukraine</li>
+	</ul>
+	<p>
+		<strong>Issuer restrictions.</strong> Each token issuer sets its own eligibility rules, which may be stricter than ours:
+	</p>
+	<ul>
+		<li>
+			<strong>xStocks</strong> are issued by Backed Assets and are not offered to U.S. persons or to residents of certain other
+			jurisdictions. See <a href="https://xstocks.fi" target="_blank" rel="noopener noreferrer">xstocks.fi</a>.
+		</li>
+		<li>
+			<strong>PreStocks</strong> are not available to U.S. persons. See
+			<a href="https://prestocks.com" target="_blank" rel="noopener noreferrer">prestocks.com</a>.
+		</li>
+	</ul>
+	<p>
+		Stockpile is distributed only through app stores in regions where we and our providers can operate. You must not use a VPN,
+		proxy, or any other method to get around these restrictions. We may restrict or end access in any jurisdiction, block specific
+		tokens, or turn off trading features at any time to comply with the law or protect users.
+	</p>
+
+	<h2 id="service">4. Description of the Service</h2>
+	<p>Stockpile provides software that lets you:</p>
+	<ul>
+		<li>browse news stories and curated "bags", which are editorial baskets of tokenized stocks and pre-IPO tokens with suggested weights;</li>
+		<li>view what each bag holds, along with prices, charts, and sources;</li>
+		<li>buy or sell a bag's tokens through swaps routed by Jupiter, signed by your own embedded wallet;</li>
+		<li>see your portfolio, activity, and per-bag performance; and</li>
+		<li>save bags for later.</li>
+	</ul>
+	<p>
+		Stockpile does not issue, hold, custody, or sell any token, and it is not the counterparty to your trades. Swaps run on the
+		Solana blockchain against third-party liquidity.
+	</p>
+
+	<h2 id="no-advice">5. Not investment advice</h2>
+	<p>
+		Bags, weights, stories, summaries, charts, and disclosure data are provided for information only. They are not investment,
+		financial, legal, or tax advice, and they are not a recommendation or solicitation to buy or sell anything. Bags are not funds,
+		indexes, or managed portfolios, and they are not rebalanced for you. Past performance does not indicate future results. We owe
+		you no fiduciary duty. Consider getting independent advice before making any investment decision.
+	</p>
+
+	<h2 id="tokens">6. Tokenized assets and issuers</h2>
+	<ul>
+		<li>
+			<strong>What you hold.</strong> xStocks are tokenized certificates issued by Backed that track listed equities. PreStocks are
+			SPV-based tokens that reference private-company valuations. Holding these tokens does not make you a shareholder. You get no
+			voting, dividend, or information rights in the underlying company unless the issuer's terms expressly say so.
+		</li>
+		<li>
+			<strong>Issuer terms govern.</strong> Each token is subject to its issuer's terms, prospectus, and disclosures. The issuer, not
+			Stockpile, is responsible for the token, its backing, redemption, and corporate actions.
+		</li>
+		<li>
+			<strong>Issuer risk.</strong> If an issuer, custodian, or SPV fails, is hacked, or stops operating, your tokens may lose some or
+			all of their value, and Stockpile cannot make you whole.
+		</li>
+		<li>
+			<strong>Price divergence.</strong> On-chain token prices can differ from exchange or issuer reference prices, especially outside
+			market hours, during volatility, or when liquidity is thin.
+		</li>
+	</ul>
+
+	<h2 id="third-parties">7. Third-party services</h2>
+	<p>Stockpile integrates with these providers for core features:</p>
+	<ul>
+		<li>
+			<strong>Jupiter</strong>: we use Jupiter's swap API to aggregate and route token swaps across Solana decentralized exchanges and
+			liquidity venues, and for token metadata and prices.
+		</li>
+		<li>
+			<strong>Privy</strong>: we use Privy for sign-in and embedded, self-custodial wallet infrastructure. Your wallet's keys are
+			managed by Privy's key-management system, not by Stockpile.
+		</li>
+		<li><strong>Helius</strong>: we use Helius for Solana RPC access, reading balances and history, simulating transactions, and relaying them.</li>
+		<li>
+			<strong>Backed (xStocks)</strong> and <strong>PreStocks</strong>: they issue the tokenized assets shown in bags.
+		</li>
+		<li>
+			<strong>Data providers</strong> such as tokens.xyz, Pyth Network, and CongressInvests: they supply charts, reference prices, and
+			public disclosure data.
+		</li>
+	</ul>
+	<p>
+		By using Stockpile's swap, wallet, and trading features, you also agree to the terms of service of these providers,
+		including <a href="https://jup.ag/terms-of-use" target="_blank" rel="noopener noreferrer">Jupiter's Terms of Use</a> and
+		<a href="https://www.privy.io/user-terms-of-service" target="_blank" rel="noopener noreferrer">Privy's User Terms</a>. We do not
+		control these providers. We are not responsible for their availability, accuracy, fees, or conduct, or for any loss they cause.
+	</p>
+
+	<h2 id="self-custody">8. Self-custody and your wallet</h2>
+	<p>
+		Stockpile is non-custodial. Your wallet and its assets belong to you, and Stockpile cannot access your keys, move your funds,
+		reverse transactions, or recover a lost wallet. You are solely responsible for:
+	</p>
+	<ul>
+		<li>keeping your sign-in email, device, and any wallet export or recovery method secure;</li>
+		<li>every transaction you approve from your wallet; and</li>
+		<li>any loss caused by unauthorized access to your email, device, or wallet.</li>
+	</ul>
+
+	<h2 id="transactions">9. Quotes, transactions, and fees</h2>
+	<ul>
+		<li>
+			<strong>Quotes are indicative.</strong> Prices, routes, and price impact come from Jupiter and on-chain liquidity and may change
+			between quote and execution. Slippage limits apply, and a swap can fail, or fill differently than shown, when the market moves.
+		</li>
+		<li>
+			<strong>Buying a bag means several swaps.</strong> A bag purchase is a series of separate transactions, one per token. Some legs
+			may succeed while others fail, so you may end up holding only part of a bag.
+		</li>
+		<li>
+			<strong>You sign every transaction.</strong> Transactions are prepared by our API, checked on your device, and signed by your
+			wallet. Once signed, we relay them to the Solana network. Confirmed transactions are final and irreversible.
+		</li>
+		<li>
+			<strong>Network fee sponsorship.</strong> Stockpile currently pays Solana network fees and token-account rent for eligible swaps.
+			Sponsorship is at our discretion, has limits, and may change or end at any time.
+		</li>
+		<li>
+			<strong>Fees.</strong> Stockpile does not currently charge its own fee on swaps. Jupiter routes, liquidity venues, and issuers
+			may build fees or spreads into prices. If we introduce a Stockpile fee, we will show it before you confirm a trade.
+		</li>
+	</ul>
+
+	<h2 id="content">10. Content and data accuracy</h2>
+	<ul>
+		<li>
+			<strong>News.</strong> Stories are summarized from third-party publishers, sometimes with the help of automated and AI tools, and
+			may contain errors or omissions. The original articles belong to their publishers.
+		</li>
+		<li>
+			<strong>Disclosure bags.</strong> STOCK Act filings are published 30 to 45 days after a trade, report value ranges rather than
+			exact amounts, and may include trades by spouses. Disclosure bags are built from public records. They are not a live or managed
+			portfolio, and no member of Congress endorses or is affiliated with Stockpile.
+		</li>
+		<li>
+			<strong>Market data.</strong> Prices, charts, and performance figures may be delayed, estimated, or unavailable. Do not rely on
+			them as the sole basis for any decision.
+		</li>
+	</ul>
+
+	<h2 id="risks">11. Risks</h2>
+	<p>You understand and accept that:</p>
+	<ul>
+		<li>digital asset and tokenized security prices are highly volatile, and you may lose some or all of your funds;</li>
+		<li>liquidity may be thin, and you may be unable to sell when you want or at the price you expect;</li>
+		<li>blockchain transactions are irreversible, and assets sent to the wrong address cannot be recovered;</li>
+		<li>smart contracts, protocols, wallets, and networks can have bugs, be exploited, or suffer outages;</li>
+		<li>regulatory changes may restrict or end access to the Service or to specific tokens; and</li>
+		<li>technical issues may delay or stop transactions, quotes, or balance updates.</li>
+	</ul>
+
+	<h2 id="prohibited">12. Prohibited use</h2>
+	<p>You agree not to:</p>
+	<ul>
+		<li>use the Service for any unlawful purpose, including money laundering, terrorist financing, or sanctions evasion;</li>
+		<li>get around geographic, eligibility, or issuer restrictions;</li>
+		<li>manipulate markets, or use the Service for wash trading, spoofing, or other deceptive practices;</li>
+		<li>interfere with, overload, reverse engineer, or try to gain unauthorized access to the Service or its infrastructure;</li>
+		<li>abuse network fee sponsorship, for example with automated or high-volume transactions meant to drain it; or</li>
+		<li>impersonate anyone or give false information.</li>
+	</ul>
+
+	<h2 id="taxes">13. Taxes</h2>
+	<p>
+		You are solely responsible for working out and paying any taxes on your transactions. Stockpile does not provide tax reporting or
+		tax advice.
+	</p>
+
+	<h2 id="ip">14. Intellectual property</h2>
+	<p>
+		The Stockpile name, logo, app design, bag curation, and editorial content belong to us or our licensors and are protected by
+		intellectual property laws. Source code we publish on <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
+		is licensed under the terms in that repository. Token names, logos, and trademarks belong to their respective owners, and using
+		them does not imply endorsement.
+	</p>
+
+	<h2 id="termination">15. Suspension and termination</h2>
+	<p>
+		We may suspend or end your access to the Service at any time, with or without notice, if we believe you have broken these Terms
+		or the law, or to protect the Service or other users. You may stop using Stockpile and delete your account at any time. Because
+		the Service is non-custodial, your wallet and its assets stay under your control after termination.
+	</p>
+
+	<h2 id="disclaimers">16. Disclaimers</h2>
+	<p class="caps">
+		The Service is provided "as is" and "as available", without warranties of any kind, express or implied, including
+		merchantability, fitness for a particular purpose, title, and non-infringement. We do not guarantee that the Service, quotes, or
+		data will be accurate, uninterrupted, secure, or error-free.
+	</p>
+
+	<h2 id="liability">17. Limitation of liability</h2>
+	<p class="caps">
+		To the fullest extent permitted by law, Stockpile and its affiliates, contributors, and service providers will not be liable for
+		any indirect, incidental, special, consequential, exemplary, or punitive damages, or for any loss of profits, digital assets,
+		data, or goodwill arising from your use of the Service. Our total liability for any claim will not exceed the greater of the fees
+		you paid to Stockpile in the 12 months before the claim or US$100.
+	</p>
+
+	<h2 id="indemnity">18. Indemnification</h2>
+	<p>
+		You agree to indemnify and hold Stockpile harmless from any claims, losses, and expenses, including reasonable legal fees, that
+		arise from your use of the Service, your breach of these Terms, or your violation of any law or third-party right.
+	</p>
+
+	<h2 id="changes">19. Changes to these terms</h2>
+	<p>
+		We may change these Terms from time to time. If we make material changes, we will notify you in the app or on this page before
+		they take effect. If you keep using the Service after changes take effect, you accept the updated Terms.
+	</p>
+
+	<h2 id="law">20. Governing law</h2>
+	<p>
+		These Terms are governed by applicable law, without regard to conflict-of-law principles. If any provision is found
+		unenforceable, the rest of these Terms remain in effect.
+	</p>
+
+	<h2 id="contact">21. Contact</h2>
+	<p>Questions about these Terms? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.</p>
+</Legal>

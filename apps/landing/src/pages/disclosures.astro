@@ -1,0 +1,54 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { LEGAL_UPDATED } from '../consts';
+---
+
+<Legal
+	title="Disclosures"
+	description="What Stockpile bags are and aren't, what you own when you buy xStocks and PreStocks, and the risks of on-chain trading."
+	updated={LEGAL_UPDATED}
+>
+	<p class="lead">The plain-English version of what you're buying, what you're not, and what can go wrong.</p>
+
+	<h2 id="not-advice">Not investment advice</h2>
+	<p>
+		Bags, weights, stories, and evidence are editorial or public-record information. Nothing here is a recommendation to buy or sell
+		anything, and no performance is implied.
+	</p>
+
+	<h2 id="issuers">Issuer products</h2>
+	<p>
+		xStocks are tokenized certificates issued by Backed that track listed equities. PreStocks are SPV-based tokens issued by
+		PreStocks that reference private-company valuations. Holders do not own the underlying shares and have no voting, dividend, or
+		information rights.
+	</p>
+	<p>
+		Each issuer sets its own eligibility rules. xStocks are restricted in some jurisdictions, and PreStocks are not available to U.S.
+		persons. Learn more at <a href="https://xstocks.fi/products" target="_blank" rel="noopener noreferrer">xstocks.fi</a> and
+		<a href="https://prestocks.com" target="_blank" rel="noopener noreferrer">prestocks.com</a>.
+	</p>
+
+	<h2 id="liquidity">Thin liquidity is possible</h2>
+	<p>
+		On-chain quotes can carry measurable price impact, and token prices can diverge from exchange or issuer prices, especially outside
+		market hours. Total loss is possible.
+	</p>
+
+	<h2 id="disclosure-bags">Disclosure bags lag</h2>
+	<p>
+		STOCK Act filings arrive 30 to 45 days after a trade, report value ranges rather than exact amounts, and include spouse trades.
+		Disclosure bags are built from public records. They are not a managed or live portfolio, and no member of Congress endorses or
+		is affiliated with Stockpile.
+	</p>
+
+	<h2 id="non-custodial">Non-custodial</h2>
+	<p>
+		Trades are Jupiter swaps signed by your own Privy embedded wallet after the transaction is inspected on your device. Stockpile
+		never holds keys or funds, and it only relays transactions your wallet has already signed.
+	</p>
+
+	<p class="callout">
+		For the full details, read our <a href="/terms">Terms of Service</a>, including the sections on risks and restricted
+		jurisdictions, and our <a href="/privacy">Privacy Policy</a>.
+	</p>
+</Legal>

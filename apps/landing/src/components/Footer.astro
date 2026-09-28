@@ -4,49 +4,26 @@ import { GITHUB_URL, SITE_TITLE } from '../consts';
 const currentYear = new Date().getFullYear();
 ---
 
-<footer id="disclosures" class="bg-white border-t border-border">
-  <div class="max-w-6xl mx-auto px-5 sm:px-6 py-14">
-    <div class="grid md:grid-cols-[1fr_auto] gap-10">
-      <div class="max-w-3xl">
+<footer class="bg-white border-t border-border rounded-t-[36px] sm:rounded-t-[44px]">
+  <div class="max-w-6xl mx-auto px-5 sm:px-6 py-12">
+    <div class="grid md:grid-cols-[1fr_auto] gap-8 md:gap-10 items-start">
+      <div class="max-w-md">
         <div class="flex items-center gap-2.5 mb-5">
-          <span class="w-8 h-8 rounded-lg squircle bg-grad-blue grid place-items-center">
+          <span class="w-8 h-8 rounded-full bg-grad-blue grid place-items-center">
             <img src="/logo-mark.svg" alt="" class="w-4 h-4" width="16" height="16" />
           </span>
           <span class="font-bold text-text tracking-tight">{SITE_TITLE}</span>
         </div>
-
-        <h2 class="text-sm font-bold uppercase tracking-[0.14em] text-text-muted mb-3">Disclosures</h2>
-        <ul class="space-y-2.5 text-sm text-text-subtle text-pretty">
-          <li>
-            <strong class="text-text font-semibold">Not investment advice.</strong> Bags, weights, stories, and evidence are editorial
-            or public-record information. Nothing here is a recommendation to buy or sell anything. No performance is implied.
-          </li>
-          <li>
-            <strong class="text-text font-semibold">Issuer products.</strong> xStocks are tokenized certificates issued by Backed that
-            track listed equities; PreStocks are SPV-based tokens issued by PreStocks that reference private-company marks. Holders do
-            not own the underlying shares and have no voting, dividend, or information rights. Each issuer sets its own eligibility;
-            xStocks are restricted in some jurisdictions and PreStocks are not available to U.S. persons.
-          </li>
-          <li>
-            <strong class="text-text font-semibold">Thin liquidity is possible.</strong> On-chain quotes can carry measurable price
-            impact and token prices can diverge from exchange or issuer prices, especially outside market hours. Total loss is possible.
-          </li>
-          <li>
-            <strong class="text-text font-semibold">Disclosure bags lag.</strong> STOCK Act filings arrive 30–45 days after a trade,
-            report ranges rather than amounts, and include spouse trades. They are public records, not a managed or live portfolio,
-            and no member of Congress endorses or is affiliated with Stockpile.
-          </li>
-          <li>
-            <strong class="text-text font-semibold">Non-custodial.</strong> Trades are Jupiter swaps signed by your own Privy embedded
-            wallet after on-device inspection. Stockpile never holds keys or funds and never submits a transaction on your behalf.
-          </li>
-        </ul>
+        <p class="text-sm text-text-subtle text-pretty">
+          Not investment advice. Tokenized stocks and pre-IPO tokens are high-risk and you can lose everything you put in.
+          <a href="/disclosures" class="font-semibold text-brand hover:text-brand-hover">Read the disclosures</a>.
+        </p>
       </div>
 
-      <nav class="flex flex-wrap md:flex-col gap-x-6 gap-y-3 text-sm md:text-right" aria-label="Footer">
+      <nav class="flex flex-wrap md:justify-end gap-x-6 gap-y-3 text-sm md:pt-1.5" aria-label="Footer">
         <a href="/#how" class="text-text-subtle hover:text-text transition-colors">How it works</a>
         <a href="/#bags" class="text-text-subtle hover:text-text transition-colors">Bags</a>
-        <a href="/#receipts" class="text-text-subtle hover:text-text transition-colors">Receipts</a>
+        <a href="/#trust" class="text-text-subtle hover:text-text transition-colors">Safety</a>
         <a href="/blog" class="text-text-subtle hover:text-text transition-colors">Blog</a>
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">GitHub</a>
         <a href="https://xstocks.fi/products" target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">xStocks</a>
@@ -56,6 +33,11 @@ const currentYear = new Date().getFullYear();
 
     <div class="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-text-muted">
       <p>&copy; {currentYear} {SITE_TITLE}. All rights reserved.</p>
+      <div class="flex items-center gap-5">
+        <a href="/disclosures" class="hover:text-text transition-colors">Disclosures</a>
+        <a href="/privacy" class="hover:text-text transition-colors">Privacy</a>
+        <a href="/terms" class="hover:text-text transition-colors">Terms</a>
+      </div>
       <p>Built for Solana Seeker · stockpile.cash</p>
     </div>
   </div>

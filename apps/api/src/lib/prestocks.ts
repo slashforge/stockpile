@@ -4,6 +4,7 @@
 // (exact mint id, symbol, decimals, tags, live USDC route) before it can back a tradable bag asset.
 import { secret, feature } from "./config";
 import { USDC } from "./constants";
+import { fetchNoRedirect } from "./strict-fetch";
 
 export const PRESTOCKS_DIRECTORY_URL = "https://prestocks.com/api/prestocks";
 export const PRESTOCKS_HOST = "www.prestocks.com";
@@ -67,7 +68,7 @@ function safeUrl(value: unknown, path: RegExp): string | null {
 }
 
 async function fetchDirectory(): Promise<Directory> {
-  const response = await fetch(PRESTOCKS_DIRECTORY_URL, { redirect: "error", headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) });
+  const response = await fetchNoRedirect(PRESTOCKS_DIRECTORY_URL, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(6000) });
   const data = await boundedJson(response);
   if (!Array.isArray(data) || data.length === 0 || data.length > 100) throw new Error("Directory payload rejected");
   const assets = data.map(parsePreStock).filter((item): item is PreStock => item !== null);
