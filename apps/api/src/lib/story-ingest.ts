@@ -1,8 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
 import { db } from "@stockpile/core/db";
 import { stories } from "@stockpile/core/db/schema";
-import { canonicalUrl, curate, editorial, safeText, stance, storyId, type Draft } from "./story-curator";
-import { fetchNoRedirect } from "./strict-fetch";
+import { canonicalUrl, curate, editorial, safeText, storyId, type Draft } from "./story-curator";
+import { boundedBody, fetchNoRedirect } from "./strict-fetch";
+import { secret } from "./config";
 
 /** Companies whose explicit mention in a multi-company feed maps a story to bags. Pre-IPO names map to PreStocks-backed bags. */
 export const companies = [
@@ -62,23 +63,6 @@ export function matchCompanies(text: string, catalogue: readonly Company[] = com
   return catalogue.filter((company) => company.pattern.test(text));
 }
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", processEntities: true, trimValues: true });
-
-async function boundedBody(response: Response, maxBytes: number) {
-  if (!response.ok || !response.body || Number(response.headers.get("content-length") || 0) > maxBytes) throw new Error(`Provider response rejected: ${response.status}`);
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  const reader = response.body.getReader();
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maxBytes) throw new Error("Provider response too large");
-      chunks.push(value);
-    }
-  } finally { await reader.cancel().catch(() => undefined); }
-  return new TextDecoder().decode(Buffer.concat(chunks));
-}
 
 async function readLimited(url: string, maxBytes = 512_000) {
   const response = await fetchNoRedirect(url, { headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, signal: AbortSignal.timeout(10000) });
@@ -249,7 +233,7 @@ async function fetchPodcastEpisodes() {
   return parsePodcastEpisodes(JSON.parse(body));
 }
 
-export async function ingestStories(options: { ai?: boolean } = {}) {
+export async function ingestStories(options: { ai?: boolean; pageImages?: boolean } = {}) {
   let inserted = 0;
   let imaged = 0;
   const errors: string[] = [];
@@ -258,7 +242,7 @@ export async function ingestStories(options: { ai?: boolean } = {}) {
     for (const draft of drafts) {
       const [existing] = await db.select({ id: stories.id, imageUrl: stories.imageUrl }).from(stories).where(eq(stories.id, draft.id)).limit(1);
       if (existing?.imageUrl) continue;
-      const imageUrl = draft.imageUrl ?? await fetchPageImage(draft.canonicalUrl);
+      const imageUrl = draft.imageUrl ?? (options.pageImages === false ? null : await fetchPageImage(draft.canonicalUrl));
       if (existing) {
         // Stories stored before images were collected pick theirs up while still in the feed.
         if (imageUrl) { await db.update(stories).set({ imageUrl, imageCredit: draft.publisher }).where(eq(stories.id, draft.id)); imaged++; }
@@ -305,17 +289,57 @@ export async function backfillStoryImages(limit = 200) {
   return { scanned: rows.length, updated };
 }
 
-/** `bun run stories:recontext`: re-derives the editorial stance for persisted editorial article/podcast stories from their stored title + summary. */
-export async function recontextStories() {
-  const { and, eq, inArray } = await import("drizzle-orm");
-  const rows = await db.select().from(stories).where(and(eq(stories.provenance, "editorial"), inArray(stories.format, ["article", "podcast"])));
-  let updated = 0;
-  for (const row of rows) {
-    const tone = stance(`${row.title} ${row.summary}`);
-    const connections = row.connections.map((connection) => ({ ...connection, context: tone.context, explanation: `${connection.explanation.replace(/ Tone (?:supporting|opposing|neutral): the source says ".*"\.$/, "")}${tone.evidence ? ` Tone ${tone.context}: the source says "${tone.evidence}".` : ""}` }));
-    if (JSON.stringify(connections) === JSON.stringify(row.connections)) continue;
-    await db.update(stories).set({ connections }).where(eq(stories.id, row.id));
-    updated++;
+/** Refetch approved feeds for legacy rows; never treat an old AI summary as source evidence. */
+export async function reanalyzeStories(options: { apply: boolean; limit: number; id?: string; force?: boolean; scheduled?: boolean }) {
+  const { and, eq, inArray, desc, asc, sql } = await import("drizzle-orm");
+  if (options.scheduled && !secret("OpenaiApiKey")) {
+    return { scanned: 0, candidates: [], updated: 0, unavailable: [], errors: ["OpenaiApiKey unavailable in SST links; analysis deferred without consuming retries"] };
   }
-  return { scanned: rows.length, updated };
+  const deadline = Date.now() + 8 * 60_000;
+  const missing = sql`exists (select 1 from jsonb_array_elements(${stories.connections}) c where c->'analysis' is null or c->'analysis' = 'null'::jsonb)`;
+  const eligible = sql`coalesce((${stories.connections}->0->'analysisRetry'->>'attempts')::int, 0) < 3
+    and coalesce((${stories.connections}->0->'analysisRetry'->>'nextAttemptAt')::timestamptz, '-infinity'::timestamptz) <= now()`;
+  const rows = await db.select().from(stories).where(and(eq(stories.status, "published"), inArray(stories.format, ["article", "podcast"]),
+    options.id ? eq(stories.id, options.id) : undefined, options.force ? undefined : missing, options.scheduled ? eligible : undefined))
+    .orderBy(options.scheduled ? asc(stories.publishedAt) : desc(stories.publishedAt), asc(stories.id)).limit(options.scheduled ? Math.min(options.limit, 5) : options.limit);
+  const candidates = rows.filter((row) => options.force || row.connections.some((c) => !c.analysis));
+  if (!options.apply) return { scanned: rows.length, candidates: candidates.map((row) => row.id), updated: 0, unavailable: [], errors: [] };
+  const drafts = new Map<string, Draft>();
+  const errors: string[] = [];
+  if (candidates.some((row) => !row.connections.some((c) => c.sourceExcerpt && c.sourceCompany))) {
+    for (const source of sources) {
+      try { for (const draft of parseFeed(await readLimited(source.url, "maxBytes" in source ? source.maxBytes : undefined), source)) drafts.set(draft.id, draft); }
+      catch { errors.push(`${source.publisher}: source feed unavailable`); }
+    }
+    try { for (const draft of await fetchPodcastEpisodes()) drafts.set(draft.id, draft); }
+    catch { errors.push("NVIDIA AI Podcast: source feed unavailable"); }
+  }
+  let updated = 0;
+  const unavailable: { id: string; reason: string }[] = [];
+  for (const row of candidates) {
+    if (options.scheduled && Date.now() >= deadline) { errors.push("Analysis time budget reached; remaining rows deferred"); break; }
+    let expectedConnections = row.connections;
+    if (options.scheduled) {
+      const attempts = (row.connections[0]?.analysisRetry?.attempts ?? 0) + 1;
+      const claimed = row.connections.map((connection) => ({ ...connection,
+        analysisRetry: { attempts, nextAttemptAt: new Date(Date.now() + (attempts === 1 ? 6 : 24) * 60 * 60_000).toISOString() },
+      }));
+      // Compare-and-swap prevents duplicate deliveries from paying for the same row.
+      const claim = await db.update(stories).set({ connections: claimed }).where(and(eq(stories.id, row.id),
+        sql`${stories.connections} = ${JSON.stringify(row.connections)}::jsonb`)).returning({ id: stories.id });
+      if (!claim.length) continue;
+      expectedConnections = claimed;
+    }
+    const saved = row.connections.find((c) => c.sourceExcerpt && c.sourceCompany);
+    const draft = saved ? { id: row.id, canonicalUrl: row.canonicalUrl, title: row.title, excerpt: saved.sourceExcerpt!,
+      company: saved.sourceCompany!, format: row.format as "article" | "podcast", publisher: row.publisher,
+      publishedAt: row.publishedAt, bagIds: row.connections.map((c) => c.bagId) } : drafts.get(row.id);
+    if (!draft) { unavailable.push({ id: row.id, reason: "Original publisher excerpt no longer available in approved feeds" }); continue; }
+    const curated = await curate({ ...draft, bagIds: row.connections.map((c) => c.bagId) });
+    if (curated.provenance !== "ai") { unavailable.push({ id: row.id, reason: curated.connections[0]?.analysisUnavailableReason ?? "invalid_output" }); continue; }
+    const changed = await db.update(stories).set({ connections: curated.connections, summary: curated.summary, provenance: curated.provenance }).where(and(eq(stories.id, row.id),
+      sql`${stories.connections} = ${JSON.stringify(expectedConnections)}::jsonb`)).returning({ id: stories.id });
+    updated += changed.length;
+  }
+  return { scanned: rows.length, candidates: candidates.map((row) => row.id), updated, unavailable, errors };
 }

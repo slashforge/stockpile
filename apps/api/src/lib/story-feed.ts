@@ -16,7 +16,8 @@ export async function listStories(limit: number, cursor?: string, bagId?: string
   const page = rows.slice(0, limit);
   return { stories: page.map((row) => ({ id: row.id, title: row.title, format: row.format === "podcast" ? "podcast" as const : row.format === "disclosure" ? "disclosure" as const : "article" as const, summary: row.summary, publisher: row.publisher,
     sourceUrl: row.canonicalUrl, publishedAt: row.publishedAt.toISOString(), imageUrl: row.imageUrl, imageCredit: row.imageCredit,
-    bagIds: row.connections.map((connection) => connection.bagId), bagConnections: row.connections,
+    bagIds: row.connections.map((connection) => connection.bagId), bagConnections: row.connections.map((connection) => ({ ...connection,
+      analysis: connection.analysis ?? null, analysisUnavailableReason: connection.analysis ? null : connection.analysisUnavailableReason ?? "not_analyzed" as const })),
     provenance: row.provenance === "ai" ? "ai" as const : "editorial" as const, status: "published" as const })),
     nextCursor: more ? page.at(-1)!.id : null };
 }

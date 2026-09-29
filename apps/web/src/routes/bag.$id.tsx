@@ -5,15 +5,12 @@ import {
   IoAlertCircleOutline,
   IoBulb,
   IoDocumentText,
-  IoInformationCircle,
   IoLayers,
   IoLockClosed,
   IoMail,
   IoNewspaper,
   IoOpenOutline,
   IoShieldCheckmark,
-  IoTrendingDown,
-  IoTrendingUp,
 } from "react-icons/io5";
 import { useAssetColors } from "@/components/stockpile/allocation";
 import { bagTheme } from "@/components/stockpile/bag-art";
@@ -21,6 +18,7 @@ import { bagTradable, researchOnlyReason, TradeStatus } from "@/components/stock
 import { toneClass } from "@/components/stockpile/market";
 import { PriceChart, RangeChips, useChartColor } from "@/components/stockpile/price-chart";
 import { SaveButton } from "@/components/stockpile/save-button";
+import { exposureLine, ImpactBreakdown, ImpactChip, NewsPulseCard } from "@/components/stockpile/story-impact";
 import { formatStoryDate } from "@/components/stockpile/story-reel";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { PrimaryButton } from "@/components/ui/button";
@@ -41,6 +39,7 @@ import {
   formatUsdCompact,
 } from "@/lib/market";
 import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
+import { newsPulse, type StoryImpact, storyImpact } from "@/lib/story-impact";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { type BagChart, type ChartPoint, type ChartRange, isDrawable } from "@/services/api/charts";
 import { connectionFor, type Story } from "@/services/api/feed";
@@ -367,39 +366,43 @@ function YourTokens({ position, bag }: { position: BagPosition; bag: Bag }) {
   );
 }
 
-const STANCE = {
-  supporting: { label: "Supports", icon: IoTrendingUp, className: "bg-mint-soft text-positive" },
-  opposing: { label: "Challenges", icon: IoTrendingDown, className: "bg-coral-soft text-danger" },
-  neutral: { label: "Context", icon: IoInformationCircle, className: "bg-sunken text-ink-2" },
-} as const;
+function useBagImpacts(bag: Bag) {
+  const stories = useBagStories(bag.id);
+  const result = useMemo(() => collectStories(stories.data?.pages), [stories.data]);
+  const rows = useMemo(
+    () =>
+      (result.status === "live" ? result.stories : []).map((story) => ({
+        story,
+        impact: storyImpact(story, bag, connectionFor(story, bag.id)),
+      })),
+    [result, bag],
+  );
+  const pulse = useMemo(() => newsPulse(rows.map((row) => row.impact), bag), [rows, bag]);
+  return { stories, result, rows, pulse };
+}
 
-function StoryRow({ story, bagId }: { story: Story; bagId: string }) {
-  const connection = connectionFor(story, bagId);
-  const stance = connection ? STANCE[connection.context] : null;
+function StoryRow({ story, impact }: { story: Story; impact: StoryImpact }) {
   const date = formatStoryDate(story.publishedAt);
   return (
+    <div className="flex flex-col gap-2 rounded-[14px] bg-canvas p-3">
     <a
       href={story.sourceUrl}
       target="_blank"
       rel="noreferrer"
-      className="flex flex-col gap-1.5 rounded-[14px] bg-canvas p-2.5 transition-opacity hover:opacity-80"
+      className="flex flex-col gap-1.5 transition-opacity hover:opacity-80"
     >
-      {stance ? (
-        <span className={cn("inline-flex items-center gap-1 self-start rounded-full px-[7px] py-0.5", stance.className)}>
-          <stance.icon size={12} />
-          <T as="span" variant="caption" tone="inherit" className="font-semibold">
-            {stance.label}
-          </T>
-        </span>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <ImpactChip impact={impact} />
+        <T as="span" variant="caption" tone="tertiary" className="font-semibold tabular-nums">
+          {exposureLine(impact)}
+        </T>
+      </div>
       <T variant="callout" lines={3} className="font-semibold">
         {story.title}
       </T>
-      {connection?.explanation ? (
-        <T variant="footnote" tone="secondary" lines={3}>
-          {connection.explanation}
-        </T>
-      ) : null}
+      <T variant="footnote" tone="secondary" lines={4}>
+        {impact.headline}
+      </T>
       <T variant="caption" tone="tertiary">
         {story.publisher}
         {date ? ` · ${date}` : ""} · {hostOf(story.sourceUrl)}
@@ -407,33 +410,44 @@ function StoryRow({ story, bagId }: { story: Story; bagId: string }) {
         {story.provenance === "ai" ? " · AI summary" : ""}
       </T>
     </a>
+    <details>
+      <summary className="cursor-pointer text-sm font-semibold text-ink-2">Why it matters and what is uncertain</summary>
+      <div className="pt-3"><ImpactBreakdown impact={impact} /></div>
+    </details>
+    </div>
   );
 }
 
-function RelatedStories({ bagId }: { bagId: string }) {
-  const stories = useBagStories(bagId);
+function NewsPulseBlock({ bag }: { bag: Bag }) {
+  const { stories, result, pulse } = useBagImpacts(bag);
+  if (stories.isError || result.status === "unavailable") return null;
+  return (
+    <Block title="What the news says">
+      {stories.isPending ? <Skeleton height={120} radius={22} /> : <NewsPulseCard pulse={pulse} />}
+    </Block>
+  );
+}
+
+function RelatedStories({ bag }: { bag: Bag }) {
+  const { stories, result, rows, pulse } = useBagImpacts(bag);
   if (stories.isPending) return <Skeleton height={64} radius={18} />;
-  const result = collectStories(stories.data?.pages);
-  const list = result.status === "live" ? result.stories : [];
-  const count = (context: "supporting" | "opposing") =>
-    list.filter((story) => connectionFor(story, bagId)?.context === context).length;
   const summary = stories.isError
     ? "Couldn't load stories"
     : result.status === "unavailable"
       ? result.message
-      : list.length === 0
+      : rows.length === 0
         ? "No related stories yet"
-        : `${count("supporting")} supporting · ${count("opposing")} challenging`;
+        : `${rows.length - pulse.unavailable} analyzed · ${pulse.unavailable} unavailable`;
   return (
-    <Collapsible title="Stories" icon={IoNewspaper} tint="coral" count={list.length || undefined} summary={summary}>
-      {list.length === 0 ? (
+    <Collapsible title="Stories" icon={IoNewspaper} tint="coral" count={rows.length || undefined} summary={summary}>
+      {rows.length === 0 ? (
         <T variant="footnote" tone="secondary">
           {summary}
         </T>
       ) : (
         <>
-          {list.map((story) => (
-            <StoryRow key={story.id} story={story} bagId={bagId} />
+          {rows.map(({ story, impact }) => (
+            <StoryRow key={story.id} story={story} impact={impact} />
           ))}
           {stories.hasNextPage ? (
             <PrimaryButton
@@ -583,6 +597,7 @@ function BagScreen() {
           />
           {position ? <YourTokens position={position} bag={data} /> : null}
           <Holdings bag={data} chart={chartData} />
+          <NewsPulseBlock bag={data} />
           <div className="mt-7 lg:hidden">
             <Facts bag={data} />
           </div>
@@ -597,7 +612,7 @@ function BagScreen() {
                 </T>
               ) : null}
             </Collapsible>
-            <RelatedStories bagId={data.id} />
+            <RelatedStories bag={data} />
             <Collapsible
               title="Evidence"
               icon={IoDocumentText}

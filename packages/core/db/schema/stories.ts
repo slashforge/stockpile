@@ -1,10 +1,32 @@
 import { index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
+export type StoryAnalysis = {
+  version: 1;
+  model: string;
+  analyzedAt: string;
+  direction: "tailwind" | "headwind" | "mixed" | "neutral" | "unclear";
+  headline: string;
+  whatHappened: string;
+  businessImpact: string;
+  bagImplication: string;
+  uncertainty: string;
+  watch: string;
+  evidence: string;
+  affectedSymbols: string[];
+  thesis: string;
+  holdings: { symbol: string; name: string; weightBps: number }[];
+};
+
 export type StoryConnection = {
   bagId: string;
   relationship: "direct" | "inferred";
   context: "supporting" | "opposing" | "neutral";
   explanation: string;
+  sourceExcerpt?: string;
+  sourceCompany?: string;
+  analysisRetry?: { attempts: number; nextAttemptAt: string };
+  analysis?: StoryAnalysis | null;
+  analysisUnavailableReason?: "not_analyzed" | "missing_key" | "insufficient_source" | "provider_failure" | "invalid_output" | null;
 };
 
 export const stories = pgTable("stories", {

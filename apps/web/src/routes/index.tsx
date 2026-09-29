@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  IoAddCircle,
   IoArrowForward,
   IoChevronDown,
   IoChevronUp,
@@ -12,10 +11,8 @@ import {
   IoSparkles,
 } from "react-icons/io5";
 import { useBagSheet } from "@/components/sheets/bag-sheet";
-import { AllocationBar } from "@/components/stockpile/allocation";
 import { BagArt, LogoCluster } from "@/components/stockpile/bag-art";
-import { bagTradable, TradeStatus } from "@/components/stockpile/bag-card";
-import { BagReturnsLine, CuratorLine } from "@/components/stockpile/market";
+import { ImpactBreakdown, ImpactChip, ImpactCompare, UnavailableNotice } from "@/components/stockpile/story-impact";
 import { formatStoryDate, StoryReel, storyHost } from "@/components/stockpile/story-reel";
 import { TokenAvatar } from "@/components/stockpile/token-avatar";
 import { IconButton, PrimaryButton } from "@/components/ui/button";
@@ -24,10 +21,8 @@ import { useMediaQuery } from "@/components/ui/theme";
 import { cn, T } from "@/components/ui/type";
 import { useBags } from "@/hooks/use-bags";
 import { collectStories, useFeed } from "@/hooks/use-feed";
-import { useOpenBuy } from "@/hooks/use-navigation";
-import { useBagReturns } from "@/hooks/use-returns";
-import { bagCurator } from "@/lib/market";
-import { relatedBags, type Story } from "@/services/api/feed";
+import { storyImpact } from "@/lib/story-impact";
+import { connectionFor, relatedBags, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
 import { formatBps } from "@/utils/amounts";
 
@@ -164,20 +159,9 @@ function FeedLoading() {
       <aside className="hidden h-dvh w-[340px] shrink-0 flex-col gap-3 overflow-hidden py-6 xl:flex 2xl:w-[380px]">
         <Skeleton height={12} width={140} />
         <div className="overflow-hidden rounded-3xl bg-surface shadow-card">
-          <Skeleton height={116} radius={0} />
+          <Skeleton height={104} radius={0} />
           <div className="flex flex-col gap-2.5 p-4">
-            <Skeleton height={22} width="65%" />
-            <Skeleton height={14} width="85%" />
-            <Skeleton height={20} width="70%" radius={10} />
-            <Skeleton height={6} radius={3} />
-            {[0, 1, 2, 3].map((row) => (
-              <div key={row} className="flex items-center gap-2.5 py-1">
-                <Skeleton height={28} width={28} radius={14} />
-                <Skeleton height={14} width="40%" />
-                <div className="flex-1" />
-                <Skeleton height={14} width={32} />
-              </div>
-            ))}
+            <Skeleton height={64} radius={16} />
             <Skeleton height={44} radius={22} className="mt-1" />
           </div>
         </div>
@@ -191,110 +175,111 @@ function FeedLoading() {
   );
 }
 
-/** Desktop companion to the reel: what the active story is about and where to go next. */
+/** Desktop companion: select a bag, inspect exposure, then explore the evidence. */
 function StoryContext({ story, bags }: { story: Story; bags: Bag[] }) {
-  const returns = useBagReturns();
-  const openBuy = useOpenBuy();
+  const [selectedBagId, setSelectedBagId] = useState<string | null>(null);
   const date = formatStoryDate(story.publishedAt);
+  const impacts = useMemo(
+    () => bags.map((bag) => ({ bag, impact: storyImpact(story, bag, connectionFor(story, bag.id)) })),
+    [story, bags],
+  );
+  const primary = impacts.find(({ bag }) => bag.id === selectedBagId) ?? impacts[0];
+  const focus = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
   return (
     <div className="flex flex-col gap-3">
-      <T variant="overline" tone="tertiary">
-        {bags.length > 1 ? `${bags.length} bags in this story` : bags.length === 1 ? "Bag in this story" : "In this story"}
-      </T>
-      {bags.length === 0 ? (
-        <div className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-card">
-          <T variant="headline">No bag linked yet</T>
-          <T variant="footnote" tone="secondary">
-            This story is market context. Explore the bags to see what Stockpile tracks.
-          </T>
-          <Link to="/bags" className="t-subhead mt-1 inline-flex items-center gap-1 text-accent hover:underline">
-            Browse bags <IoArrowForward size={14} />
-          </Link>
-        </div>
-      ) : null}
-      {bags.slice(0, 3).map((bag, index) => {
-        const tradable = bagTradable(bag);
-        const top = [...bag.assets].sort((a, b) => b.weightBps - a.weightBps).slice(0, index === 0 ? 4 : 0);
-        return (
-          <div key={bag.id} className="overflow-hidden rounded-3xl bg-surface shadow-card">
-            <Link to="/bag/$id" params={{ id: bag.id }} className="block">
-              <BagArt bag={bag} height={index === 0 ? 116 : 88} logoSize={index === 0 ? 40 : 32} showThemeIcon={false}>
-                <div className="absolute right-2.5 top-2.5">
-                  <TradeStatus bag={bag} onArt />
-                </div>
-              </BagArt>
-            </Link>
-            <div className="flex flex-col gap-2 p-4">
-              <Link to="/bag/$id" params={{ id: bag.id }} className="flex flex-col gap-0.5 hover:opacity-80">
-                <T variant="title3" lines={1}>
-                  {bag.title}
-                </T>
-                <T variant="footnote" tone="secondary" lines={2}>
-                  {bag.subtitle}
-                </T>
-              </Link>
-              <CuratorLine curator={bagCurator(bag)} />
-              <BagReturnsLine entry={returns.data?.[bag.id]} loading={returns.isPending} />
-              {top.length > 0 ? (
-                <>
-                  <AllocationBar assets={bag.assets} />
-                  <div className="flex flex-col">
-                    {top.map((asset) => (
-                      <Link
-                        key={asset.symbol}
-                        to="/asset/$symbol"
-                        params={{ symbol: asset.symbol }}
-                        search={{ bag: bag.id }}
-                        className="-mx-2 flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-sunken"
-                      >
-                        <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} size={28} />
-                        <T as="span" variant="subhead" lines={1} className="flex-1">
-                          {asset.symbol}
-                        </T>
-                        <T as="span" variant="footnote" tone="secondary" className="tabular-nums">
-                          {formatBps(asset.weightBps)}
-                        </T>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              ) : null}
-              {index === 0 ? (
-                <div className="mt-1 flex flex-col gap-1">
-                  {tradable ? (
-                    <PrimaryButton label="Put money in the bag" icon={IoAddCircle} size="md" onClick={() => openBuy(bag.id)} />
-                  ) : null}
-                  <Link
-                    to="/bag/$id"
-                    params={{ id: bag.id }}
-                    className="t-subhead inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full text-accent hover:bg-accent-soft"
-                  >
-                    See details <IoArrowForward size={15} />
-                  </Link>
-                </div>
+      <div className="flex items-center justify-between">
+        <T variant="overline" tone="tertiary">Story impact</T>
+        <T variant="caption" tone="secondary">{bags.length} linked {bags.length === 1 ? "bag" : "bags"}</T>
+      </div>
+      {primary ? (
+        <>
+          {impacts.length > 1 ? (
+            <div className="flex flex-col gap-1.5" role="group" aria-label="Choose a bag to view its story implications">
+              <ImpactCompare rows={impacts} onOpen={setSelectedBagId} selectedBagId={primary.bag.id} />
+              {impacts.some(({ impact }) => impact.signal !== "unavailable" && impact.holdings.length > 0) ? (
+                <T variant="caption" tone="tertiary">Bars show the affected share of a bag's target allocation, not expected gains or losses.</T>
               ) : null}
             </div>
-          </div>
-        );
-      })}
-      <div className="flex flex-col gap-1 rounded-3xl bg-surface p-4 shadow-card">
-        <T variant="overline" tone="tertiary">
-          Source
-        </T>
-        <T variant="subhead">{story.publisher}</T>
-        <T variant="caption" tone="tertiary">
-          {[date, storyHost(story.sourceUrl), story.provenance === "ai" ? "AI summary" : null].filter(Boolean).join(" · ")}
-        </T>
-        <a
-          href={story.sourceUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="t-subhead mt-1 inline-flex items-center gap-1 self-start text-accent hover:underline"
-        >
-          {story.format === "podcast" ? "Listen" : story.format === "disclosure" ? "View filing" : "Read story"}
-          <IoArrowForward size={14} />
-        </a>
-      </div>
+          ) : null}
+          <section key={`${story.id}:${primary.bag.id}`} aria-label={`Story implications for ${primary.bag.title}`} className="overflow-hidden rounded-3xl bg-surface shadow-card">
+            <BagArt bag={primary.bag} height={104} logoSize={28} showThemeIcon={false} logosOnTop>
+              <div className="relative flex flex-col px-4 pb-3">
+                <T variant="title3" lines={1} tone="inherit" className="text-white">{primary.bag.title}</T>
+                <T variant="caption" lines={1} tone="inherit" className="font-semibold text-white/85">{primary.bag.subtitle}</T>
+              </div>
+            </BagArt>
+            <div className="flex flex-col gap-3 p-4">
+              <div className="flex flex-col gap-3" aria-live="polite">
+                {primary.impact.signal === "unavailable" ? (
+                  <UnavailableNotice impact={primary.impact} />
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-1.5">
+                      <ImpactChip impact={primary.impact} />
+                      <T variant="headline">{primary.impact.headline}</T>
+                    </div>
+                    <div className="rounded-2xl bg-sunken p-3">
+                      <T variant="caption" tone="tertiary" className="mb-1 font-semibold uppercase tracking-wide">Why it could matter</T>
+                      <T variant="footnote" tone="secondary">{primary.impact.points.find((point) => point.label === "Why it could matter")?.text ?? primary.impact.points[0]?.text}</T>
+                    </div>
+                  </>
+                )}
+              </div>
+              {primary.impact.holdings.length ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <T variant="subhead">Affected holdings</T>
+                    <T variant="caption" tone="secondary" className="font-semibold tabular-nums">{formatBps(primary.impact.exposureBps)} of bag</T>
+                  </div>
+                  {primary.impact.holdings.map((asset) => (
+                    <Link key={asset.symbol} to="/asset/$symbol" params={{ symbol: asset.symbol }} search={{ bag: primary.bag.id }}
+                      aria-label={`Explore ${asset.name}, ${formatBps(asset.weightBps)} target allocation`}
+                      className={cn("flex min-h-12 items-center gap-2 rounded-xl border border-line p-2 hover:bg-sunken", focus)}>
+                      <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} size={30} />
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex justify-between gap-2"><T variant="subhead">{asset.symbol}</T><T variant="caption" tone="secondary">{formatBps(asset.weightBps)}</T></div>
+                        <div className="h-1 overflow-hidden rounded-full bg-sunken" aria-hidden><div className="h-full bg-accent" style={{ width: `${asset.weightBps / 100}%` }} /></div>
+                      </div>
+                      <IoArrowForward size={15} className="text-accent" aria-hidden />
+                    </Link>
+                  ))}
+                  <T variant="caption" tone="tertiary">Explore a holding for its details. Allocation is not a forecast of price impact.</T>
+                </div>
+              ) : null}
+              {primary.impact.model ? (
+                <details className="group rounded-2xl border border-line">
+                  <summary className={cn("flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 rounded-2xl p-3 text-sm font-semibold text-accent [&::-webkit-details-marker]:hidden", focus)}>
+                    Evidence, uncertainty & what to watch
+                    <IoChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180" aria-hidden />
+                  </summary>
+                  <div className="border-t border-line p-3"><ImpactBreakdown impact={primary.impact} /></div>
+                </details>
+              ) : null}
+              <Link to="/bag/$id" params={{ id: primary.bag.id }} className={cn("t-subhead inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent-soft px-4 text-accent hover:opacity-80", focus)}>
+                Explore bag & risks <IoArrowForward size={17} aria-hidden />
+              </Link>
+              {primary.impact.model ? (
+                <T variant="caption" tone="tertiary">AI interpretation of supplied excerpts, not full articles or investment advice.</T>
+              ) : null}
+            </div>
+          </section>
+        </>
+      ) : (
+        <div className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-card">
+          <T variant="headline">No bag linked yet</T>
+          <T variant="footnote" tone="secondary">Explore the bags to see what Stockpile tracks.</T>
+          <Link to="/bags" className={cn("t-subhead inline-flex min-h-11 items-center gap-1 text-accent", focus)}>Browse bags <IoArrowForward size={14} /></Link>
+        </div>
+      )}
+      <a href={story.sourceUrl} target="_blank" rel="noreferrer" className={cn("flex min-h-16 items-center gap-3 rounded-2xl border border-line bg-surface p-4 hover:bg-sunken", focus)}>
+        <IoNewspaper size={22} className="shrink-0 text-accent" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <T variant="subhead">{story.format === "podcast" ? "Listen to source" : story.format === "disclosure" ? "View filing" : "Read original source"}</T>
+          <T variant="caption" tone="secondary">{story.publisher} · Opens in a new tab</T>
+          <T variant="caption" tone="tertiary">{[date, storyHost(story.sourceUrl)].filter(Boolean).join(" · ")}</T>
+        </div>
+        <IoArrowForward size={18} className="shrink-0 text-accent" aria-hidden />
+      </a>
     </div>
   );
 }
@@ -367,6 +352,7 @@ function ReelViewer({
                 story={story}
                 bags={relatedBags(story, bagsById)}
                 bottomInset={wide ? 0 : TAB_INSET}
+                hasContextSidebar={!!active}
                 onOpenBag={openBag}
               />
             </ReelCard>

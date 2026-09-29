@@ -58,6 +58,19 @@ export const priceSnapshots = isDeployed()
     })
   : undefined;
 
+// Independent from price snapshots: bounded feed ingestion and missing-analysis retries.
+export const storyRefresh = isDeployed()
+  ? new sst.cloudflare.Cron("StoryRefresh", {
+      schedules: ["15,45 * * * *"],
+      worker: {
+        handler: "apps/api/stories-cron.ts",
+        build: WORKER_BUILD,
+        link: [...API_LINKS, database!],
+        transform: WORKER_TRANSFORM,
+      },
+    })
+  : undefined;
+
 export const apiUrl = isDeployed()
   ? $interpolate`https://${domains.api}`
   : "http://localhost:4040";

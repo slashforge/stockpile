@@ -47,6 +47,7 @@ import {
   formatUsdCompact,
 } from "@/lib/market";
 import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
+import { storyImpact } from "@/lib/story-impact";
 import type { BagPosition } from "@/services/api/positions";
 import {
   type BagChart,
@@ -464,77 +465,74 @@ function YourTokens({ position, bag }: { position: BagPosition; bag: Bag }) {
   );
 }
 
-const STANCE = {
-  supporting: { label: "Supports", icon: "trending-up" },
-  opposing: { label: "Challenges", icon: "trending-down" },
-  neutral: { label: "Context", icon: "information-circle" },
-} as const;
-
-function StoryRow({ story, bagId }: { story: Story; bagId: string }) {
+function StoryRow({ story, bag }: { story: Story; bag: Bag }) {
   const { theme } = useUnistyles();
-  const connection = connectionFor(story, bagId);
-  const stance = connection ? STANCE[connection.context] : null;
+  const impact = storyImpact(story, bag, connectionFor(story, bag.id));
+  const stance = { label: impact.label, icon: impact.signal === "tailwind" ? "trending-up" as const : impact.signal === "headwind" ? "trending-down" as const : "information-circle" as const };
   const date = formatStoryDate(story.publishedAt);
   const fg =
-    connection?.context === "supporting"
+    impact.signal === "tailwind"
       ? theme.ds.positive
-      : connection?.context === "opposing"
+      : impact.signal === "headwind"
         ? theme.ds.danger
         : theme.ds.inkSecondary;
   const bg =
-    connection?.context === "supporting"
+    impact.signal === "tailwind"
       ? theme.ds.mintSoft
-      : connection?.context === "opposing"
+      : impact.signal === "headwind"
         ? theme.ds.coralSoft
         : theme.ds.sunken;
   return (
-    <HapticPressable
-      accessibilityRole="link"
-      accessibilityLabel={`${stance ? `${stance.label}: ` : ""}${story.title}. ${story.publisher}${date ? `, ${date}` : ""}`}
-      onPress={() => openLink(story.sourceUrl)}
-      style={({ pressed }) => [styles.story, pressed && styles.pressed]}
-    >
-      {stance ? (
+    <View>
+      <HapticPressable
+        accessibilityRole="link"
+        accessibilityLabel={`${stance.label}: ${story.title}. ${story.publisher}${date ? `, ${date}` : ""}`}
+        onPress={() => openLink(story.sourceUrl)}
+        style={({ pressed }) => [styles.story, pressed && styles.pressed]}
+      >
         <View style={[styles.stance, { backgroundColor: bg }]}>
           <Ionicons name={stance.icon} size={12} color={fg} />
-          <T variant="caption" style={[styles.bold, { color: fg }]}>
-            {stance.label}
-          </T>
+          <T variant="caption" style={[styles.bold, { color: fg }]}>{stance.label}</T>
         </View>
-      ) : null}
-      <T variant="callout" style={styles.bold} numberOfLines={3}>
-        {story.title}
-      </T>
-      {connection?.explanation ? (
-        <T variant="footnote" tone="secondary" numberOfLines={3}>
-          {connection.explanation}
+        <T variant="callout" style={styles.bold} numberOfLines={3}>{story.title}</T>
+        <T variant="footnote" tone="secondary">{impact.headline}</T>
+        <T variant="caption" tone="tertiary">
+          {story.publisher}
+          {date ? ` · ${date}` : ""} · {hostOf(story.sourceUrl)}
+          {story.format === "podcast" ? " · Podcast" : ""}
+          {story.provenance === "ai" ? " · AI summary" : ""}
         </T>
-      ) : null}
-      <T variant="caption" tone="tertiary">
-        {story.publisher}
-        {date ? ` · ${date}` : ""} · {hostOf(story.sourceUrl)}
-        {story.format === "podcast" ? " · Podcast" : ""}
-        {story.provenance === "ai" ? " · AI summary" : ""}
-      </T>
-    </HapticPressable>
+      </HapticPressable>
+      <Collapsible title="Why it matters" icon="information-circle" tint="coral" summary="Business implications, evidence and uncertainty">
+        {impact.points.map((point) => (
+          <View key={point.label}>
+            <T variant="caption" tone="tertiary">{point.label}</T>
+            <T variant="footnote" tone="secondary">{point.text}</T>
+          </View>
+        ))}
+        {impact.model ? (
+          <T variant="caption" tone="tertiary">
+            AI analysis by {impact.model} · {impact.analyzedAt?.slice(0, 10)}. Based on the supplied excerpt, not the full article. Not investment advice.
+          </T>
+        ) : null}
+      </Collapsible>
+    </View>
   );
 }
 
-function RelatedStories({ bagId }: { bagId: string }) {
-  const stories = useBagStories(bagId);
+function RelatedStories({ bag }: { bag: Bag }) {
+  const stories = useBagStories(bag.id);
   if (stories.isPending) return <Skeleton height={64} radius={18} />;
   const result = collectStories(stories.data?.pages);
   const list = result.status === "live" ? result.stories : [];
-  const count = (context: "supporting" | "opposing") =>
-    list.filter((story) => connectionFor(story, bagId)?.context === context)
-      .length;
+  const unavailable = list.filter((story) => storyImpact(story, bag, connectionFor(story, bag.id)).signal === "unavailable").length;
   const summary = stories.isError
     ? "Couldn't load stories"
     : result.status === "unavailable"
       ? result.message
       : list.length === 0
         ? "No related stories yet"
-        : `${count("supporting")} supporting · ${count("opposing")} challenging`;
+        : `${list.length - unavailable} analyzed · ${unavailable} unavailable`;
   return (
     <Collapsible
       title="Stories"
@@ -550,7 +548,7 @@ function RelatedStories({ bagId }: { bagId: string }) {
       ) : (
         <>
           {list.map((story) => (
-            <StoryRow key={story.id} story={story} bagId={bagId} />
+            <StoryRow key={story.id} story={story} bag={bag} />
           ))}
           {stories.hasNextPage ? (
             <PrimaryButton
@@ -755,7 +753,7 @@ export default function BagScreen() {
           ) : null}
         </Collapsible>
 
-        <RelatedStories bagId={data.id} />
+        <RelatedStories bag={data} />
 
         <Collapsible
           title="Evidence"

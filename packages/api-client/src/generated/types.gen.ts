@@ -260,7 +260,32 @@ export type StoryBagConnection = {
     relationship: 'direct' | 'inferred';
     context: 'supporting' | 'opposing' | 'neutral';
     explanation: string;
+    sourceExcerpt?: string;
+    sourceCompany?: string;
+    analysis?: StoryAnalysis;
+    analysisUnavailableReason?: 'not_analyzed' | 'missing_key' | 'insufficient_source' | 'provider_failure' | 'invalid_output' | null;
 };
+
+export type StoryAnalysis = {
+    direction: 'tailwind' | 'headwind' | 'mixed' | 'neutral' | 'unclear';
+    headline: string;
+    whatHappened: string;
+    businessImpact: string;
+    bagImplication: string;
+    uncertainty: string;
+    watch: string;
+    evidence: string;
+    affectedSymbols: Array<string>;
+    version: 1;
+    model: string;
+    analyzedAt: string;
+    thesis: string;
+    holdings: Array<{
+        symbol: string;
+        name: string;
+        weightBps: number;
+    }>;
+} | null;
 
 export type AssetChartResponse = {
     mint: string;

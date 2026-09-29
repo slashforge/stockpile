@@ -74,6 +74,7 @@ declare module "sst" {
       "type": "sst.cloudflare.StaticSite"
       "url": string
     }
+    "StoryRefreshHandler": import("@cloudflare/workers-types").Service
     "TokensApiKey": {
       "type": "sst.sst.Secret"
       "value": string

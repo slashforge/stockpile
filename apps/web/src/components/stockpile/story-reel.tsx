@@ -16,11 +16,13 @@ import { parseHex } from "@/lib/asset-colors";
 import { bagCurator, isDisclosureStory } from "@/lib/market";
 import { isPreIpoBag } from "@/lib/pre-ipo";
 import { displayTicker, isSharpEnough, leadAsset, storyAge, storyImageSources } from "@/lib/story";
+import { storyImpact } from "@/lib/story-impact";
 import { connectionFor, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
 import { safeIconUrl } from "@/utils/token-icon";
 import { bagTheme, hashString, LogoCluster } from "./bag-art";
 import { BagReturnsLine, CuratorLine } from "./market";
+import { ReelImpact } from "./story-impact";
 import { TokenAvatar } from "./token-avatar";
 
 export function formatStoryDate(value: string | null): string | null {
@@ -188,11 +190,13 @@ export function StoryReel({
   story,
   bags,
   bottomInset = 0,
+  hasContextSidebar = false,
   onOpenBag,
 }: {
   story: Story;
   bags: Bag[];
   bottomInset?: number;
+  hasContextSidebar?: boolean;
   onOpenBag: (bagId: string) => void;
 }) {
   const { ref, box } = useBox<HTMLElement>();
@@ -201,6 +205,7 @@ export function StoryReel({
   const age = storyAge(story.publishedAt);
   const hasImage = !!safeIconUrl(story.imageUrl);
   const connection = bag ? connectionFor(story, bag.id) : undefined;
+  const impact = useMemo(() => (bag ? storyImpact(story, bag, connection) : null), [story, bag, connection]);
   const podcast = story.format === "podcast";
   const disclosure = isDisclosureStory(story);
   const lead = bag ? leadAsset(`${story.title} ${story.summary}`, bag.assets) : undefined;
@@ -238,7 +243,7 @@ export function StoryReel({
         <T as="h2" variant="title1" tone="inherit" lines={4} className="text-shadow-reel font-extrabold tracking-[-0.4px] text-white">
           {story.title}
         </T>
-        <T variant="callout" tone="inherit" lines={3} className="text-white/85">
+        <T variant="callout" tone="inherit" lines={impact ? 2 : 3} className="text-white/85">
           {story.summary}
         </T>
 
@@ -270,6 +275,8 @@ export function StoryReel({
             ) : null}
           </div>
         </div>
+
+        {impact ? <div className={hasContextSidebar ? "xl:hidden" : undefined}><ReelImpact impact={impact} /></div> : null}
 
         {bag ? (
           <button

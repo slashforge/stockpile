@@ -81,17 +81,20 @@ async function fetchCandles(mint: string, interval: TokensInterval, from: number
 export async function candlesFor(mint: string, interval: TokensInterval, from?: number, to?: number): Promise<CandlesResult> {
   const key = secret("TokensApiKey");
   if (!key) return { ok: false, reason: "unconfigured" };
-  const bucket = Math.floor((to ?? Date.now() / 1000) / 60);
-  const cacheKey = `${mint}:${interval}:${from ?? "all"}:${bucket}`;
+  const end = to ?? Math.floor(Date.now() / 1000);
+  const bucket = Math.floor(end / 60);
+  const seriesKey = `${mint}:${interval}:${from === undefined ? "all" : end - from}:`;
+  const cacheKey = `${seriesKey}${bucket}`;
   let entry = candleCache.get(cacheKey);
   if (entry && entry.expiresAt > Date.now()) return entry.value;
   if (!entry?.pending) {
     if (candleCache.size >= 500) candleCache.delete(candleCache.keys().next().value!);
-    const stale = [...candleCache.values()].find((item) => item.value.ok && cacheKey.startsWith(`${mint}:${interval}:`))?.value;
-    const pending = fetchCandles(mint, interval, from, to, key).catch((): CandlesResult => stale ?? { ok: false, reason: "unavailable" });
+    const stale = [...candleCache.entries()].reverse().find(([cachedKey, item]) => item.value.ok && cachedKey.startsWith(seriesKey))?.[1].value;
+    const pending = fetchCandles(mint, interval, from, to, key)
+      .catch((): CandlesResult => stale ?? { ok: false, reason: "unavailable" })
+      .then((value) => { candleCache.set(cacheKey, { expiresAt: Date.now() + (value.ok ? candleTtl : 20_000), value }); return value; });
     entry = { expiresAt: 0, value: stale ?? { ok: false, reason: "unavailable" }, pending };
     candleCache.set(cacheKey, entry);
-    pending.then((value) => { candleCache.set(cacheKey, { expiresAt: Date.now() + (value.ok ? candleTtl : 20_000), value }); });
   }
   return entry.pending!;
 }

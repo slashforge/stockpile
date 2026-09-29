@@ -1145,6 +1145,29 @@
           },
           "explanation": {
             "type": "string"
+          },
+          "sourceExcerpt": {
+            "type": "string"
+          },
+          "sourceCompany": {
+            "type": "string"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/StoryAnalysis"
+          },
+          "analysisUnavailableReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "not_analyzed",
+              "missing_key",
+              "insufficient_source",
+              "provider_failure",
+              "invalid_output",
+              null
+            ]
           }
         },
         "required": [
@@ -1153,6 +1176,122 @@
           "context",
           "explanation"
         ]
+      },
+      "StoryAnalysis": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "tailwind",
+              "headwind",
+              "mixed",
+              "neutral",
+              "unclear"
+            ]
+          },
+          "headline": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 160
+          },
+          "whatHappened": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 700
+          },
+          "businessImpact": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 700
+          },
+          "bagImplication": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 700
+          },
+          "uncertainty": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 700
+          },
+          "watch": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 700
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 700
+          },
+          "affectedSymbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40
+          },
+          "version": {
+            "type": "number",
+            "enum": [
+              1
+            ]
+          },
+          "model": {
+            "type": "string"
+          },
+          "analyzedAt": {
+            "type": "string"
+          },
+          "thesis": {
+            "type": "string"
+          },
+          "holdings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "symbol": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "weightBps": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "symbol",
+                "name",
+                "weightBps"
+              ]
+            }
+          }
+        },
+        "required": [
+          "direction",
+          "headline",
+          "whatHappened",
+          "businessImpact",
+          "bagImplication",
+          "uncertainty",
+          "watch",
+          "evidence",
+          "affectedSymbols",
+          "version",
+          "model",
+          "analyzedAt",
+          "thesis",
+          "holdings"
+        ],
+        "additionalProperties": false
       },
       "AssetChartResponse": {
         "type": "object",

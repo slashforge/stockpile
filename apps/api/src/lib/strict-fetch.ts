@@ -9,3 +9,23 @@ export async function fetchNoRedirect(url: string | URL, init: Omit<RequestInit,
   }
   return response;
 }
+
+export async function boundedBody(response: Response, maxBytes: number) {
+  if (!response.ok || !response.body || Number(response.headers.get("content-length") || 0) > maxBytes) {
+    await response.body?.cancel();
+    throw new Error(`Provider response rejected: ${response.status}`);
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = response.body.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) throw new Error("Provider response too large");
+      chunks.push(value);
+    }
+  } finally { await reader.cancel().catch(() => undefined); }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}

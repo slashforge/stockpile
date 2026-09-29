@@ -10,6 +10,7 @@ import { useBagReturns } from "@/hooks/use-returns";
 import { parseHex } from "@/lib/asset-colors";
 import { bagCurator, isDisclosureStory } from "@/lib/market";
 import { displayTicker, isSharpEnough, leadAsset, storyAge, storyImageSources } from "@/lib/story";
+import { storyImpact } from "@/lib/story-impact";
 import { connectionFor, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
 import { safeIconUrl } from "@/utils/token-icon";
@@ -199,6 +200,7 @@ export function StoryReel({
   const age = storyAge(story.publishedAt);
   const hasImage = !!safeIconUrl(story.imageUrl);
   const connection = bag ? connectionFor(story, bag.id) : undefined;
+  const impact = useMemo(() => bag ? storyImpact(story, bag, connection) : null, [story, bag, connection]);
   const podcast = story.format === "podcast";
   const disclosure = isDisclosureStory(story);
   const lead = bag ? leadAsset(`${story.title} ${story.summary}`, bag.assets) : undefined;
@@ -262,6 +264,11 @@ export function StoryReel({
         <T variant="callout" style={styles.summary} numberOfLines={3}>
           {story.summary}
         </T>
+        {impact ? (
+          <T variant="footnote" style={styles.summary} numberOfLines={3}>
+            {impact.label}: {impact.headline}. Open the bag's Stories for evidence and uncertainty.
+          </T>
+        ) : null}
 
         <View style={styles.actions}>
           <HapticPressable

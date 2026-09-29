@@ -10,6 +10,7 @@
     "db:migrate": "sst shell -- drizzle-kit migrate",
     "stories:ingest": "sst shell -- bun apps/api/scripts/ingest-stories.ts",
     "stories:recontext": "sst shell -- bun apps/api/scripts/recontext-stories.ts",
+    "stories:reanalyze": "sst shell -- bun apps/api/scripts/reanalyze-stories.ts",
     "stories:images": "sst shell -- bun apps/api/scripts/backfill-story-images.ts",
     "tokens:coverage": "sst shell -- bun apps/api/scripts/check-tokens-coverage.ts",
     "xstocks:probe": "sst shell -- bun apps/api/scripts/probe-xstocks.ts",

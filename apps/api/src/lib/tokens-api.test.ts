@@ -67,7 +67,38 @@ describe("tokens.xyz client", () => {
     resetTokensApiCache();
     tokens();
     const good = await candlesFor(NVDAX, "1H", from, to);
-    tokens({ chart: () => new Response("down", { status: 503 }) });
-    expect(await candlesFor(NVDAX, "1H", from, to + 120)).toEqual(good); // new cache bucket, provider down -> stale candles
+    const down = mock(async () => new Response("down", { status: 503 }));
+    globalThis.fetch = down as unknown as typeof fetch;
+    expect(await candlesFor(NVDAX, "1H", from + 120, to + 120)).toEqual(good); // rolling window, provider down -> stale candles
+    expect(down).toHaveBeenCalledTimes(1);
+  });
+  it("deduplicates rolling chart windows within the same minute", async () => {
+    let chartCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/resolve")) return Response.json(resolveFixture);
+      chartCalls++;
+      return Response.json(chartFixture);
+    }) as unknown as typeof fetch;
+    const results = await Promise.all([
+      candlesFor(NVDAX, "1H", from, to),
+      candlesFor(NVDAX, "1H", from + 1, to + 1),
+    ]);
+    expect(results[0]).toEqual(results[1]);
+    expect(chartCalls).toBe(1);
+  });
+  it("never falls back to another mint, interval or history window", async () => {
+    tokens();
+    await candlesFor(NVDAX, "1H", from, to);
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/resolve")) return Response.json({ assetId: "other", variant: { mint: url.searchParams.get("ref") } });
+      return new Response("down", { status: 503 });
+    }) as unknown as typeof fetch;
+    for (const result of [
+      await candlesFor("So11111111111111111111111111111111111111112", "1H", from, to),
+      await candlesFor(NVDAX, "1D", from, to),
+      await candlesFor(NVDAX, "1H", from - 86400, to),
+    ]) expect(result).toEqual({ ok: false, reason: "unavailable" });
   });
 });
