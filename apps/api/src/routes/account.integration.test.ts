@@ -5,8 +5,8 @@ import { Keypair, PublicKey, TransactionInstruction, TransactionMessage, Version
 import bs58 from "bs58";
 import { resetActivityCache } from "../lib/activity";
 import { resetTokenMetaCache } from "../lib/token-meta";
+import { resetMarketCache } from "../lib/market";
 import { resetMintRegistry, seedMints } from "../lib/mint-registry";
-import { SENDER_TIP_ACCOUNTS, SENDER_TIP_LAMPORTS } from "../lib/sponsor";
 
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const WALLET = "11111111111111111111111111111111";
@@ -76,30 +76,35 @@ function allMints() { seedMints(Object.entries(mints).map(([symbol, mint]) => `$
 const quoteFor = (url: URL, extra: Record<string, unknown> = {}) => Response.json({ inputMint: url.searchParams.get("inputMint"), outputMint: url.searchParams.get("outputMint"), inAmount: url.searchParams.get("amount"), outAmount: "42", otherAmountThreshold: "41", slippageBps: Number(url.searchParams.get("slippageBps")), priceImpactPct: "0.001", routePlan: [{}], ...extra });
 const ix = (programId: string, accounts: [string, boolean, boolean][], data = [1, 2, 3]) => ({ programId, accounts: accounts.map(([pubkey, isSigner, isWritable]) => ({ pubkey, isSigner, isWritable })), data: Buffer.from(data).toString("base64") });
 const cuPrice = (microLamports: bigint) => { const data = Buffer.alloc(9); data.writeUInt8(3, 0); data.writeBigUInt64LE(microLamports, 1); return ix("ComputeBudget111111111111111111111111111111", [], [...data]); };
-/** A Jupiter `/swap/v2/build` response for the requested leg: the taker signs the swap, the paymaster funds rent. */
-const buildFor = (url: URL, extra: Record<string, unknown> = {}) => Response.json({
-  inputMint: url.searchParams.get("inputMint"), outputMint: url.searchParams.get("outputMint"), inAmount: url.searchParams.get("amount"), outAmount: "42", otherAmountThreshold: "41", slippageBps: 37, priceImpactPct: "0.001", routePlan: [{}],
-  computeBudgetInstructions: [cuPrice(50_000_000n)], setupInstructions: [], cleanupInstruction: null, otherInstructions: [],
-  swapInstruction: ix(JUP, [[url.searchParams.get("taker")!, true, false], [url.searchParams.get("payer")!, true, true], [USDC, false, true]]),
-  addressesByLookupTableAddress: null, blockhashWithMetadata: { blockhash: new Array(32).fill(7), lastValidBlockHeight: 123 }, ...extra });
-type Simulation = { err?: unknown; logs?: string[]; unitsConsumed?: number; spent?: number };
-/** Helius JSON-RPC for the paymaster: balance + simulation. Returns null for anything else. */
-function sponsorRpc(body: any, simulation: Simulation = {}, simulated: string[] = []) {
+/** A serialized Jupiter order: paymaster pays fees, but never appears in the swap instruction. */
+const buildFor = (url: URL, extra: Record<string, unknown> = {}) => {
+  const instructions = [cuPrice(10_000n), ix(JUP, [[url.searchParams.get("taker")!, true, false], [USDC, false, true]])];
+  const raw = (extra.instructions ?? instructions) as ReturnType<typeof ix>[];
+  const transaction = new VersionedTransaction(new TransactionMessage({ payerKey: new PublicKey(url.searchParams.get("payer")!),
+    recentBlockhash: new PublicKey(new Uint8Array(32).fill(7)).toBase58(), instructions: raw.map((item) => new TransactionInstruction({ programId: new PublicKey(item.programId), keys: item.accounts.map((account) => ({ ...account, pubkey: new PublicKey(account.pubkey) })), data: Buffer.from(item.data, "base64") })) }).compileToV0Message());
+  return Response.json({ inputMint: url.searchParams.get("inputMint"), outputMint: url.searchParams.get("outputMint"), inAmount: url.searchParams.get("amount"), outAmount: "42", otherAmountThreshold: "41", slippageBps: 37, priceImpactPct: "0.001", routePlan: [{}],
+    transaction: Buffer.from(transaction.serialize()).toString("base64"), requestId: "order-test", router: "metis", lastValidBlockHeight: "123", ...extra });
+};
+/** Helius JSON-RPC for the optional paymaster minimum-balance check. */
+function sponsorRpc(body: any) {
   if (body?.method === "getBalance") return Response.json({ jsonrpc: "2.0", id: 1, result: { value: 1_000_000_000 } });
-  if (body?.method === "simulateTransaction") {
-    simulated.push(body.params[0]);
-    return Response.json({ jsonrpc: "2.0", id: 1, result: { value: { err: simulation.err ?? null, logs: simulation.logs ?? [], unitsConsumed: simulation.unitsConsumed ?? 100_000, accounts: [{ lamports: 1_000_000_000 - (simulation.spent ?? 10_000) }] } } });
-  }
   return null;
 }
-/** Mocks Jupiter quote + build and the paymaster RPC. `build` decides each build response given its 1-based call number. */
-function jupiter(build: (call: number, url: URL) => Response = (_call, url) => buildFor(url), buildRequests: URL[] = [], simulation: Simulation = {}) {
+/** Mocks Jupiter indicative and transaction orders; `build` decides each transaction order response. */
+function jupiter(build: (call: number, url: URL) => Response = (_call, url) => buildFor(url), buildRequests: URL[] = []) {
   let quoteCalls = 0; let buildCalls = 0;
   globalThis.fetch = mock(async (input: string | URL | Request, options?: RequestInit) => {
     const url = new URL(String(input));
-    if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(options?.body)), simulation) ?? new Response("unexpected", { status: 500 });
+    if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(options?.body))) ?? new Response("unexpected", { status: 500 });
     expect((options?.headers as Record<string, string>)["x-api-key"]).toBe("test");
-    if (url.pathname.endsWith("/quote")) { quoteCalls++; return quoteFor(url); }
+    expect(url.pathname).toBe("/swap/v2/order");
+    expect(url.searchParams.get("excludeRouters")).toBe("jupiterz,dflow,okx");
+    expect(url.searchParams.get("excludeDexes")).toBe("Manifest");
+    if (url.searchParams.has("payer")) {
+      expect(url.searchParams.get("priorityFeeLamports")).toBe("200000");
+      expect(url.searchParams.get("broadcastFeeType")).toBe("maxCap");
+    }
+    if (url.pathname.endsWith("/order") && !url.searchParams.has("taker")) { quoteCalls++; return quoteFor(url); }
     buildRequests.push(url);
     return build(++buildCalls, url);
   }) as unknown as typeof fetch;
@@ -113,7 +118,7 @@ function decoded(base64: string) {
 }
 
 beforeEach(() => {
-  setFeatures({ xstocks: false });
+  setFeatures({ xstocks: false, market: false }); resetMarketCache();
   saved.clear(); lots.length = 0; insertedUser = undefined; deleted = false;
   setSecrets({ PrivyAppId: "test-app", PrivyAppSecret: "test-secret" });
   setSecrets({ JupiterApiKey: undefined, HeliusApiKey: undefined }); resetMintRegistry(); setSecrets({ SolanaPaymasterKey: undefined }); setFeatures({ prestocks: false });
@@ -150,7 +155,7 @@ describe("authenticated account flows (mocked identity, DB, HTTP)", () => {
 describe("portfolio (mocked Helius)", () => {
   it("does not claim balances when wallet or Helius is absent, or provider fails", async () => {
     expect(await json(app.request("/portfolio", { headers: auth("no-wallet") }))).toMatchObject({ walletAddress: null, status: "unavailable", holdings: [], sol: null, usdc: null });
-    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", holdings: [], sol: null, usdc: null, message: "Helius is not configured" });
+    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", holdings: [], sol: null, usdc: null, message: "Holdings providers are not configured" });
     setSecrets({ HeliusApiKey: "test" });
     globalThis.fetch = mock(async () => new Response("error", { status: 503 })) as unknown as typeof fetch;
     expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "unavailable", holdings: [], sol: null, usdc: null });
@@ -189,6 +194,7 @@ describe("portfolio (mocked Helius)", () => {
     const calls: string[] = [];
     globalThis.fetch = mock(async (input: string | URL | Request, options?: RequestInit) => {
       const url = new URL(String(input)); calls.push(url.hostname + url.pathname);
+      if (url.pathname.startsWith("/swap/v2/holdings/")) return new Response("down", { status: 503 });
       if (url.hostname === "api.jup.ag") {
         expect((options?.headers as Record<string, string>)["x-api-key"]).toBe("jup");
         expect(url.searchParams.get("query")!.split(",").sort()).toEqual(["So11111111111111111111111111111111111111112", USDC, mints.NVDAx, unknown].sort());
@@ -204,12 +210,22 @@ describe("portfolio (mocked Helius)", () => {
       { mint: unknown, symbol: null, name: null, iconUrl: null, amount: "42", decimals: 0, uiAmount: "42", program: "token", usdPrice: null, usdValue: null, bagIds: [] },
       { mint: mints.NVDAx, symbol: "NVDAx", name: "NVIDIA xStock", iconUrl: "https://img.example/nvda.png", amount: "2100000", decimals: 8, uiAmount: "0.021", program: "token-2022", usdPrice: 180.5, usdValue: 3.7905, bagIds: ["megacap-builders", "ai-infrastructure"] },
     ]);
-    expect(calls).toEqual(["mainnet.helius-rpc.com/", "api.jup.ag/tokens/v2/search"]);
+    expect(calls).toEqual([`api.jup.ag/swap/v2/holdings/${WALLET}`, "mainnet.helius-rpc.com/", "api.jup.ag/tokens/v2/search"]);
     // Jupiter outage: balances are still served, prices are simply absent.
     resetTokenMetaCache();
     globalThis.fetch = mock(async (input: string | URL | Request) => new URL(String(input)).hostname === "api.jup.ag" ? new Response("down", { status: 503 })
       : Response.json([{ id: 1, result: { value: 1500000000 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "2100000", 8)] } }])) as unknown as typeof fetch;
-    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", totalUsd: 0, unpricedCount: 2, sol: { usdPrice: null, usdValue: null }, holdings: [{ symbol: "NVDAx", name: "NVIDIA xStock", usdPrice: null, usdValue: null, bagIds: ["megacap-builders", "ai-infrastructure"] }] });
+    // Nothing priced: the total is unknown (null), never a misleading $0.
+    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", totalUsd: null, unpricedCount: 2, sol: { usdPrice: null, usdValue: null }, holdings: [{ symbol: "NVDAx", name: "NVIDIA xStock", usdPrice: null, usdValue: null, bagIds: ["megacap-builders", "ai-infrastructure"] }] });
+    // Jupiter rate-limited: USDC still counts at its peg, so a USDC-only wallet isn't shown as worthless; the 429 is retried once.
+    resetTokenMetaCache();
+    let jupiterCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      if (new URL(String(input)).hostname === "api.jup.ag") { jupiterCalls++; return new Response("slow down", { status: 429, headers: { "retry-after": "0" } }); }
+      return Response.json([{ id: 1, result: { value: 0 } }, { id: 2, result: { value: [tokenAccount(USDC, "25000000", 6)] } }, { id: 3, result: { value: [] } }]);
+    }) as unknown as typeof fetch;
+    expect(await json(app.request("/portfolio", { headers: auth() }))).toMatchObject({ status: "live", totalUsd: 25, unpricedCount: 0, usdc: { uiAmount: "25", usdPrice: 1, usdValue: 25 } });
+    expect(jupiterCalls).toBe(3); // One holdings attempt plus the metadata request and its retry.
   });
 });
 
@@ -337,51 +353,65 @@ describe("trade quote and prepare (mocked Jupiter)", () => {
       expect(signers).toEqual([PAYER, WALLET]);
       expect(paymasterSigned).toBe(true);
       expect(walletSigned).toBe(false);
-      expect(tx.message.compiledInstructions).toHaveLength(4); // CU limit, clamped CU price, swap, Sender tip
-      // Last instruction: System transfer of the 5,000-lamport Helius Sender tip, paid by the paymaster.
-      const keys = tx.message.staticAccountKeys.map((key) => key.toBase58());
-      const tip = tx.message.compiledInstructions.at(-1)!;
-      expect(keys[tip.programIdIndex]).toBe("11111111111111111111111111111111");
-      expect(keys[tip.accountKeyIndexes[0]!]).toBe(PAYER);
-      expect(SENDER_TIP_ACCOUNTS as readonly string[]).toContain(keys[tip.accountKeyIndexes[1]!]!);
-      expect(Buffer.from(tip.data).readBigUInt64LE(4)).toBe(BigInt(SENDER_TIP_LAMPORTS));
+      expect(tx.message.compiledInstructions).toHaveLength(2); // Original order message: compute price + swap, no Sender tip.
+      expect(t.requestId).toBe("order-test");
     }
-    expect(requests.map((url) => url.pathname)).toEqual(["/swap/v2/build", "/swap/v2/build", "/swap/v2/build"]);
+    expect(requests.map((url) => url.pathname)).toEqual(["/swap/v2/order", "/swap/v2/order", "/swap/v2/order"]);
     expect(requests.map((url) => url.searchParams.get("outputMint"))).toEqual(Object.values(mints));
-    expect(requests.every((url) => url.searchParams.get("taker") === WALLET && url.searchParams.get("payer") === PAYER && url.searchParams.get("slippageBps") === "rtse")).toBe(true);
+    expect(requests.every((url) => url.searchParams.get("taker") === WALLET && url.searchParams.get("payer") === PAYER && url.searchParams.get("closeAuthority") === WALLET && url.searchParams.get("excludeDexes") === "Manifest" && !url.searchParams.has("slippageBps"))).toBe(true);
     // The advanced override is passed through as a fixed limit.
-    jupiter(undefined, requests.splice(0));
+    requests.length = 0; jupiter(undefined, requests);
     expect(await json(post("/trade/prepare", { ...requestBody, slippageBps: 100 }))).toMatchObject({ status: "ready", slippageBps: 100 });
     expect(requests.every((url) => url.searchParams.get("slippageBps") === "100")).toBe(true);
   });
-  it("sets the CU limit from simulation and clamps Jupiter's CU price", async () => {
+  it("preserves the Jupiter order message and works without Helius", async () => {
     allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
-    jupiter(undefined, [], { unitsConsumed: 200_000 });
+    setSecrets({ HeliusApiKey: undefined });
+    jupiter((_call, url) => buildFor(url, { lastValidBlockHeight: 123 }));
     const result = await json(post("/trade/prepare", requestBody));
     const { tx } = decoded(result.transactions[0].transaction);
-    const [limit, price] = tx.message.compiledInstructions.map((ix) => Buffer.from(ix.data));
-    expect(limit![0]).toBe(2); expect(limit!.readUInt32LE(1)).toBe(240_000);
-    expect(price![0]).toBe(3); expect(price!.readBigUInt64LE(1)).toBe(1_000_000n);
+    const price = Buffer.from(tx.message.compiledInstructions[0]!.data);
+    expect(price[0]).toBe(3); expect(price.readBigUInt64LE(1)).toBe(10_000n);
   });
-  it("refuses builds that misuse the paymaster, overspend it, or would fail on chain", async () => {
+  it("rejects malformed expiry heights and scales the sponsor balance by leg count", async () => {
+    allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
+    for (const lastValidBlockHeight of ["-1", "1.5", "", "9007199254740992", -1]) {
+      jupiter((_call, url) => buildFor(url, { lastValidBlockHeight }));
+      expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "INVALID_TRANSACTION" } });
+    }
+    const { minimumSponsorBalance } = await import("../lib/sponsor");
+    expect(minimumSponsorBalance(8)).toBe(52_080_000);
+    const calls = mock(async () => Response.json({ result: { value: 19_000_000 } }));
+    globalThis.fetch = calls as unknown as typeof fetch;
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_ERROR", message: "Fee sponsor is low on SOL" } });
+    expect(calls).toHaveBeenCalledTimes(1);
+  });
+  it("returns signed impact fractions, converting the preferred percentage-point field", async () => {
+    allMints(); setSecrets({ JupiterApiKey: "test" });
+    globalThis.fetch = mock(async (input: string | URL | Request) => quoteFor(new URL(String(input)), { priceImpact: -0.062, priceImpactPct: "-0.99" })) as unknown as typeof fetch;
+    const result = await json(post("/trade/quote", requestBody));
+    expect(result.legs.every((leg: { priceImpactPct: string }) => Number(leg.priceImpactPct) === -0.00062)).toBe(true);
+  });
+  it("refuses orders that misuse the paymaster or exceed priority caps and maps build errors", async () => {
     allMints(); setSecrets({ JupiterApiKey: "test" }); sponsored();
     const token = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
     const drains: Record<string, unknown>[] = [
-      { swapInstruction: undefined },
-      { setupInstructions: [ix("11111111111111111111111111111111", [[PAYER, true, true], [OTHER_WALLET, false, true]], [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])] },
-      { setupInstructions: [ix(token, [[PAYER, true, true]])] },
-      { setupInstructions: [ix(JUP, [[OTHER_WALLET, true, true]])] },
+      { transaction: "garbage" },
+      { instructions: [ix(JUP, [[WALLET, true, false]]), ix("11111111111111111111111111111111", [[PAYER, true, true], [OTHER_WALLET, false, true]], [2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0])] },
+      { instructions: [ix(JUP, [[WALLET, true, false]]), ix(token, [[PAYER, true, true]])] },
+      { instructions: [ix(JUP, [[WALLET, true, false], [OTHER_WALLET, true, true]])] },
     ];
     for (const extra of drains) {
       jupiter((_call, url) => buildFor(url, extra));
       expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", transactions: [], error: { code: "INVALID_TRANSACTION", legIndex: 0, symbol: "AAPLx" } });
     }
-    jupiter(undefined, [], { spent: 50_000_000 });
-    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "INVALID_TRANSACTION", legIndex: 0 } });
-    jupiter(undefined, [], { err: { InstructionError: [2, { Custom: 6001 }] }, logs: ["Program log: Error: SlippageToleranceExceeded"] });
+    const spike = jupiter((call, url) => buildFor(url, call === 1 ? { instructions: [cuPrice(50_000_000n), ix(JUP, [[WALLET, true, false]])] } : {}));
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "ready" });
+    expect(spike.buildCalls()).toBe(4);
+    jupiter((_call, url) => buildFor(url, { transaction: "", errorCode: 6001, errorMessage: "Slippage tolerance exceeded" }));
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "SLIPPAGE_REJECTED", legIndex: 0, symbol: "AAPLx" } });
-    jupiter(undefined, [], { err: { InstructionError: [2, { Custom: 1 }] } });
-    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "PROVIDER_ERROR", legIndex: 0 } });
+    jupiter((_call, url) => buildFor(url, { transaction: "", errorCode: 1, errorMessage: "Insufficient funds" }));
+    expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "INSUFFICIENT_FUNDS", legIndex: 0 } });
     jupiter((_call, url) => buildFor(url, { outputMint: OTHER_WALLET }));
     expect(await json(post("/trade/prepare", requestBody))).toMatchObject({ status: "unavailable", error: { code: "QUOTE_MISMATCH", legIndex: 0 } });
   });
@@ -403,7 +433,8 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
         return Response.json({ jsonrpc: "2.0", id: 1, result: options.found === false ? null : buyTx(signature) });
       }
       if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([{ id: mints.NVDAx, symbol: "NVDAx", decimals: 8, icon: "https://img.example/nvda.png", usdPrice: 250 }]);
-      if (url.pathname.endsWith("/quote")) { quotes.push(url); return quoteFor(url, { outAmount: "1600000", otherAmountThreshold: "1590000" }); }
+      if (url.pathname.startsWith("/swap/v2/holdings/")) return new Response("down", { status: 503 });
+      if (url.pathname.endsWith("/order")) { quotes.push(url); return quoteFor(url, { outAmount: "1600000", otherAmountThreshold: "1590000" }); }
       throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
     return quotes;
@@ -432,10 +463,10 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
 
     const quotes = providers({ balance: "330000" }); // wallet holds half of what was tracked -> sells from held
     const quote = await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000 }));
-    // Automatic protection: indicative quote at 50 bps, but no minimum is promised until the swap is built.
+    // Automatic protection: Jupiter picks slippage; no minimum is promised until the order is built.
     expect(quote).toMatchObject({ status: "available", side: "sell", bagId: "megacap-builders", inputMint: null, amount: null, portionBps: 10000, slippageBps: null, totalOutAmount: "1600000", error: null });
     expect(quote.legs).toEqual([{ index: 0, symbol: "NVDAx", weightBps: 3000, inputMint: mints.NVDAx, outputMint: USDC, outputDecimals: 6, uiAmountMultiplier: 1, inputAmount: "330000", outAmount: "1600000", minOutAmount: null, priceImpactPct: "0.001", routeSteps: 1 }]);
-    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount"), url.searchParams.get("slippageBps")])).toEqual([[mints.NVDAx, USDC, "330000", "50"]]);
+    expect(quotes.map((url) => [url.searchParams.get("inputMint"), url.searchParams.get("outputMint"), url.searchParams.get("amount"), url.searchParams.get("slippageBps")])).toEqual([[mints.NVDAx, USDC, "330000", null]]);
     expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 10000, slippageBps: 300 }))).toMatchObject({ slippageBps: 300, legs: [{ minOutAmount: "1590000" }] });
     expect(await json(post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 2500 }))).toMatchObject({ legs: [{ inputAmount: "82500" }], totalOutAmount: "1600000" });
     providers({ balance: "0" });
@@ -447,7 +478,7 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     expect((await post("/trade/quote", { bagId: "megacap-builders", side: "sell", portionBps: 0 })).status).toBe(400);
   });
   it("links a submitted leg to its bag server-side once it confirms, without the app recording it", async () => {
-    allMints(); resetTokenMetaCache(); sponsored();
+    allMints(); resetTokenMetaCache(); sponsored(); setSecrets({ JupiterApiKey: "test" });
     const tx = new VersionedTransaction(new TransactionMessage({ payerKey: PAYMASTER.publicKey, recentBlockhash: bs58.encode(new Uint8Array(32).fill(7)), instructions: [
       new TransactionInstruction({ programId: new PublicKey(JUP), keys: [{ pubkey: new PublicKey(WALLET), isSigner: true, isWritable: false }], data: Buffer.from([1]) }),
     ] }).compileToV0Message());
@@ -455,7 +486,10 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
     let visible = false;
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(String(input));
-      if (url.hostname === "sender.helius-rpc.com") return Response.json({ jsonrpc: "2.0", id: 1, result: signature });
+      if (url.pathname === "/swap/v2/execute") {
+        expect(JSON.parse(String(init?.body)).requestId).toBe("order-test");
+        return Response.json({ status: "Success", code: 0, signature });
+      }
       if (url.hostname === "mainnet.helius-rpc.com") {
         const body = JSON.parse(String(init?.body));
         if (body.method === "sendTransaction") return Response.json({ jsonrpc: "2.0", id: 1, result: signature });
@@ -465,7 +499,7 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
       if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([]);
       throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
-    expect(await json(post("/trade/submit", { transaction: Buffer.from(tx.serialize()).toString("base64"), bagId: "megacap-builders" }))).toEqual({ signature });
+    expect(await json(post("/trade/submit", { transaction: Buffer.from(tx.serialize()).toString("base64"), requestId: "order-test", bagId: "megacap-builders" }))).toEqual({ signature });
     expect(lots).toEqual([]);
     visible = true;
     const deadline = Date.now() + 8_000;
@@ -480,7 +514,8 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
       const url = new URL(String(input));
       if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(init?.body))) ?? Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "660000", 8)] } }]);
       if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([]);
-      if (url.pathname.endsWith("/build")) { builds.push(url); return buildFor(url, { outAmount: "800000" }); }
+      if (url.pathname.startsWith("/swap/v2/holdings/")) return new Response("down", { status: 503 });
+      if (url.pathname.endsWith("/order")) { builds.push(url); return buildFor(url, { outAmount: "800000" }); }
       throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
     const result = await json(post("/trade/prepare", { bagId: "megacap-builders", side: "sell", portionBps: 5000 }));
@@ -507,8 +542,9 @@ describe("bag positions and sell trades (mocked Helius + Jupiter)", () => {
       const url = new URL(String(input));
       if (url.hostname === "mainnet.helius-rpc.com") return sponsorRpc(JSON.parse(String(init?.body))) ?? Response.json([{ id: 1, result: { value: 1 } }, { id: 2, result: { value: [tokenAccount(loose, "9000", 6)] } }, { id: 3, result: { value: [tokenAccount(mints.NVDAx, "1000000", 8)] } }]);
       if (url.pathname.startsWith("/tokens/v2/search")) return Response.json([{ id: loose, symbol: "LOOSE", decimals: 6 }]);
-      if (url.pathname.endsWith("/quote")) { quotes.push(url); return quoteFor(url, { outAmount: "500000" }); }
-      if (url.pathname.endsWith("/build")) { builds.push(url); return buildFor(url, { outAmount: "500000" }); }
+      if (url.pathname.startsWith("/swap/v2/holdings/")) return new Response("down", { status: 503 });
+      if (url.pathname.endsWith("/order") && !url.searchParams.has("taker")) { quotes.push(url); return quoteFor(url, { outAmount: "500000" }); }
+      if (url.pathname.endsWith("/order")) { builds.push(url); return buildFor(url, { outAmount: "500000" }); }
       throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
     const quote = await json(post("/trade/tokens/quote", { mints: [mints.NVDAx, loose], portionBps: 10000 }));

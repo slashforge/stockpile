@@ -11,11 +11,22 @@ import { useBag } from "@/hooks/use-bags";
 import { useLooseHoldings } from "@/hooks/use-loose-holdings";
 import { useBagPosition, useLotRecorder } from "@/hooks/use-positions";
 import { useLegSigning, usePrepareTrade } from "@/hooks/use-trade";
+import { waitForConfirmation } from "@/lib/solana/rpc";
 import { inspectTransaction, USDC_DECIMALS, USDC_MINT } from "@/lib/solana/transaction";
 import { belowOneUnit, defaultBuyAmount, exceedsBalance, spendableUsdc } from "@/lib/trade/balance";
 import { legAssetMint, tokenSellLabelProblems, totalOutput, type TradeSide } from "@/lib/trade/legs";
 import { type PurchaseStatus, purchaseStatus } from "@/lib/trade/purchase";
-import { boughtMints, isPreparedExpired, secondsUntilExpiry } from "@/lib/trade/signing";
+import {
+  applyCarriedConfirmation,
+  type CarriedLegs,
+  carriedBlocks,
+  carryLegs,
+  isPreparedExpired,
+  legHeights,
+  NO_CARRIED,
+  pollUntilSettled,
+  secondsUntilExpiry,
+} from "@/lib/trade/signing";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { prepareTokenSell, quoteTokenSell, quoteTrade } from "@/services/api/stockpile";
 import type {
@@ -69,6 +80,27 @@ function useExpiryClock(preparedAt: number | null) {
 }
 
 /**
+ * Legs broadcast in earlier prepared sets, keyed by mint. Pending ones keep being polled by
+ * signature so they only count as done once confirmed (and become retryable if they fail).
+ */
+function useCarriedLegs() {
+  const [carried, setCarried] = useState<CarriedLegs>(NO_CARRIED);
+  const polling = useRef(new Set<string>());
+  useEffect(() => {
+    for (const [mint, state] of Object.entries(carried)) {
+      if (state.status !== "submitted" || polling.current.has(state.signature)) continue;
+      const { signature } = state;
+      polling.current.add(signature);
+      const lastValidBlockHeight = state.lastValidBlockHeight;
+      void pollUntilSettled(signature, (sig) => waitForConfirmation(sig, { lastValidBlockHeight })).then((result) =>
+        setCarried((current) => applyCarriedConfirmation(current, mint, signature, result)),
+      );
+    }
+  }, [carried]);
+  return [carried, setCarried] as const;
+}
+
+/**
  * Everything a buy or sell of a whole bag shares: one prepared set of per-leg transactions, their
  * signing, retries that skip legs already done, expiry, and linking confirmed swaps to the bag.
  */
@@ -82,8 +114,8 @@ function useTradeFlowCore(bagId: string, side: TradeSide) {
   const [prepared, setPrepared] = useState<PreparedTrade | null>(null);
   const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const clock = useExpiryClock(preparedAt);
-  // Bag token mints traded in earlier prepared sets of this run (survives every rebuild).
-  const [alreadyBought, setAlreadyBought] = useState<ReadonlySet<string>>(() => new Set());
+  // Legs broadcast in earlier prepared sets of this run, by bag token mint (survives every rebuild).
+  const [alreadyBought, setAlreadyBought] = useCarriedLegs();
 
   const assetMints = useMemo(
     () => (prepared?.status === "ready" ? prepared.transactions.map((tx) => legAssetMint(tx, side)) : []),
@@ -97,17 +129,27 @@ function useTradeFlowCore(bagId: string, side: TradeSide) {
     for (const state of Object.values(signing.states)) {
       if (state.status === "confirmed") record(state.signature);
     }
-  }, [signing.states, record]);
+    for (const state of Object.values(alreadyBought)) {
+      if (state.status === "confirmed") record(state.signature);
+    }
+  }, [signing.states, alreadyBought, record]);
 
-  /** Builds a fresh signable set. `carry` keeps legs done so far so a retry never repeats them. */
+  /**
+   * Builds a fresh signable set. `carry` keeps legs sent so far so a retry never repeats them; a
+   * rebuild that comes back unavailable leaves the current set and progress untouched.
+   */
   const runPrepare = useCallback(
     (
       next: TradeRequest,
-      options: { carry?: boolean; onDone?: (data: PreparedTrade, alreadyBought: ReadonlySet<string>) => void } = {},
+      options: { carry?: boolean; onDone?: (data: PreparedTrade, alreadyBought: CarriedLegs) => void } = {},
     ) => {
-      const carried = options.carry ? new Set([...alreadyBought, ...boughtMints(assetMints, signing.states)]) : new Set<string>();
+      const carried = options.carry ? carryLegs(alreadyBought, assetMints, signing.states, legHeights(prepared)) : NO_CARRIED;
       prepare.mutate(next, {
         onSuccess: (data) => {
+          if (options.carry && data.status !== "ready") {
+            options.onDone?.(data, carried);
+            return;
+          }
           signing.reset();
           setAlreadyBought(carried);
           setPrepared(data);
@@ -116,7 +158,7 @@ function useTradeFlowCore(bagId: string, side: TradeSide) {
         },
       });
     },
-    [alreadyBought, assetMints, signing, prepare],
+    [alreadyBought, setAlreadyBought, assetMints, prepared, signing, prepare],
   );
 
   const close = useFlowExit(`/bag/${bagId}`);
@@ -276,7 +318,7 @@ function useTokenSellFlowState(mints: string[]) {
   const [prepared, setPrepared] = useState<TokenSellPrepared | null>(null);
   const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const clock = useExpiryClock(preparedAt);
-  const [alreadySold, setAlreadySold] = useState<ReadonlySet<string>>(() => new Set());
+  const [alreadySold, setAlreadySold] = useCarriedLegs();
 
   const live = useMemo(
     () => mints.map((mint) => loose.holdings.find((holding) => holding.mint === mint)).filter((h) => !!h),
@@ -314,13 +356,17 @@ function useTokenSellFlowState(mints: string[]) {
   const runPrepare = useCallback(
     (
       next: TokenSellRequest,
-      options: { carry?: boolean; onDone?: (data: TokenSellPrepared, sold: ReadonlySet<string>) => void } = {},
+      options: { carry?: boolean; onDone?: (data: TokenSellPrepared, sold: CarriedLegs) => void } = {},
     ) => {
-      const carried = options.carry ? new Set([...alreadySold, ...boughtMints(assetMints, signing.states)]) : new Set<string>();
-      // A retry only asks for what's still unsold; sold mints have no loose balance left to size from.
-      const body = options.carry ? { ...next, mints: next.mints.filter((mint) => !carried.has(mint)) } : next;
+      const carried = options.carry ? carryLegs(alreadySold, assetMints, signing.states, legHeights(prepared)) : NO_CARRIED;
+      // A retry only asks for what's still unsold; sold (or pending) mints are never sold twice.
+      const body = options.carry ? { ...next, mints: next.mints.filter((mint) => !carriedBlocks(carried[mint])) } : next;
       prepare.mutate(body, {
         onSuccess: (data) => {
+          if (options.carry && data.status !== "ready") {
+            options.onDone?.(data, carried);
+            return;
+          }
           signing.reset();
           setAlreadySold(carried);
           setPrepared(data);
@@ -329,7 +375,7 @@ function useTokenSellFlowState(mints: string[]) {
         },
       });
     },
-    [alreadySold, assetMints, signing, prepare],
+    [alreadySold, setAlreadySold, assetMints, prepared, signing, prepare],
   );
 
   const close = useFlowExit("/portfolio");

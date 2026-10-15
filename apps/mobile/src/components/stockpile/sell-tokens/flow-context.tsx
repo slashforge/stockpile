@@ -1,13 +1,22 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCarriedLegs } from "@/components/stockpile/buy/flow-context";
 import { queryKeys } from "@/hooks/query-keys";
 import { useLooseHoldings } from "@/hooks/use-loose-holdings";
 import { useLegSigning } from "@/hooks/use-trade";
 import { inspectTransaction } from "@/lib/solana/transaction";
 import { tokenSellLabelProblems } from "@/lib/trade/legs";
 import { purchaseStatus } from "@/lib/trade/purchase";
-import { boughtMints, isPreparedExpired, secondsUntilExpiry } from "@/lib/trade/signing";
+import {
+  type CarriedLegs,
+  carriedBlocks,
+  carryLegs,
+  isPreparedExpired,
+  legHeights,
+  NO_CARRIED,
+  secondsUntilExpiry,
+} from "@/lib/trade/signing";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { prepareTokenSell, quoteTokenSell } from "@/services/api/stockpile";
 import type { PreparedTransaction, TokenSellPrepared, TokenSellRequest } from "@/services/api/types";
@@ -45,8 +54,8 @@ function useTokenSellFlowState(mints: string[]) {
   const [prepared, setPrepared] = useState<TokenSellPrepared | null>(null);
   const [preparedAt, setPreparedAt] = useState<number | null>(null);
   const [now, setNow] = useState(0);
-  // Mints sold in earlier prepared sets of this run; retries skip them.
-  const [alreadySold, setAlreadySold] = useState<ReadonlySet<string>>(() => new Set());
+  // Legs sent in earlier prepared sets of this run, by mint; retries skip pending and sold ones.
+  const [alreadySold, setAlreadySold] = useCarriedLegs();
 
   const live = useMemo(
     () => mints.map((mint) => loose.holdings.find((holding) => holding.mint === mint)).filter((h) => !!h),
@@ -90,15 +99,17 @@ function useTokenSellFlowState(mints: string[]) {
   const runPrepare = useCallback(
     (
       next: TokenSellRequest,
-      options: { carry?: boolean; onDone?: (data: TokenSellPrepared, sold: ReadonlySet<string>) => void } = {},
+      options: { carry?: boolean; onDone?: (data: TokenSellPrepared, sold: CarriedLegs) => void } = {},
     ) => {
-      const carried = options.carry
-        ? new Set([...alreadySold, ...boughtMints(assetMints, signing.states)])
-        : new Set<string>();
-      // A retry only asks for what's still unsold; sold mints have no loose balance left to size from.
-      const body = options.carry ? { ...next, mints: next.mints.filter((mint) => !carried.has(mint)) } : next;
+      const carried = options.carry ? carryLegs(alreadySold, assetMints, signing.states, legHeights(prepared)) : NO_CARRIED;
+      // A retry only asks for what's still unsold; sold (or pending) mints are never sold twice.
+      const body = options.carry ? { ...next, mints: next.mints.filter((mint) => !carriedBlocks(carried[mint])) } : next;
       prepare.mutate(body, {
         onSuccess: (data) => {
+          if (options.carry && data.status !== "ready") {
+            options.onDone?.(data, carried);
+            return;
+          }
           signing.reset();
           setAlreadySold(carried);
           setPrepared(data);
@@ -108,7 +119,7 @@ function useTokenSellFlowState(mints: string[]) {
         },
       });
     },
-    [alreadySold, assetMints, signing, prepare],
+    [alreadySold, setAlreadySold, assetMints, prepared, signing, prepare],
   );
 
   const close = useCallback(() => {

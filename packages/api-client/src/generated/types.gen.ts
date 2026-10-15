@@ -508,7 +508,7 @@ export type QuoteLeg = {
 };
 
 export type TradeError = {
-    code: 'NO_WALLET' | 'UNSUPPORTED_INPUT_MINT' | 'PROVIDER_NOT_CONFIGURED' | 'BAG_NOT_TRADABLE' | 'AMOUNT_TOO_SMALL' | 'NO_ROUTE' | 'TOKEN_NOT_TRADABLE' | 'SLIPPAGE_REJECTED' | 'QUOTE_MISMATCH' | 'PROVIDER_ERROR' | 'PROVIDER_TIMEOUT' | 'INVALID_TRANSACTION' | 'NO_POSITION';
+    code: 'NO_WALLET' | 'UNSUPPORTED_INPUT_MINT' | 'PROVIDER_NOT_CONFIGURED' | 'BAG_NOT_TRADABLE' | 'AMOUNT_TOO_SMALL' | 'NO_ROUTE' | 'TOKEN_NOT_TRADABLE' | 'INSUFFICIENT_FUNDS' | 'SLIPPAGE_REJECTED' | 'QUOTE_MISMATCH' | 'PROVIDER_ERROR' | 'PROVIDER_TIMEOUT' | 'INVALID_TRANSACTION' | 'NO_POSITION';
     message: string;
     legIndex: number | null;
     symbol: string | null;
@@ -558,7 +558,11 @@ export type PrepareResponse = {
 
 export type PreparedTransaction = QuoteLeg & {
     /**
-     * Base64 v0 transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature.
+     * Jupiter order request ID; submit alongside the signed transaction to execute this order.
+     */
+    requestId: string;
+    /**
+     * Base64 legacy or v0 Jupiter order transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature.
      */
     transaction: string;
     lastValidBlockHeight: number | null;
@@ -577,6 +581,10 @@ export type SubmitTransactionResponse = {
 };
 
 export type SubmitTransactionRequest = {
+    /**
+     * Jupiter order request ID. When present, submits via Swap v2 execute; omitted uses the legacy Helius relay.
+     */
+    requestId?: string;
     /**
      * Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored).
      */
@@ -643,6 +651,12 @@ export type TransactionStatus = {
 
 export type TransactionStatusRequest = {
     signatures: Array<string>;
+    /**
+     * Optional last-valid block heights keyed by signature. A missing on-chain status becomes failed/expired once this height is passed.
+     */
+    lastValidBlockHeight?: {
+        [key: string]: number;
+    };
 };
 
 export type GetHealthData = {
@@ -1193,7 +1207,7 @@ export type SubmitTransactionData = {
 
 export type SubmitTransactionErrors = {
     /**
-     * Not signed by your wallet, or rejected by preflight simulation
+     * Not signed by your wallet, or definitively rejected by the provider
      */
     400: _Error;
     /**
@@ -1210,7 +1224,7 @@ export type SubmitTransactionError = SubmitTransactionErrors[keyof SubmitTransac
 
 export type SubmitTransactionResponses = {
     /**
-     * Broadcast through Stockpile's RPC; confirm with /trade/status
+     * Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status
      */
     200: SubmitTransactionResponse;
 };

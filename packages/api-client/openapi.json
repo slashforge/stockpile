@@ -2256,6 +2256,7 @@
               "AMOUNT_TOO_SMALL",
               "NO_ROUTE",
               "TOKEN_NOT_TRADABLE",
+              "INSUFFICIENT_FUNDS",
               "SLIPPAGE_REJECTED",
               "QUOTE_MISMATCH",
               "PROVIDER_ERROR",
@@ -2420,9 +2421,13 @@
           {
             "type": "object",
             "properties": {
+              "requestId": {
+                "type": "string",
+                "description": "Jupiter order request ID; submit alongside the signed transaction to execute this order."
+              },
               "transaction": {
                 "type": "string",
-                "description": "Base64 v0 transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature."
+                "description": "Base64 legacy or v0 Jupiter order transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature."
               },
               "lastValidBlockHeight": {
                 "type": [
@@ -2443,6 +2448,7 @@
               }
             },
             "required": [
+              "requestId",
               "transaction",
               "lastValidBlockHeight",
               "slippageBps",
@@ -2465,6 +2471,12 @@
       "SubmitTransactionRequest": {
         "type": "object",
         "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Jupiter order request ID. When present, submits via Swap v2 execute; omitted uses the legacy Helius relay."
+          },
           "transaction": {
             "type": "string",
             "minLength": 1,
@@ -2692,6 +2704,15 @@
             },
             "minItems": 1,
             "maxItems": 50
+          },
+          "lastValidBlockHeight": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "description": "Optional last-valid block heights keyed by signature. A missing on-chain status becomes failed/expired once this height is passed."
           }
         },
         "required": [
@@ -3609,7 +3630,7 @@
         },
         "responses": {
           "200": {
-            "description": "Broadcast through Stockpile's RPC; confirm with /trade/status",
+            "description": "Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status",
             "content": {
               "application/json": {
                 "schema": {
@@ -3619,7 +3640,7 @@
             }
           },
           "400": {
-            "description": "Not signed by your wallet, or rejected by preflight simulation",
+            "description": "Not signed by your wallet, or definitively rejected by the provider",
             "content": {
               "application/json": {
                 "schema": {

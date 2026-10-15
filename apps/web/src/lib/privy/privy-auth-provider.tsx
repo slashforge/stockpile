@@ -3,13 +3,14 @@ import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
-import { type ReactNode, useCallback, useLayoutEffect, useMemo, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from "@/config/env";
 import { PRIVATE_QUERY_PREFIX } from "@/hooks/query-keys";
 import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
+import { definiteRejection, SubmissionError, transactionSignature } from "@/lib/trade/signing";
 import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
 import { clearIdentityTokenGetter, setIdentityTokenGetter } from "@/services/api/identity-token";
-import { submitSignedTransaction } from "@/services/api/stockpile";
+import { ApiError, submitSignedTransaction } from "@/services/api/stockpile";
 
 /** True when the JWT is missing an `exp` or expires within a minute. */
 function tokenExpiring(token: string): boolean {
@@ -58,8 +59,11 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const { signTransaction } = useSignTransaction();
   // Private queries only run once the identity token exists, so no request goes out without the header.
   const authenticated = ready && privyAuthenticated && !!user && !!identityToken;
+  // A token fetched when the wallet appears wins over the hook's (possibly wallet-less) value until the hook updates.
+  const freshToken = useRef<{ replaces: string | null; token: string } | null>(null);
+  if (freshToken.current && freshToken.current.replaces !== identityToken) freshToken.current = null;
   const identityTokenRef = useRef(identityToken);
-  identityTokenRef.current = identityToken;
+  identityTokenRef.current = freshToken.current?.token ?? identityToken;
 
   const embeddedAddress = embeddedSolanaAddress(user);
   const wallet = useMemo(
@@ -87,6 +91,30 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     return () => clearIdentityTokenGetter(getter);
   }, [authenticated, queryClient]);
 
+  // The embedded wallet is created after login, so the first identity token (and every private query made with it)
+  // can predate it and the API answers "no wallet". When the wallet appears, fetch a fresh token and refetch.
+  const lastWallet = useRef(walletAddress);
+  useEffect(() => {
+    const previous = lastWallet.current;
+    lastWallet.current = walletAddress;
+    if (!authenticated || !walletAddress || previous === walletAddress) return;
+    let cancelled = false;
+    const replaces = identityToken;
+    getIdentityToken()
+      .catch(() => null)
+      .then((token) => {
+        if (cancelled) return;
+        if (token && token !== replaces) {
+          freshToken.current = { replaces, token };
+          identityTokenRef.current = token;
+        }
+        queryClient.invalidateQueries({ queryKey: PRIVATE_QUERY_PREFIX });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, walletAddress, queryClient]);
+
   const logout = useCallback(async () => {
     clearIdentityTokenGetter();
     queryClient.removeQueries({ queryKey: PRIVATE_QUERY_PREFIX });
@@ -99,20 +127,34 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     // Swaps arrive pre-signed by Stockpile's fee payer, so the wallet only adds its signature. The
     // exact checked bytes are broadcast through the Stockpile API, never a public RPC from the browser.
     // Privy's own confirmation UI is off: the app already shows a review and a slide-to-confirm.
-    return async (base64Transaction: string, options?: { bagId?: string }) => {
+    return async (base64Transaction: string, options?: { bagId?: string; requestId?: string }) => {
       const transaction = decodeTransaction(base64Transaction);
       const { signedTransaction } = await signTransaction({
-        transaction: decodeTransaction(base64Transaction).serialize(),
+        // The exact prepared bytes: the fee payer already signed this message, so it must not change.
+        transaction: new Uint8Array(Buffer.from(base64Transaction, "base64")),
         wallet,
         options: { uiOptions: { showWalletUIs: false } },
       });
       const signed = VersionedTransaction.deserialize(signedTransaction);
       assertWalletSigned(transaction, signed, address);
-      const signature = await submitSignedTransaction(
-        Buffer.from(signed.serialize()).toString("base64"),
-        options?.bagId,
-      );
-      return { signature };
+      // Known before broadcasting, so a lost response can still be tracked instead of re-sent.
+      const localSignature = transactionSignature(signed);
+      try {
+        const signature = await submitSignedTransaction(
+          Buffer.from(signed.serialize()).toString("base64"),
+          options?.bagId,
+          options?.requestId,
+        );
+        return { signature };
+      } catch (error) {
+        if (!localSignature) throw error;
+        const status = error instanceof ApiError ? error.status : 0;
+        throw new SubmissionError(
+          error instanceof Error ? error.message : "Couldn’t send the swap.",
+          localSignature,
+          definiteRejection(status),
+        );
+      }
     };
   }, [wallet, signTransaction]);
 

@@ -19,13 +19,19 @@ export function useMe() {
   });
 }
 
-export function usePortfolio() {
+/**
+ * Live wallet balances. Polls so deposits and fills show up without a reload: every minute normally, every
+ * 10s while the server reports balances unavailable (e.g. wallet just created), and at `pollMs` when a
+ * caller is waiting on a change (the fund sheet). React Query runs the fastest interval among observers.
+ */
+export function usePortfolio({ pollMs }: { pollMs?: number } = {}) {
   const { authenticated } = useStockpileAuth();
   return useQuery({
     queryKey: queryKeys.portfolio,
     queryFn: fetchPortfolio,
     enabled: authenticated,
-    staleTime: 30 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: (query) => pollMs ?? (query.state.data?.status === "unavailable" ? 10 * 1000 : 60 * 1000),
   });
 }
 

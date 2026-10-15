@@ -1,7 +1,7 @@
 // Per-bag position tracking ("bag lots"). A lot is one confirmed on-chain swap leg the user attributes to a bag by signature.
 // Every amount is derived server-side from the transaction's owner-filtered pre/post token balances (Helius `getTransaction`,
 // jsonParsed) -- the client only supplies { bagId, signature }; side (buy/sell) is inferred from which leg is USDC. Positions are
-// the running sum of lots per (bag, mint), reconciled against the wallet's live balances (same Helius batch as the portfolio) and
+// the running sum of lots per (bag, mint), reconciled against live Jupiter holdings (Helius fallback, shared with the portfolio) and
 // priced with the same Jupiter token batch. Nothing here submits transactions.
 import { secret } from "./config";
 import { createId } from "@stockpile/core/db/schema";
@@ -9,8 +9,8 @@ import { feePayerOf, rawTokenDelta, signersOf, transactionMeta, walletChanges, t
 import { bagAssets, bags, knownSymbol, findBag, resolveAsset, type Bag } from "./bags";
 import { USDC } from "./constants";
 import { findLotBySignature, hasBuyLot, insertLot, listLots, lotLinks, type LotRow } from "./lots-store";
-import { scaledUiMultiplier } from "./market";
-import { atomicToUi, readRawHoldings, usdValueOf, type RawHoldings } from "./portfolio";
+import { cachedUsdPrice, scaledUiMultiplier } from "./market";
+import { atomicToUi, readRawHoldings, type RawHoldings } from "./portfolio";
 import { tokenMetadata, type TokenMeta } from "./token-meta";
 
 export const legErrorCodes = ["NOT_YOUR_TRANSACTION", "NOT_A_SWAP", "MINT_NOT_IN_BAG", "TRANSACTION_FAILED", "PROVIDER_NOT_CONFIGURED", "PROVIDER_UNAVAILABLE"] as const;
@@ -125,7 +125,7 @@ export function aggregateLots(rows: LotRow[]): Map<string, Map<string, Tracked>>
 }
 
 /**
- * Positions for the user. Wallet balances come from the same Helius batch as the portfolio and prices from the same Jupiter token
+ * Positions for the user. Spendable wallet balances come from the portfolio's holdings reader and prices from the same Jupiter token
  * batch. `held` is what the bag can actually sell: min(tracked, wallet balance); when one mint is tracked in several bags and the
  * wallet holds less than their sum, each bag is capped proportionally (floor(tracked * balance / sumTracked)). `reconciled` is
  * false when any leg's held < tracked. Bags whose every leg is zero are omitted. With balances unavailable, status is "unavailable",
@@ -140,7 +140,7 @@ export async function readPositions(identity: { id: string; walletAddress: strin
   if (!active.length) return { walletAddress, status: "live", bags: [] };
   const raw = balancesRead ?? await readRawHoldings(walletAddress);
   const balances = new Map<string, bigint>();
-  if (raw.ok) for (const holding of raw.holdings) balances.set(holding.mint, (balances.get(holding.mint) ?? 0n) + BigInt(holding.amount));
+  if (raw.ok) for (const holding of raw.holdings) if (!holding.isFrozen) balances.set(holding.mint, (balances.get(holding.mint) ?? 0n) + BigInt(holding.amount));
   const mints = [...new Set(active.flatMap(([, legs]) => [...legs.keys()]))];
   const meta = await tokenMetadata(mints).catch(() => new Map<string, TokenMeta>());
   const multipliers = new Map(await Promise.all(mints.map(async (mint) => [mint, await scaledUiMultiplier(mint)] as const)));
@@ -155,10 +155,11 @@ export async function readPositions(identity: { id: string; walletAddress: strin
       const balance = raw.ok ? balances.get(leg.mint) ?? 0n : null;
       const total = totalTracked.get(leg.mint)!;
       const held = balance === null || balance >= total ? leg.tracked : leg.tracked * balance / total;
-      const ui = (amount: bigint) => round6(Number(atomicToUi(amount, leg.decimals)) * (multipliers.get(leg.mint) ?? 1));
-      const usdPrice = meta.get(leg.mint)?.usdPrice ?? null;
+      const unroundedUi = (amount: bigint) => Number(atomicToUi(amount, leg.decimals)) * (multipliers.get(leg.mint) ?? 1);
+      const ui = (amount: bigint) => round6(unroundedUi(amount));
+      const usdPrice = meta.get(leg.mint)?.usdPrice ?? cachedUsdPrice(leg.mint);
       out.push({ mint: leg.mint, symbol: leg.symbol, iconUrl: meta.get(leg.mint)?.iconUrl ?? null, decimals: leg.decimals, tracked: leg.tracked.toString(), trackedUi: ui(leg.tracked), walletBalance: balance === null ? null : balance.toString(),
-        held: held.toString(), heldUi: ui(held), usdPrice, usdValue: usdValueOf(ui(held).toString(), usdPrice), costUsdc: usdcUi(leg.costUsdc) });
+        held: held.toString(), heldUi: ui(held), usdPrice, usdValue: held === 0n ? 0 : usdPrice === null ? null : round6(unroundedUi(held) * usdPrice), costUsdc: usdcUi(leg.costUsdc) });
     }
     const costUsdc = round6([...legs.values()].reduce((sum, leg) => sum + usdcUi(leg.costUsdc), 0));
     const valueUsd = out.every((leg) => leg.usdValue !== null) ? round6(out.reduce((sum, leg) => sum + leg.usdValue!, 0)) : null;
@@ -193,6 +194,7 @@ export async function looseBalances(identity: { id: string; walletAddress: strin
   for (const bag of positions.bags) for (const leg of bag.legs) claimed.set(leg.mint, (claimed.get(leg.mint) ?? 0n) + BigInt(leg.held));
   const balances = new Map<string, LooseBalance>();
   for (const holding of raw.holdings) {
+    if (holding.isFrozen) continue;
     const current = balances.get(holding.mint);
     balances.set(holding.mint, { mint: holding.mint, amount: (current?.amount ?? 0n) + BigInt(holding.amount), decimals: holding.decimals });
   }

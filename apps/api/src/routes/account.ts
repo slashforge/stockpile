@@ -113,13 +113,13 @@ app.openapi(createRoute({ method: "post", path: "/trade/prepare", operationId: "
 });
 
 app.openapi(createRoute({ method: "post", path: "/trade/submit", operationId: "submitTransaction", tags: ["trade"], request: { body: { content: { "application/json": { schema: SubmitTransactionRequestSchema } } } }, responses: {
-  200: response(SubmitTransactionSchema, "Broadcast through Stockpile's RPC; confirm with /trade/status"), 400: response(ErrorSchema, "Not signed by your wallet, or rejected by preflight simulation"),
+  200: response(SubmitTransactionSchema, "Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status"), 400: response(ErrorSchema, "Not signed by your wallet, or definitively rejected by the provider"),
   401: response(ErrorSchema, "Unauthorized"), 503: response(ErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
   const identity = c.get("identity");
   const walletAddress = identity.walletAddress;
   if (!walletAddress) return c.json({ error: "No verified Solana wallet linked to this Privy identity" }, 400);
-  const { transaction, bagId } = c.req.valid("json");
-  const result = await submitSigned(transaction, walletAddress);
+  const { transaction, bagId, requestId } = c.req.valid("json");
+  const result = await submitSigned(transaction, walletAddress, requestId);
   if (!result.ok) return result.status === 503 ? c.json({ error: result.error }, 503) : c.json({ error: result.error }, 400);
   if (bagId) {
     const task = linkWhenConfirmed(identity, bagId, result.signature);
@@ -169,7 +169,8 @@ async function linkWhenConfirmed(identity: Identity, bagId: string, signature: s
 
 app.openapi(createRoute({ method: "post", path: "/trade/status", operationId: "getTransactionStatuses", tags: ["trade"], request: { body: { content: { "application/json": { schema: TransactionStatusRequestSchema } } } }, responses: {
   200: response(TransactionStatusesSchema, "Status per signature, in request order"), 401: response(ErrorSchema, "Unauthorized"), 503: response(ErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
-  const result = await readStatuses(c.req.valid("json").signatures);
+  const { signatures, lastValidBlockHeight } = c.req.valid("json");
+  const result = await readStatuses(signatures, lastValidBlockHeight);
   if (!result.ok) return c.json({ error: result.error }, 503);
   return c.json({ statuses: result.statuses }, 200);
 });

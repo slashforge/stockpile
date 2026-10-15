@@ -71,7 +71,7 @@ function BuyReviewScreen() {
       return;
     }
     navigate({ to: "/buy/$bagId/progress", params: { bagId: flow.bagId } });
-    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index]!.transaction })));
+    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index]!.transaction, requestId: ready.transactions[index]!.requestId, lastValidBlockHeight: ready.transactions[index]!.lastValidBlockHeight })));
   };
 
   return (

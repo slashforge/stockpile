@@ -147,13 +147,25 @@ export async function prepareTokenSell(body: TokenSellRequest): Promise<TokenSel
   return unwrap(sdkPrepareTokenSell({ body }));
 }
 
-/** Broadcasts a wallet-signed transaction through Stockpile (Helius RPC + Sender); returns its signature. */
-export async function submitSignedTransaction(transaction: string, bagId?: string): Promise<string> {
-  const data = await unwrap(sdkSubmitTransaction({ body: { transaction, bagId } }));
+/**
+ * Broadcasts a wallet-signed transaction through Stockpile, which executes it via Jupiter using the
+ * prepared leg's `requestId` (without one the server falls back to its legacy relay). Returns its signature.
+ */
+export async function submitSignedTransaction(transaction: string, bagId?: string, requestId?: string): Promise<string> {
+  const data = await unwrap(sdkSubmitTransaction({ body: { transaction, bagId, requestId } }));
   return data.signature;
 }
 
-export async function fetchTransactionStatuses(signatures: string[]) {
-  const data = await unwrap(sdkGetTransactionStatuses({ body: { signatures } }));
-  return data.statuses;
+/** `lastValidBlockHeight` (keyed by signature) lets the server report a never-landed swap as failed/expired. */
+export async function fetchTransactionStatuses(signatures: string[], lastValidBlockHeight?: Record<string, number>) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const data = await unwrap(
+      sdkGetTransactionStatuses({ body: { signatures, lastValidBlockHeight }, signal: controller.signal }),
+    );
+    return data.statuses;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

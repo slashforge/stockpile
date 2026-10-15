@@ -8,7 +8,7 @@ import {
 import { PrivyElements, useFundSolanaWallet } from "@privy-io/expo/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppState } from "react-native";
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from "@/config/env";
 import { PRIVATE_QUERY_PREFIX } from "@/hooks/query-keys";
@@ -18,12 +18,13 @@ import {
   suggestedFundingAmount,
 } from "@/lib/funding";
 import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
+import { definiteRejection, SubmissionError, transactionSignature } from "@/lib/trade/signing";
 import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
 import {
   clearIdentityTokenGetter,
   setIdentityTokenGetter,
 } from "@/services/api/identity-token";
-import { submitSignedTransaction } from "@/services/api/stockpile";
+import { ApiError, submitSignedTransaction } from "@/services/api/stockpile";
 
 type LinkedAccount = { type?: string; address?: string };
 
@@ -58,6 +59,15 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
     return () => clearIdentityTokenGetter(getter);
   }, [authenticated, getIdentityToken, queryClient]);
 
+  // The embedded wallet is created after login; private queries made before it exists come back "no wallet".
+  const lastWallet = useRef(walletAddress);
+  useEffect(() => {
+    const previous = lastWallet.current;
+    lastWallet.current = walletAddress;
+    if (!authenticated || !walletAddress || previous === walletAddress) return;
+    queryClient.invalidateQueries({ queryKey: PRIVATE_QUERY_PREFIX });
+  }, [authenticated, walletAddress, queryClient]);
+
   useEffect(() => {
     if (!authenticated) return;
     const subscription = AppState.addEventListener("change", (state) => {
@@ -82,9 +92,9 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
     const address = wallet?.address;
     if (!wallet || !address) return null;
     // Swaps arrive pre-signed by Stockpile's fee payer, so the wallet only adds its signature. The
-    // exact checked bytes are broadcast through the Stockpile API (Helius RPC + Sender), never a
-    // public RPC from the device.
-    return async (base64Transaction: string, options?: { bagId?: string }) => {
+    // exact checked bytes are sent to the Stockpile API, which broadcasts them via Jupiter execute,
+    // never a public RPC from the device.
+    return async (base64Transaction: string, options?: { bagId?: string; requestId?: string }) => {
       const transaction = decodeTransaction(base64Transaction);
       const provider = await wallet.getProvider();
       const { signedTransaction } = await provider.request({
@@ -92,11 +102,24 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
         params: { transaction: decodeTransaction(base64Transaction) },
       });
       assertWalletSigned(transaction, signedTransaction, address);
-      const signature = await submitSignedTransaction(
-        Buffer.from(signedTransaction.serialize()).toString("base64"),
-        options?.bagId,
-      );
-      return { signature };
+      // Known before broadcasting, so a lost response can still be tracked instead of re-sent.
+      const localSignature = transactionSignature(signedTransaction);
+      try {
+        const signature = await submitSignedTransaction(
+          Buffer.from(signedTransaction.serialize()).toString("base64"),
+          options?.bagId,
+          options?.requestId,
+        );
+        return { signature };
+      } catch (error) {
+        if (!localSignature) throw error;
+        const status = error instanceof ApiError ? error.status : 0;
+        throw new SubmissionError(
+          error instanceof Error ? error.message : "Couldn’t send the swap.",
+          localSignature,
+          definiteRejection(status),
+        );
+      }
     };
   }, [wallet]);
 

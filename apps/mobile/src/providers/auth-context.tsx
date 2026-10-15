@@ -1,8 +1,11 @@
 import { createContext, useContext } from "react";
 
 export type SubmittedTransaction = { signature: string };
-/** `bagId` lets the server link the leg to its bag on confirmation, even if the app closes first. */
-export type SubmitOptions = { bagId?: string };
+/**
+ * `bagId` lets the server link the leg to its bag on confirmation, even if the app closes first.
+ * `requestId` is the prepared leg's Jupiter order id, so the server executes it through Jupiter.
+ */
+export type SubmitOptions = { bagId?: string; requestId?: string };
 
 export type StockpileAuth = {
   /** Privy IDs present in this build. When false the app is browse-only. */
@@ -16,7 +19,9 @@ export type StockpileAuth = {
   logout: () => Promise<void>;
   /**
    * Adds the embedded wallet's signature to one base64 transaction (already signed by Stockpile's
-   * fee payer) and broadcasts it. Null when no wallet is available.
+   * fee payer) and broadcasts it. Null when no wallet is available. When the wallet signed but the
+   * broadcast request failed it throws a `SubmissionError` (lib/trade/signing) carrying the signature
+   * and whether the rejection is definite (nothing broadcast) or the outcome is unknown.
    */
   signAndSendTransaction:
     ((base64Transaction: string, options?: SubmitOptions) => Promise<SubmittedTransaction>) | null;

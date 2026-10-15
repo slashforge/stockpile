@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, mock } from "bun:test";
 import { setSecrets, setFeatures, resetConfig } from "./config";
-import { issuerAsset, pinnedMint } from "./issuer-assets";
+import { issuerAsset, pinnedMint, pinnedXStocks } from "./issuer-assets";
 import { bags, isTradable, knownSymbol, resolveAsset } from "./bags";
-import { knownMint, resetMintRegistry, seedMints } from "./mint-registry";
+import { knownMint, resetMintRegistry, seedMints, verifyListedMint } from "./mint-registry";
 import { resetPreStocksCache } from "./prestocks";
 import { parseXStock, resetXStocksCache, XSTOCKS_API } from "./xstocks";
 
@@ -33,11 +33,11 @@ function providers(listed: Record<string, string>, options: { tags?: string[] } 
       return listed[symbol] ? Response.json(listing(symbol, listed[symbol]!)) : new Response("", { status: 404 });
     }
     if (url.pathname === "/tokens/v2/search") {
-      const mint = url.searchParams.get("query")!;
-      const symbol = Object.entries(listed).find(([, value]) => value === mint)?.[0];
-      return Response.json(symbol ? [{ id: mint, symbol, decimals: 8, tags: options.tags ?? ["xstocks", "verified", "token-2022"] }] : []);
+      const requested = new Set(url.searchParams.get("query")!.split(","));
+      return Response.json(Object.entries(listed).filter(([, mint]) => requested.has(mint))
+        .map(([symbol, mint]) => ({ id: mint, symbol, decimals: 8, tags: options.tags ?? ["xstocks", "verified", "token-2022"] })));
     }
-    if (url.pathname === "/swap/v1/quote") return Response.json({ inputMint: USDC, outputMint: url.searchParams.get("outputMint"), outAmount: "400" });
+    if (url.pathname === "/swap/v2/order") return Response.json({ inputMint: USDC, outputMint: url.searchParams.get("outputMint"), outAmount: "400" });
     if (url.pathname === "/price/v3") return Response.json({});
     throw new Error(`unexpected ${url}`);
   }) as unknown as typeof fetch;
@@ -111,7 +111,7 @@ it("refuses a directory that swaps a pinned mint, mints Jupiter does not tag as 
   resetXStocksCache(); resetPreStocksCache();
   providers({ AAPLx: AAPLX }, { tags: ["verified"] });
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
-  resetXStocksCache(); resetPreStocksCache();
+  resetXStocksCache(); resetPreStocksCache(); resetMintRegistry();
   providers({ AAPLx: AAPLX });
   setSecrets({ BlockedMints: `  ${AAPLX} ` });
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
@@ -120,6 +120,23 @@ it("refuses a directory that swaps a pinned mint, mints Jupiter does not tag as 
   expect((await resolveAsset(bag, apple)).mint).toBeNull();
   setSecrets({ BlockedMints: undefined });
   expect((await resolveAsset(bag, apple)).mint).toBe(AAPLX);
+});
+
+it("verifies all pinned xStocks with one shared batch, caches one hour, and skips per-mint quotes", async () => {
+  setSecrets({ JupiterApiKey: "test" });
+  const pins = pinnedXStocks();
+  const calls = providers(Object.fromEntries(pins));
+  const resolutions = await Promise.all(pins.map(([symbol, mint]) => verifyListedMint(symbol, mint, "xstocks")));
+  expect(resolutions.every((item) => item !== null)).toBe(true);
+  expect(calls).toEqual(["/tokens/v2/search"]);
+  await Promise.all(pins.map(([symbol, mint]) => verifyListedMint(symbol, mint, "xstocks")));
+  expect(calls).toHaveLength(1);
+  const realNow = Date.now;
+  try {
+    Date.now = () => realNow() + 60 * 60 * 1000 + 1;
+    await verifyListedMint(pins[0]![0], pins[0]![1], "xstocks");
+    expect(calls).toHaveLength(2);
+  } finally { Date.now = realNow; }
 });
 
 it("is research-only when the directory is disabled or unreachable, and every asset must resolve for tradability", async () => {

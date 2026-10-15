@@ -72,7 +72,7 @@ export default function SellTokensReviewScreen() {
       return;
     }
     router.push("/sell-tokens/progress");
-    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction })));
+    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction, requestId: ready.transactions[index].requestId, lastValidBlockHeight: ready.transactions[index].lastValidBlockHeight })));
   };
 
   return (

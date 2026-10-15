@@ -1,0 +1,224 @@
+/// <reference types="bun" />
+import { describe, expect, test } from "bun:test";
+import { USDC_MINT } from "@/lib/solana/transaction";
+import type { Bag, QuoteLeg } from "@/services/api/types";
+import { friendlySwapError, legLabelProblems, totalInput, totalOutput, tradeErrorMessage } from "./legs";
+
+const bag = {
+  assets: [
+    {
+      symbol: "AAPLx",
+      name: "Apple",
+      weightBps: 5000,
+      mint: "MintA",
+      sourceUrl: "",
+      iconUrl: null,
+      iconSource: null,
+      brandColor: null,
+      decimals: 8,
+      uiAmountMultiplier: 1,
+      issuer: "xstocks" as const,
+      assetClass: "public-equity" as const,
+      reference: null,
+      market: null,
+      liquidityTier: null,
+      evidence: [],
+    },
+    {
+      symbol: "NVDAx",
+      name: "NVIDIA",
+      weightBps: 5000,
+      mint: "MintN",
+      sourceUrl: "",
+      iconUrl: null,
+      iconSource: null,
+      brandColor: null,
+      decimals: 8,
+      uiAmountMultiplier: 1,
+      issuer: "xstocks" as const,
+      assetClass: "public-equity" as const,
+      reference: null,
+      market: null,
+      liquidityTier: null,
+      evidence: [],
+    },
+  ],
+};
+
+const leg = (overrides: Partial<QuoteLeg> = {}): QuoteLeg => ({
+  index: 0,
+  symbol: "AAPLx",
+  weightBps: 5000,
+  inputMint: USDC_MINT,
+  outputMint: "MintA",
+  outputDecimals: 8,
+  uiAmountMultiplier: 1,
+  inputAmount: "5000000",
+  outAmount: "20000",
+  minOutAmount: "19800",
+  priceImpactPct: "0",
+  routeSteps: 1,
+  ...overrides,
+});
+
+describe("legLabelProblems", () => {
+  test("accepts a leg consistent with the bag", () => {
+    expect(legLabelProblems(leg(), bag, 0, 2)).toEqual([]);
+  });
+  test("blocks a token outside the bag", () => {
+    expect(
+      legLabelProblems(leg({ outputMint: "Other" }), bag, 0, 2).length,
+    ).toBeGreaterThan(0);
+  });
+  test("blocks a mismatched symbol label", () => {
+    expect(
+      legLabelProblems(leg({ symbol: "NVDAx" }), bag, 0, 2).length,
+    ).toBeGreaterThan(0);
+  });
+  test("blocks a non-USDC input and wrong order", () => {
+    expect(
+      legLabelProblems(leg({ inputMint: "SOL" }), bag, 0, 2).length,
+    ).toBeGreaterThan(0);
+    expect(
+      legLabelProblems(leg({ index: 1 }), bag, 0, 2).length,
+    ).toBeGreaterThan(0);
+  });
+});
+
+test("totalInput sums legs exactly", () => {
+  expect(totalInput([leg(), leg({ inputAmount: "5000001" })])).toBe(10000001n);
+});
+
+test("tradeErrorMessage prefers friendly copy and names the token", () => {
+  expect(
+    tradeErrorMessage(
+      { code: "NO_ROUTE", message: "raw", legIndex: 1, symbol: "NVDAx" },
+      null,
+    ),
+  ).toContain("(NVDAx)");
+  expect(tradeErrorMessage(null, "server says")).toBe("server says");
+});
+
+describe("price impact", () => {
+  const { impactPercent, impactLevel, highImpactLegs } =
+    require("./legs") as typeof import("./legs");
+  test("reads Jupiter's signed fraction string as an adverse percentage", () => {
+    expect(impactPercent("-0.0214")).toBeCloseTo(2.14);
+    expect(impactPercent("-0.00062")).toBeCloseTo(0.062);
+    expect(impactPercent("0.0214")).toBe(0);
+    expect(impactPercent("0")).toBe(0);
+    expect(impactPercent(null)).toBeNull();
+    expect(impactPercent("abc")).toBeNull();
+  });
+  test("warns at 1% and requires confirmation at 5%", () => {
+    expect(impactLevel("-0.0099")).toBe("ok");
+    expect(impactLevel("-0.01")).toBe("warn");
+    expect(impactLevel("-0.0499")).toBe("warn");
+    expect(impactLevel("-0.05")).toBe("high");
+    expect(impactLevel("-0.08")).toBe("high");
+    expect(impactLevel(null)).toBe("unknown");
+  });
+  test("a favourable price never warns", () => {
+    expect(impactLevel("0.08")).toBe("ok");
+    expect(impactLevel("0.01")).toBe("ok");
+  });
+  test("highImpactLegs picks only the legs that need confirmation", () => {
+    const legs = [
+      { symbol: "NVDAx", priceImpactPct: "-0.0019" },
+      { symbol: "AMDx", priceImpactPct: "-0.0214" },
+      { symbol: "NFLXx", priceImpactPct: "-0.071" },
+      { symbol: "TSLAx", priceImpactPct: "0.09" },
+    ];
+    expect(highImpactLegs(legs).map((leg) => leg.symbol)).toEqual(["NFLXx"]);
+  });
+});
+
+test("every trade error code has friendly copy", () => {
+  const codes = [
+    "NO_WALLET",
+    "UNSUPPORTED_INPUT_MINT",
+    "PROVIDER_NOT_CONFIGURED",
+    "BAG_NOT_TRADABLE",
+    "AMOUNT_TOO_SMALL",
+    "NO_ROUTE",
+    "TOKEN_NOT_TRADABLE",
+    "SLIPPAGE_REJECTED",
+    "QUOTE_MISMATCH",
+    "PROVIDER_ERROR",
+    "PROVIDER_TIMEOUT",
+    "INVALID_TRANSACTION",
+  ] as const;
+  for (const code of codes) {
+    const message = tradeErrorMessage(
+      { code, message: `raw ${code}`, legIndex: null, symbol: null },
+      null,
+    );
+    expect(message).not.toContain("raw ");
+  }
+});
+
+describe("sell legs", () => {
+  const sellBag = { assets: [{ mint: "AAPL", symbol: "AAPLx" }] } as unknown as Pick<Bag, "assets">;
+  const sellLeg = {
+    index: 0,
+    symbol: "AAPLx",
+    weightBps: 10000,
+    inputMint: "AAPL",
+    outputMint: USDC_MINT,
+    outputDecimals: 6,
+    uiAmountMultiplier: 1,
+    inputAmount: "100",
+    outAmount: "5000000",
+    minOutAmount: null,
+    priceImpactPct: null,
+    routeSteps: 1,
+  };
+
+  test("a sell leg must sell a bag token into USDC", () => {
+    expect(legLabelProblems(sellLeg, sellBag, 0, 1, "sell")).toEqual([]);
+    expect(legLabelProblems({ ...sellLeg, outputMint: "OTHER" }, sellBag, 0, 1, "sell")).toContain(
+      "This transaction doesn’t pay out USDC.",
+    );
+    expect(legLabelProblems(sellLeg, sellBag, 0, 1, "buy").length).toBeGreaterThan(0);
+  });
+
+  test("totals the USDC out", () => {
+    expect(totalOutput([sellLeg, { ...sellLeg, outAmount: "1" }])).toBe(5000001n);
+  });
+
+  test("accepts historical position mints only for sells", () => {
+    const historical = { ...sellLeg, inputMint: "Removed", symbol: "OLD" };
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Removed"])).toEqual([]);
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell").length).toBeGreaterThan(0);
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Unrelated"]).length).toBeGreaterThan(0);
+    expect(legLabelProblems({ ...historical, inputMint: USDC_MINT, outputMint: "Removed" }, sellBag, 0, 1, "buy", ["Removed"]).length).toBeGreaterThan(0);
+  });
+
+  test("position membership does not bypass payout, label, order, or amount checks", () => {
+    expect(legLabelProblems({ ...sellLeg, symbol: "WRONG" }, sellBag, 0, 1, "sell", ["AAPL"]).length).toBeGreaterThan(0);
+    const historical = { ...sellLeg, inputMint: "Removed", outputMint: "OTHER", index: 1, inputAmount: "0" };
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Removed"])).toEqual([
+      "This transaction doesn’t pay out USDC.",
+      "Transaction order doesn’t match the quote.",
+      "Invalid input amount.",
+    ]);
+  });
+});
+
+describe("friendlySwapError", () => {
+  const fallback = "Transaction failed on-chain. No tokens were swapped.";
+  test("explains Jupiter's slippage guard in plain words", () => {
+    for (const raw of [
+      "Simulation failed. Message: Transaction simulation failed: Error processing Instruction 3: custom program error: 0x1771.",
+      '{"InstructionError":[3,{"Custom":6001}]}',
+    ]) {
+      expect(friendlySwapError(raw, fallback)).toContain("price moved more than your price protection allows");
+    }
+  });
+  test("maps expiry and other simulation failures, and hides raw program errors", () => {
+    expect(friendlySwapError("Blockhash not found", fallback)).toContain("expired");
+    expect(friendlySwapError("Simulation failed. Message: something else", fallback)).toContain("would fail right now");
+    expect(friendlySwapError('{"InstructionError":[3,{"Custom":42}]}', fallback)).toBe(fallback);
+    expect(friendlySwapError(undefined, fallback)).toBe(fallback);
+  });
+});

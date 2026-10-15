@@ -10,6 +10,9 @@ import { queryKeys } from "./query-keys";
 
 export type { LegSigningState };
 
+/** What signing needs from a prepared leg: its transaction and the Jupiter order to execute it with. */
+export type PreparedLeg = { transaction: string; requestId: string; lastValidBlockHeight?: number | null };
+
 /**
  * Mirrors mobile: Privy's embedded wallet doesn't document concurrent signing requests, so wallet
  * calls are handed over one at a time (no user prompt either way) while confirmations run concurrently.
@@ -31,9 +34,13 @@ export function usePrepareTrade() {
  */
 export function useLegSigning(bagId?: string) {
   const { signAndSendTransaction, walletAddress } = useStockpileAuth();
-  // Tags every submit with the bag so the server links confirmed legs itself.
+  // Tags every submit with the bag so the server links confirmed legs itself, and with the leg's
+  // Jupiter order id so it is executed through Jupiter.
   const send = useMemo(
-    () => (signAndSendTransaction ? (base64: string) => signAndSendTransaction(base64, { bagId }) : null),
+    () =>
+      signAndSendTransaction
+        ? (base64: string, requestId: string) => signAndSendTransaction(base64, { bagId, requestId })
+        : null,
     [signAndSendTransaction, bagId],
   );
   const queryClient = useQueryClient();
@@ -57,14 +64,14 @@ export function useLegSigning(bagId?: string) {
   }, []);
 
   const signLeg = useCallback(
-    async (index: number, base64Transaction: string, onSubmitted?: () => void) => {
+    async (index: number, leg: PreparedLeg, onSubmitted?: () => void) => {
       // Guards double-taps and re-sending anything that was already broadcast.
       if (!canSignLeg(statesRef.current[index])) return;
       const gen = generation.current;
       update(gen, index, { status: "signing" });
-      await runSignLeg(base64Transaction, walletAddress, {
-        signAndSend: send,
-        waitForConfirmation,
+      await runSignLeg(leg.transaction, walletAddress, {
+        signAndSend: send ? (base64) => send(base64, leg.requestId) : null,
+        waitForConfirmation: (signature) => waitForConfirmation(signature, { lastValidBlockHeight: leg.lastValidBlockHeight }),
         onState: (state) => {
           update(gen, index, state);
           // Fires once the wallet has broadcast, so the caller can move on to the next leg.
@@ -73,6 +80,8 @@ export function useLegSigning(bagId?: string) {
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.activity });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellQuotes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tokenSellQuotes });
     },
     [send, walletAddress, queryClient],
   );
@@ -82,7 +91,7 @@ export function useLegSigning(bagId?: string) {
    * skipped. Resolves once every leg is confirmed, failed or left unknown.
    */
   const signAll = useCallback(
-    async (legs: { index: number; transaction: string }[]) => {
+    async (legs: ({ index: number } & PreparedLeg)[]) => {
       const gen = generation.current;
       const pending = legs.filter((leg) => canSignLeg(statesRef.current[leg.index]));
       if (pending.length === 0) return;
@@ -92,8 +101,9 @@ export function useLegSigning(bagId?: string) {
       await Promise.allSettled(
         pending.map((leg) =>
           runSignLeg(leg.transaction, walletAddress, {
-            signAndSend,
-            waitForConfirmation,
+            signAndSend: signAndSend ? (base64) => signAndSend(base64, leg.requestId) : null,
+            waitForConfirmation: (signature) =>
+              waitForConfirmation(signature, { lastValidBlockHeight: leg.lastValidBlockHeight }),
             onState: (state) => update(gen, leg.index, state),
           }).catch((error: unknown) => {
             const current = statesRef.current[leg.index];
@@ -110,6 +120,8 @@ export function useLegSigning(bagId?: string) {
       if (gen === generation.current) setInFlight(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });
       queryClient.invalidateQueries({ queryKey: queryKeys.activity });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sellQuotes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tokenSellQuotes });
     },
     [send, walletAddress, queryClient],
   );

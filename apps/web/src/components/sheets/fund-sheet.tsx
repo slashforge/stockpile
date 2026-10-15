@@ -4,6 +4,7 @@ import { IoCard, IoCheckmark, IoCopyOutline, IoShareOutline } from "react-icons/
 import { PrimaryButton } from "@/components/ui/button";
 import { Notice } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
+import { usePortfolio } from "@/hooks/use-account";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { shortAddress } from "@/utils/amounts";
 import { Sheet } from "./sheet";
@@ -20,6 +21,8 @@ export function useCopyFeedback() {
 
 function FundBody({ address }: { address: string }) {
   const { fundWithCard } = useStockpileAuth();
+  // "It shows up in a few seconds": poll balances while the sheet is open so the deposit lands without a reload.
+  usePortfolio({ pollMs: 5000 });
   const [opening, setOpening] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
   const { copied, copy } = useCopyFeedback();

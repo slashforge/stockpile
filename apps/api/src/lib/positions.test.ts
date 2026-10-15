@@ -50,6 +50,7 @@ function providers(options: { txs?: Record<string, unknown>; balances?: Record<s
   const requests: { method?: string; url: string }[] = [];
   globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
+    if (url.pathname.startsWith("/swap/v2/holdings/")) return new Response("down", { status: 503 });
     if (url.hostname === "mainnet.helius-rpc.com") {
       if (options.heliusDown) return new Response("down", { status: 503 });
       const body = JSON.parse(String(init?.body));
@@ -66,7 +67,7 @@ function providers(options: { txs?: Record<string, unknown>; balances?: Record<s
       requests.push({ method: "tokens", url: url.pathname });
       return Response.json(url.searchParams.get("query")!.split(",").map((id) => ({ id, symbol: id.slice(0, 5), name: id, decimals: id === USDC ? 6 : 8, icon: `https://img.example/${id}.png`, usdPrice: options.prices?.[id] ?? null })));
     }
-    if (url.pathname.endsWith("/quote")) { requests.push({ method: "quote", url: url.search }); return options.quote ? options.quote(url) : new Response("no", { status: 500 }); }
+    if (url.pathname.endsWith("/order")) { requests.push({ method: "quote", url: url.search }); return options.quote ? options.quote(url) : new Response("no", { status: 500 }); }
     throw new Error(`unexpected fetch ${url}`);
   }) as unknown as typeof fetch;
   return requests;
@@ -146,6 +147,22 @@ describe("recordLeg", () => {
 
 describe("positions", () => {
   const lot = (over: Partial<Row>): Row => ({ id: `lot_${rows.length}`, userId: "user-a", bagId: "megacap-builders", walletAddress: WALLET, mint: NVDAX, symbol: "NVDAx", side: "buy", tokenAmount: "0", decimals: 8, usdcAmount: "0", signature: sig(100 + rows.length), slot: null, blockTime: new Date("2026-09-20T00:00:00Z"), createdAt: new Date() , ...over });
+  it("prices tiny holdings before display rounding and keeps negative net costs finite", async () => {
+    rows = [lot({ tokenAmount: "3", usdcAmount: "1000000" }), lot({ side: "sell", tokenAmount: "2", usdcAmount: "1010000" })];
+    providers({ balances: { [NVDAX]: "1" }, prices: { [NVDAX]: 250 } });
+    const result = await readPositions(identity);
+    expect(result.bags[0]).toMatchObject({ costUsdc: -0.01, valueUsd: 0.000003, pnlUsd: 0.010003, pnlPct: null,
+      legs: [{ held: "1", heldUi: 0, usdValue: 0.000003, costUsdc: -0.01 }] });
+  });
+  it("caps held positions by unfrozen accounts only", async () => {
+    rows = [lot({ tokenAmount: "100", usdcAmount: "1000000" })];
+    providers({ prices: { [NVDAX]: 250 } });
+    const result = await readPositions(identity, { ok: true, lamports: 0, holdings: [
+      { mint: NVDAX, amount: "100", decimals: 8, uiAmount: "0.000001", program: "token-2022", isFrozen: true },
+      { mint: NVDAX, amount: "20", decimals: 8, uiAmount: "0.0000002", program: "token-2022" },
+    ] });
+    expect(result.bags[0]?.legs[0]).toMatchObject({ held: "20", walletBalance: "20" });
+  });
   it("nets lots per (bag, mint), floors at zero, and omits bags that are fully sold", () => {
     rows = [lot({ tokenAmount: "1000", usdcAmount: "300" }), lot({ tokenAmount: "1000", usdcAmount: "310" }), lot({ side: "sell", tokenAmount: "1500", usdcAmount: "500" }), lot({ mint: AAPLX, symbol: "AAPLx", tokenAmount: "10", usdcAmount: "40" }), lot({ bagId: "cloud-software", mint: MSFTX, symbol: "MSFTx", side: "sell", tokenAmount: "5", usdcAmount: "9" })];
     const byBag = aggregateLots(rows);
@@ -202,7 +219,10 @@ describe("sell quotes", () => {
     if (!result.ok) return;
     expect(result.value.legs.map((leg) => [leg.asset.symbol, leg.inputMint, leg.outputMint, leg.amount, leg.outputDecimals, leg.asset.weightBps])).toEqual([[ "NVDAx", NVDAX, USDC, 300000n, 6, findBag("megacap-builders")!.assets.find((a) => a.symbol === "NVDAx")!.weightBps ], ["AAPLx", AAPLX, USDC, 150000n, 6, 1800]]);
     expect(result.value.quotes.map((quote) => quote.outAmount)).toEqual(["3000", "1500"]);
-    expect(requests.filter((r) => r.method === "quote").map((r) => r.url)).toEqual([`?inputMint=${NVDAX}&outputMint=${USDC}&amount=300000&slippageBps=50&restrictIntermediateTokens=true`, `?inputMint=${AAPLX}&outputMint=${USDC}&amount=150000&slippageBps=50&restrictIntermediateTokens=true`]);
+    expect(requests.filter((r) => r.method === "quote").map((r) => Object.fromEntries(new URLSearchParams(r.url)))).toEqual([
+      { inputMint: NVDAX, outputMint: USDC, amount: "300000", slippageBps: "50", excludeRouters: "jupiterz,dflow,okx", excludeDexes: "Manifest" },
+      { inputMint: AAPLX, outputMint: USDC, amount: "150000", slippageBps: "50", excludeRouters: "jupiterz,dflow,okx", excludeDexes: "Manifest" },
+    ]);
     // Wallet holds less than tracked: the sell uses the reconciled `held`, never the tracked amount.
     providers({ balances: { [NVDAX]: "100000", [AAPLX]: "300001" }, quote: quoteFor });
     const capped = await quoteBag({ bagId: "megacap-builders", side: "sell", portionBps: 10000, slippageBps: 50 }, context);

@@ -20,6 +20,7 @@ export function legBlocking(
   total: number,
   walletAddress: string | null,
   side: TradeSide = "buy",
+  allowedSellMints: readonly string[] = [],
 ): string[] {
   let errors: string[];
   try {
@@ -27,7 +28,7 @@ export function legBlocking(
   } catch (error) {
     errors = [error instanceof Error ? error.message : "Could not decode transaction"];
   }
-  return [...errors, ...legLabelProblems(tx, bag, index, total, side)];
+  return [...errors, ...legLabelProblems(tx, bag, index, total, side, allowedSellMints)];
 }
 
 /**

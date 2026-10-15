@@ -78,7 +78,7 @@ export default function BuyReviewScreen() {
     }
     router.push({ pathname: "/buy/[bagId]/progress", params: { bagId: flow.bagId } });
     flow.signing.signAll(
-      toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction })),
+      toSign.map((index) => ({ index, transaction: ready.transactions[index].transaction, requestId: ready.transactions[index].requestId, lastValidBlockHeight: ready.transactions[index].lastValidBlockHeight })),
     );
   };
 

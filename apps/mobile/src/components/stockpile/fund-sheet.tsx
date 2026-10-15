@@ -8,6 +8,7 @@ import {
 import { type LayoutChangeEvent, Share, View } from "react-native";
 import QRCodeStyled, { useQRCodeData } from "react-native-qrcode-styled";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { usePortfolio } from "@/hooks/use-account";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { Notice } from "./layout";
@@ -130,6 +131,12 @@ export function useFundSheet() {
   return useContext(FundSheetContext);
 }
 
+/** Polls balances while the sheet is presented (the native sheet keeps its content mounted when hidden). */
+function FundPoller() {
+  usePortfolio({ pollMs: 5000 });
+  return null;
+}
+
 export function FundSheetProvider({ children }: { children: React.ReactNode }) {
   const { walletAddress } = useStockpileAuth();
   const [open, setOpen] = useState(false);
@@ -140,6 +147,7 @@ export function FundSheetProvider({ children }: { children: React.ReactNode }) {
   return (
     <FundSheetContext.Provider value={value}>
       {children}
+      {open && walletAddress ? <FundPoller /> : null}
       <NativeSheet
         isPresented={open && !!walletAddress}
         onDismiss={close}

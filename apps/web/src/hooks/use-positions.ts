@@ -43,6 +43,8 @@ export function useLotRecorder(bagId: string) {
         setStates((current) => ({ ...current, [signature]: outcome.status === "linked" ? "linked" : "failed" }));
         if (outcome.status === "linked") {
           queryClient.invalidateQueries({ queryKey: queryKeys.positions });
+          queryClient.invalidateQueries({ queryKey: queryKeys.sellQuotes });
+          queryClient.invalidateQueries({ queryKey: queryKeys.tokenSellQuotes });
         }
       });
     },

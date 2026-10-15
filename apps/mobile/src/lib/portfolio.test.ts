@@ -166,6 +166,39 @@ describe("looseHoldings", () => {
     expect(out[0].usdValue).toBeCloseTo(0.3);
   });
 
+  test("aggregates token accounts before subtracting the mint's claim once", () => {
+    const first = holding("A", "60000000", ["b"]);
+    const list = [first, { ...holding("A", "60000000", ["b"]), symbol: "other" }];
+    const out = looseHoldings(list, positions([leg("A", "80000000")]));
+    expect(out).toEqual([{ ...first, amount: "40000000", uiAmount: "40", usdValue: 40 }]);
+    expect(first.amount).toBe("60000000");
+  });
+
+  test("aggregates exact bigint amounts and sums only non-null values", () => {
+    const first = { ...holding("A", "9007199254740993"), uiAmount: null, usdValue: null };
+    const second = { ...holding("A", "2"), uiAmount: "2", usdValue: 3 };
+    expect(looseHoldings([first, second], null)).toEqual([
+      { ...first, amount: "9007199254740995", uiAmount: "2", usdValue: 3 },
+    ]);
+    expect(looseHoldings([second, first], null)).toEqual([
+      { ...second, amount: "9007199254740995" },
+    ]);
+    expect(looseHoldings([first, first], null)[0]).toMatchObject({ uiAmount: null, usdValue: null });
+  });
+
+  test("sums claims across bags and omits fully claimed aggregate balances", () => {
+    const list = [holding("A", "60"), holding("A", "60")];
+    const bag = positions([leg("A", "60")]).bags[0];
+    expect(looseHoldings(list, { walletAddress: null, status: "live", bags: [bag, { ...bag, bagId: "c" }] })).toEqual([]);
+  });
+
+  test("aggregates unclaimed accounts while positions load", () => {
+    const first = holding("C", "5000000");
+    expect(looseHoldings([first, first], undefined)).toEqual([
+      { ...first, amount: "10000000", uiAmount: "10", usdValue: 10 },
+    ]);
+  });
+
   test("holds back bag tokens while positions load, hides nothing when unavailable", () => {
     const list = [holding("A", "10", ["b"]), holding("C", "5")];
     expect(looseHoldings(list, undefined).map((h) => h.mint)).toEqual(["C"]);

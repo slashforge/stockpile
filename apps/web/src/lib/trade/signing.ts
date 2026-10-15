@@ -13,6 +13,56 @@ export type ConfirmationResult = { status: "confirmed" | "failed" | "unknown"; e
 /** Jupiter transactions carry a recent blockhash that expires after roughly a minute. */
 export const PREPARED_TTL_MS = 60_000;
 
+const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+export function base58(bytes: Uint8Array): string {
+  let zeros = 0;
+  while (zeros < bytes.length && bytes[zeros] === 0) zeros += 1;
+  let value = 0n;
+  for (const byte of bytes) value = value * 256n + BigInt(byte);
+  let out = "";
+  while (value > 0n) {
+    out = BASE58[Number(value % 58n)] + out;
+    value /= 58n;
+  }
+  return "1".repeat(zeros) + out;
+}
+
+/**
+ * A Solana transaction's id is its first (fee payer) signature, so it is known as soon as the
+ * transaction is fully signed, before and regardless of whether the broadcast request succeeds.
+ */
+export function transactionSignature(tx: { signatures: Uint8Array[] }): string | null {
+  const first = tx.signatures[0];
+  if (!first || first.every((byte) => byte === 0)) return null;
+  return base58(first);
+}
+
+/**
+ * Thrown by `signAndSendTransaction` when the wallet signed but the broadcast request failed.
+ * `definite` means the server rejected it before broadcasting (nothing can land, safe to rebuild);
+ * otherwise the outcome is unknown and the leg must be confirmed via `signature`, never re-sent.
+ */
+export class SubmissionError extends Error {
+  constructor(
+    message: string,
+    readonly signature: string,
+    readonly definite: boolean,
+  ) {
+    super(message);
+    this.name = "SubmissionError";
+  }
+}
+
+/**
+ * HTTP status of a failed submit -> whether the transaction certainly wasn't broadcast. 4xx are
+ * rejections before broadcast (bad signature, preflight, auth, rate limit); network errors (0),
+ * timeouts and 5xx may have broadcast anyway.
+ */
+export function definiteRejection(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 408;
+}
+
 export function legSignature(state: LegSigningState | undefined): string | undefined {
   return state && "signature" in state ? state.signature : undefined;
 }
@@ -46,44 +96,81 @@ export function secondsUntilExpiry(preparedAt: number | null, now: number): numb
   return Math.max(0, Math.ceil((PREPARED_TTL_MS - (now - preparedAt)) / 1000));
 }
 
-/** Output mints of legs that were broadcast and not reported failed (the purchase may have landed). */
-export function boughtMints(outputMints: string[], states: Record<number, LegSigningState>): string[] {
-  return outputMints.filter((_, index) => {
-    const status = states[index]?.status;
-    return status === "submitted" || status === "confirmed";
-  });
-}
+/**
+ * Legs broadcast in earlier prepared sets of this run, keyed by the bag token mint they trade.
+ * "submitted" is still pending (never re-sent, not yet counted as done), "confirmed" is done and
+ * "failed" landed as a failure or expired unlanded (that mint can be traded again).
+ * `lastValidBlockHeight` is kept so status polls can still detect expiry.
+ */
+export type CarriedLeg = LegSigningState & { signature: string; lastValidBlockHeight?: number | null };
+export type CarriedLegs = Readonly<Record<string, CarriedLeg>>;
 
-/** Next leg after `after` that can still be signed and wasn't already bought in an earlier set. */
-export function nextLegToSign(
-  outputMints: string[],
-  states: Record<number, LegSigningState>,
-  alreadyBought: ReadonlySet<string>,
-  after: number,
-): number | null {
-  for (let index = after + 1; index < outputMints.length; index += 1) {
-    if (canSignLeg(states[index]) && !alreadyBought.has(outputMints[index])) return index;
-  }
-  return null;
+export const NO_CARRIED: CarriedLegs = Object.freeze({});
+
+/** True when a carried leg may still land or already did, so its mint must not be traded again. */
+export function carriedBlocks(carried: LegSigningState | undefined): boolean {
+  return carried?.status === "submitted" || carried?.status === "confirmed";
 }
 
 /**
- * True when every leg is either confirmed in this set or was already bought in an earlier set and
- * left unsigned here.
+ * Carries everything broadcast so far into the next prepared set: earlier carried legs plus every
+ * leg of the current set that has a signature (with its prepared `lastValidBlockHeights[index]`).
+ * Failures are dropped so their mints get rebuilt.
  */
-export function purchaseComplete(
-  outputMints: string[],
+export function carryLegs(
+  previous: CarriedLegs,
+  assetMints: string[],
   states: Record<number, LegSigningState>,
-  alreadyBought: ReadonlySet<string>,
-): boolean {
-  if (outputMints.length === 0) return false;
-  const confirmedHere = outputMints.some((_, index) => states[index]?.status === "confirmed");
-  if (!confirmedHere && alreadyBought.size === 0) return false;
-  return outputMints.every((mint, index) => {
+  lastValidBlockHeights: readonly (number | null | undefined)[] = [],
+): CarriedLegs {
+  const next: Record<string, CarriedLeg> = { ...previous };
+  assetMints.forEach((mint, index) => {
     const state = states[index];
-    if (state?.status === "confirmed") return true;
-    return alreadyBought.has(mint) && (!state || state.status === "idle");
+    const signature = legSignature(state);
+    if (state && signature) next[mint] = { ...state, signature, lastValidBlockHeight: lastValidBlockHeights[index] ?? null };
   });
+  for (const [mint, state] of Object.entries(next)) {
+    if (state.status === "failed") delete next[mint];
+  }
+  return next;
+}
+
+/** Each prepared leg's blockhash expiry, by leg index (empty when nothing ready is prepared). */
+export function legHeights(
+  prepared: { status: string; transactions: { lastValidBlockHeight: number | null }[] } | null,
+): (number | null)[] {
+  return prepared?.status === "ready" ? prepared.transactions.map((tx) => tx.lastValidBlockHeight) : [];
+}
+
+/** Applies a status-poll result to a carried pending leg, if it still tracks that signature. */
+export function applyCarriedConfirmation(
+  carried: CarriedLegs,
+  mint: string,
+  signature: string,
+  result: ConfirmationResult,
+): CarriedLegs {
+  const current = carried[mint];
+  if (!current || current.signature !== signature || current.status !== "submitted") return carried;
+  const { lastValidBlockHeight } = current;
+  if (result.status === "confirmed") return { ...carried, [mint]: { status: "confirmed", signature, lastValidBlockHeight } };
+  if (result.status === "failed") {
+    const error = friendlySwapError(result.error, "Transaction failed on-chain. No tokens were swapped.");
+    return { ...carried, [mint]: { status: "failed", signature, error, lastValidBlockHeight } };
+  }
+  return carried;
+}
+
+/** Re-polls a signature a few times while the outcome stays unknown. */
+export async function pollUntilSettled(
+  signature: string,
+  waitForConfirmation: (signature: string) => Promise<ConfirmationResult>,
+  attempts = 3,
+): Promise<ConfirmationResult> {
+  let result: ConfirmationResult = { status: "unknown" };
+  for (let attempt = 0; attempt < attempts && result.status === "unknown"; attempt += 1) {
+    result = await waitForConfirmation(signature);
+  }
+  return result;
 }
 
 type SignLegDeps = {
@@ -124,10 +211,16 @@ export async function signLeg(
   try {
     ({ signature } = await signAndSend(base64));
   } catch (error) {
-    return finish({
-      status: "failed",
-      error: friendlySwapError(error instanceof Error ? error.message : undefined, "Signing was cancelled or failed."),
-    });
+    // Signed but the broadcast's outcome is unknown: it may have landed, so track it by signature
+    // like any submitted leg instead of offering a re-send that could swap twice.
+    if (error instanceof SubmissionError && !error.definite && error.signature) {
+      signature = error.signature;
+    } else {
+      return finish({
+        status: "failed",
+        error: friendlySwapError(error instanceof Error ? error.message : undefined, "Signing was cancelled or failed."),
+      });
+    }
   }
   onState({ status: "submitted", signature });
 

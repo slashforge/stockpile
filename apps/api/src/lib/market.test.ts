@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { setSecrets, setFeatures, resetConfig } from "./config";
-import { assetMarket, bagMarket, configureReferencePrices, liquidityTier, marketSnapshot, premiumPct, pythEquityFeeds, resetMarketCache, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
+import { assetMarket, bagMarket, configureReferencePrices, liquidityTier, marketSnapshot, premiumPct, pythEquityFeeds, resetMarketCache, scaledUiMultiplier, trackMints, withMarketBackgroundTasks, type AssetMarket } from "./market";
 
 const A = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
 const B = "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF";
@@ -13,7 +13,7 @@ function provider(options: { price?: () => Response; tokens?: () => Response; py
     if (url.includes("/price/v3")) {
       calls.price++;
       expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test");
-      expect(new URL(url).searchParams.get("ids")).toBe(`${A},${B}`);
+      expect(new URL(url).searchParams.get("ids")?.split(",").slice(0, 2)).toEqual([A, B]);
       return options.price ? options.price() : Response.json({
         [A]: { usdPrice: 335.87, priceChange24h: 0.41, liquidity: 559887, stockData: { id: "xstocks", price: 335.6, updatedAt: "2026-09-25T06:35:11Z" }, scaledUiConfig: { multiplier: 1.0026, newMultiplier: 1.0032, newMultiplierEffectiveAt: "2026-08-08T00:30:00Z" } },
         [B]: { usdPrice: 1335.5, priceChange24h: 1.0, liquidity: 888617, stockData: { id: "prestocks", price: 1023.7, updatedAt: "2026-09-25T06:35:14Z" } },
@@ -21,11 +21,13 @@ function provider(options: { price?: () => Response; tokens?: () => Response; py
     }
     if (url.includes("/tokens/v2/search")) { calls.tokens++; return options.tokens ? options.tokens() : Response.json([{ id: A, liquidity: 559425, organicScore: 74.2, organicScoreLabel: "medium", holderCount: 34777, stats24h: { buyVolume: 848479.8, sellVolume: 825030.4 } }, { id: B, liquidity: 888618, organicScore: 77, organicScoreLabel: "medium", holderCount: 31921, stats24h: { buyVolume: 799064, sellVolume: 840579 } }]); }
     if (url.includes("hermes.pyth.network")) { calls.pyth++; expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer pyth-test"); return options.pyth ? options.pyth() : Response.json({ parsed: [{ id: pythEquityFeeds.AAPL, price: { price: "33560000000", expo: -8, publish_time: 1790366400 } }] }); }
-    if (url.includes("/swap/v1/quote")) {
+    if (url.includes("/swap/v2/order")) {
       calls.quote++;
       const params = new URL(url).searchParams;
+      expect(params.has("taker")).toBe(false);
+      expect(params.get("excludeRouters")).toBe("jupiterz,dflow,okx"); expect(params.get("excludeDexes")).toBe("Manifest");
       expect(params.get("inputMint")).toBe("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); expect(params.get("amount")).toBe("10000000");
-      return options.quote ? options.quote(params.get("outputMint")!) : Response.json({ outputMint: params.get("outputMint"), outAmount: "1", priceImpactPct: params.get("outputMint") === A ? "0.0005" : "0.0214563" });
+      return options.quote ? options.quote(params.get("outputMint")!) : Response.json({ outputMint: params.get("outputMint"), outAmount: "1", priceImpactPct: params.get("outputMint") === A ? "-0.0005" : "-0.0214563" });
     }
     throw new Error(`unexpected fetch ${url}`);
   }) as unknown as typeof fetch;
@@ -39,6 +41,65 @@ afterEach(() => {
 });
 
 describe("market snapshot", () => {
+  it("uses signed percentage-point impact in preference to the deprecated fraction and floors improvements at zero", async () => {
+    provider({ quote: (mint) => Response.json({ outputMint: mint, priceImpact: mint === A ? -0.062 : 0.5, priceImpactPct: "-0.9" }) });
+    expect((await assetMarket(A))?.probe?.priceImpactPct).toBe(0.062);
+    expect((await assetMarket(B))?.probe?.priceImpactPct).toBe(0);
+  });
+  it("does not refill unknown or failed mints on each read", async () => {
+    for (const failed of [false, true]) {
+      resetMarketCache(); trackMints([A, B]);
+      let calls = 0;
+      globalThis.fetch = mock(async (input) => {
+        calls++;
+        return String(input).includes("/price/v3") ? failed ? new Response("down", { status: 503 }) : Response.json({}) : Response.json([]);
+      }) as unknown as typeof fetch;
+      await scaledUiMultiplier(A);
+      const initial = calls;
+      for (let i = 0; i < 5; i++) {
+        expect(await scaledUiMultiplier(A)).toBe(1);
+        expect(await scaledUiMultiplier(B)).toBe(1);
+        expect(await assetMarket(A)).toBeNull();
+      }
+      expect(calls).toBe(initial);
+      if (!failed) expect((await marketSnapshot())?.mints.get(A)).toMatchObject({ price: null, multiplier: 1 });
+    }
+  });
+  it("awaits coverage for newly tracked scaled mints, even during an existing refresh", async () => {
+    resetMarketCache(); trackMints([A]);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let priceCalls = 0;
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/price/v3") {
+        priceCalls++;
+        if (priceCalls === 1) await gate;
+        return Response.json(Object.fromEntries(url.searchParams.get("ids")!.split(",").map((mint) => [mint, { usdPrice: 100, scaledUiConfig: { multiplier: mint === B ? 10 : 1 } }])));
+      }
+      return Response.json([]);
+    }) as unknown as typeof fetch;
+    const first = marketSnapshot();
+    const multiplier = scaledUiMultiplier(B);
+    release();
+    await first;
+    expect(await multiplier).toBe(10);
+    expect(priceCalls).toBe(2);
+    expect((await assetMarket(B))?.usdPrice).toBe(100);
+  });
+  it("registers stale refreshes with waitUntil without delaying the cache read", async () => {
+    provider();
+    const first = await marketSnapshot();
+    const realNow = Date.now;
+    const tasks: Promise<unknown>[] = [];
+    try {
+      Date.now = () => realNow() + 61_000;
+      const current = await withMarketBackgroundTasks((task) => { tasks.push(task); }, () => marketSnapshot());
+      expect(current).toBe(first!);
+      expect(tasks).toHaveLength(1);
+      await Promise.all(tasks);
+    } finally { Date.now = realNow; }
+  });
   it("fetches all tracked mints in one batched refresh and serves the cache afterwards", async () => {
     const calls = provider();
     const [first, second] = await Promise.all([marketSnapshot(), marketSnapshot()]);
@@ -86,7 +147,7 @@ describe("market snapshot", () => {
     expect((await assetMarket(A, { underlyingTicker: "AAPL" }))?.underlying?.source).toBe("jupiter-stock");
   });
   it("uses the fixed 24h snapshot reference when the loader has one, else Jupiter's rolling window, and keeps stale probes on failure", async () => {
-    provider({ quote: (mint) => mint === A ? Response.json({ outputMint: A, priceImpactPct: "0.001" }) : new Response("rate limited", { status: 429 }) });
+    provider({ quote: (mint) => mint === A ? Response.json({ outputMint: A, priceImpactPct: "-0.001" }) : new Response("rate limited", { status: 429 }) });
     configureReferencePrices(async (mints) => new Map(mints.filter((mint) => mint === A).map((mint) => [mint, 320])));
     const a = await assetMarket(A), b = await assetMarket(B);
     expect(a).toMatchObject({ priceChange24hPct: expect.closeTo((335.87 / 320 - 1) * 100, 9), change24hSource: "snapshot", probe: { sizeUsdc: 10, priceImpactPct: expect.closeTo(0.1, 9) } });

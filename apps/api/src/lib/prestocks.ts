@@ -141,12 +141,12 @@ async function verifyOnJupiter(asset: { symbol: string; mint: string }, tag: Iss
   if (decimals === null) return fail("Jupiter decimals missing");
   const tags = Array.isArray(token.tags) ? token.tags : [];
   if (!tags.includes("verified") || !tags.includes(tag)) return fail(`Jupiter tags do not mark this mint as a verified ${issuerName[tag]} token`);
-  const quoteUrl = new URL("https://api.jup.ag/swap/v1/quote");
-  for (const [k, v] of Object.entries({ inputMint: USDC, outputMint: asset.mint, amount: "1000000", slippageBps: "50", restrictIntermediateTokens: "true" })) quoteUrl.searchParams.set(k, v);
+  const quoteUrl = new URL("https://api.jup.ag/swap/v2/order");
+  for (const [k, v] of Object.entries({ inputMint: USDC, outputMint: asset.mint, amount: "1000000" })) quoteUrl.searchParams.set(k, v);
   const quote = await jupiterGet(quoteUrl, headers, 6000);
   if (!quote.ok) return fail(`No USDC route on Jupiter (${quote.status})`);
-  const quoted = await quote.json() as { outputMint?: unknown; outAmount?: unknown };
-  if (quoted.outputMint !== asset.mint || typeof quoted.outAmount !== "string" || !/^[1-9]\d*$/.test(quoted.outAmount)) return fail("Jupiter quote did not return this mint");
+  const quoted = await quote.json() as { outputMint?: unknown; outAmount?: unknown; errorCode?: unknown };
+  if (quoted.errorCode !== undefined || quoted.outputMint !== asset.mint || typeof quoted.outAmount !== "string" || !/^[1-9]\d*$/.test(quoted.outAmount)) return fail("Jupiter order did not return this mint");
   // Token-2022 scaled UI amounts (used by some PreStocks after split-style adjustments): raw units differ from wallet-displayed units.
   let uiAmountMultiplier = 1;
   // xStocks read the multiplier from the shared market snapshot instead; skip the extra call.

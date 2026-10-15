@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { clearIdentityTokenGetter, setIdentityTokenGetter } from "./identity-token";
-import { ApiError, fetchBags, fetchPortfolio, prepareTrade, saveBag } from "./stockpile";
+import { ApiError, fetchBags, fetchPortfolio, prepareTrade, saveBag, submitSignedTransaction } from "./stockpile";
 
 type Call = { url: string; method: string; headers: Headers; body: string | null };
 
@@ -108,5 +108,21 @@ describe("error mapping", () => {
     const prepared = await prepareTrade({ bagId: "b1", inputMint: "mint", amount: "1000" });
     expect(prepared.status).toBe("unavailable");
     expect(prepared.transactions).toEqual([]);
+  });
+});
+
+describe("submit", () => {
+  test("sends the Jupiter order id with the signed transaction", async () => {
+    mockFetch(() => json(200, { signature: "sig" }));
+    expect(await submitSignedTransaction("dHg=", "b1", "req-1")).toBe("sig");
+    expect(calls[0].url.endsWith("/trade/submit")).toBe(true);
+    expect(JSON.parse(calls[0].body ?? "{}")).toEqual({ transaction: "dHg=", bagId: "b1", requestId: "req-1" });
+  });
+
+  test("a 503 from execute keeps its status so the outcome is treated as unknown", async () => {
+    mockFetch(() => json(503, { error: "Jupiter execute timed out" }));
+    const error = await submitSignedTransaction("dHg=", undefined, "req-1").catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(503);
   });
 });

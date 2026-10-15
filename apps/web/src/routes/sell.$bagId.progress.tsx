@@ -9,7 +9,7 @@ import { Card, Divider, Notice } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { legAssetMint, tradeErrorMessage } from "@/lib/trade/legs";
-import { legDisplayStatus, legsToSign } from "@/lib/trade/purchase";
+import { legDisplayStatus, legsToSign, retryableCount, shownLegState } from "@/lib/trade/purchase";
 import { legSignature } from "@/lib/trade/signing";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { formatMoney } from "@/utils/amounts";
@@ -29,10 +29,10 @@ function SellProgressScreen() {
 
   const status = flow.status === "idle" ? (retryError ? "partial" : "running") : flow.status;
   const displays = ready.transactions.map((tx, index) =>
-    legDisplayStatus(signing.states[index], alreadyBought.has(legAssetMint(tx, "sell"))),
+    legDisplayStatus(signing.states[index], alreadyBought[legAssetMint(tx, "sell")]),
   );
   const done = displays.filter((value) => value === "confirmed" || value === "earlier").length;
-  const retryable = legsToSign(flow.assetMints, signing.states, alreadyBought).length;
+  const retryable = retryableCount(flow.assetMints, signing.states, alreadyBought);
   const pendingUnknown = status === "partial" && displays.includes("submitted");
 
   const retry = () => {
@@ -45,7 +45,7 @@ function SellProgressScreen() {
           return;
         }
         const total = data.transactions.length;
-        const problems = data.transactions.flatMap((tx, index) => legBlocking(tx, bagData, index, total, auth.walletAddress, "sell"));
+        const problems = data.transactions.flatMap((tx, index) => legBlocking(tx, bagData, index, total, auth.walletAddress, "sell", flow.position?.legs.map((leg) => leg.mint)));
         if (problems.length > 0 || (data.walletAddress && data.walletAddress !== auth.walletAddress)) {
           setRetryError(`Blocked for your safety. ${problems.join(" ")}`.trim());
           return;
@@ -55,7 +55,7 @@ function SellProgressScreen() {
           {},
           carried,
         );
-        signing.signAll(indices.map((index) => ({ index, transaction: data.transactions[index]!.transaction })));
+        signing.signAll(indices.map((index) => ({ index, transaction: data.transactions[index]!.transaction, requestId: data.transactions[index]!.requestId, lastValidBlockHeight: data.transactions[index]!.lastValidBlockHeight })));
       },
     });
   };
@@ -95,7 +95,7 @@ function SellProgressScreen() {
       <ProgressHero status={status} heading={heading} caption={caption} />
       <Card padded={false} className="gap-0">
         {ready.transactions.map((tx, index) => {
-          const state = signing.states[index];
+          const state = shownLegState(signing.states[index], alreadyBought[legAssetMint(tx, "sell")]);
           const signature = legSignature(state);
           return (
             <div key={`${flow.preparedAt}-${index}`}>

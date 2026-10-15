@@ -12,7 +12,7 @@ import { T } from "@/components/stockpile/type";
 import { useOutcomeHaptic } from "@/hooks/use-outcome-haptic";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { totalInput, tradeErrorMessage } from "@/lib/trade/legs";
-import { legDisplayStatus, legsToSign } from "@/lib/trade/purchase";
+import { legDisplayStatus, legsToSign, retryableCount, shownLegState } from "@/lib/trade/purchase";
 import { legSignature } from "@/lib/trade/signing";
 import { useStockpileAuth } from "@/providers/auth-context";
 import { formatMoney } from "@/utils/amounts";
@@ -33,10 +33,10 @@ export default function BuyProgressScreen() {
   const status =
     flow.status === "idle" ? (retryError ? "partial" : "running") : flow.status;
   const displays = ready.transactions.map((tx, index) =>
-    legDisplayStatus(signing.states[index], alreadyBought.has(tx.outputMint)),
+    legDisplayStatus(signing.states[index], alreadyBought[tx.outputMint]),
   );
   const done = displays.filter((value) => value === "confirmed" || value === "earlier").length;
-  const retryable = legsToSign(flow.outputMints, signing.states, alreadyBought).length;
+  const retryable = retryableCount(flow.outputMints, signing.states, alreadyBought);
   const pendingUnknown = status === "partial" && displays.includes("submitted");
 
   const retry = () => {
@@ -70,7 +70,7 @@ export default function BuyProgressScreen() {
                   {},
                   carried,
                 );
-                signing.signAll(indices.map((index) => ({ index, transaction: data.transactions[index].transaction })));
+                signing.signAll(indices.map((index) => ({ index, transaction: data.transactions[index].transaction, requestId: data.transactions[index].requestId, lastValidBlockHeight: data.transactions[index].lastValidBlockHeight })));
               },
             });
           },
@@ -130,7 +130,7 @@ export default function BuyProgressScreen() {
 
         <Card padded={false}>
           {ready.transactions.map((tx, index) => {
-            const state = signing.states[index];
+            const state = shownLegState(signing.states[index], alreadyBought[tx.outputMint]);
             const signature = legSignature(state);
             return (
               <View key={`${flow.preparedAt}-${index}`}>

@@ -13,6 +13,8 @@ export const queryKeys = {
   portfolio: ["private", "portfolio"] as const,
   activity: ["private", "activity"] as const,
   positions: ["private", "positions"] as const,
+  sellQuotes: ["private", "sell-quote"] as const,
+  tokenSellQuotes: ["private", "token-sell-quote"] as const,
   sellQuote: (bagId: string, portionBps: number, slippageBps: number | null) =>
     ["private", "sell-quote", bagId, portionBps, slippageBps] as const,
   tokenSellQuote: (mints: string[], portionBps: number, slippageBps: number | null) =>

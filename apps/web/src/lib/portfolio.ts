@@ -8,7 +8,21 @@ import type { Activity, Holding } from "@/services/api/types";
  * than flashing in and out. `null` means positions are unavailable: nothing is hidden.
  */
 export function looseHoldings(holdings: Holding[], positions: BagPositions | null | undefined): Holding[] {
-  if (positions === undefined) return holdings.filter((holding) => holding.bagIds.length === 0);
+  const byMint = new Map<string, Holding>();
+  for (const holding of holdings) {
+    if (!/^\d+$/.test(holding.amount)) continue;
+    const existing = byMint.get(holding.mint);
+    if (!existing) {
+      byMint.set(holding.mint, { ...holding });
+      continue;
+    }
+    existing.amount = (BigInt(existing.amount) + BigInt(holding.amount)).toString();
+    if (holding.uiAmount != null) {
+      existing.uiAmount = String(Number(existing.uiAmount ?? 0) + Number(holding.uiAmount));
+    }
+    if (holding.usdValue != null) existing.usdValue = (existing.usdValue ?? 0) + holding.usdValue;
+  }
+  if (positions === undefined) return [...byMint.values()].filter((holding) => holding.bagIds.length === 0);
   const claimed = new Map<string, bigint>();
   for (const bag of positions?.bags ?? []) {
     for (const leg of bag.legs) {
@@ -16,8 +30,7 @@ export function looseHoldings(holdings: Holding[], positions: BagPositions | nul
     }
   }
   const out: Holding[] = [];
-  for (const holding of holdings) {
-    if (!/^\d+$/.test(holding.amount)) continue;
+  for (const holding of byMint.values()) {
     const total = BigInt(holding.amount);
     const taken = claimed.get(holding.mint) ?? 0n;
     const loose = total - taken;

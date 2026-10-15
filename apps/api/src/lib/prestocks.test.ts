@@ -20,7 +20,7 @@ function provider(options: { directory?: () => Response; token?: Record<string, 
     if (url === PRESTOCKS_DIRECTORY_URL) { calls.directory++; expect(init?.redirect).toBe("manual"); return options.directory ? options.directory() : directoryResponse([row()]); }
     expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test");
     if (url.includes("/tokens/v2/search")) { calls.search++; return Response.json(options.token === null ? [] : [{ id: MINT2, symbol: "ANTHROPIC" }, options.token ?? jupiterToken()]); }
-    if (url.includes("/swap/v1/quote")) { calls.quote++; return options.quote ? options.quote() : Response.json({ inputMint: USDC, outputMint: new URL(url).searchParams.get("outputMint"), inAmount: "1000000", outAmount: "490615" }); }
+    if (url.includes("/swap/v2/order")) { calls.quote++; return options.quote ? options.quote() : Response.json({ inputMint: USDC, outputMint: new URL(url).searchParams.get("outputMint"), inAmount: "1000000", outAmount: "490615" }); }
     if (url.includes("/price/v3")) { calls.price++; return options.price ? options.price() : Response.json({ [MINT]: { usdPrice: 1376, scaledUiConfig: { multiplier: 1, newMultiplier: 1.4861347, newMultiplierEffectiveAt: "2026-07-17T16:30:00Z" } } }); }
     throw new Error(`unexpected fetch ${url}`);
   }) as unknown as typeof fetch;

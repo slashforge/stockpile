@@ -37,9 +37,20 @@ export const pythEquityFeeds: Record<string, string> = {
   TSLA: "16dad506d7db8da01c87581c87ca897a012a153557d4d578c3b9c9e1bc0632f1", NFLX: "8376cfd7ca8bcdf372ced05307b24dced1f15b1afafdeff715664598f15a3dd2",
 };
 const trackedMints = new Set<string>();
+const attemptedMints = new Set<string>();
+const awaitedMints = new Set<string>();
 let snapshot: Snapshot | null = null;
 let expiresAt = 0;
 let pending: Promise<Snapshot | null> | undefined;
+type BackgroundRegistrar = (task: Promise<unknown>) => void;
+const backgroundRegistrars = new Set<BackgroundRegistrar>();
+
+/** Register shared refreshes with active Worker requests; Bun callers need no registrar. */
+export async function withMarketBackgroundTasks<T>(register: BackgroundRegistrar, task: () => T | Promise<T>): Promise<T> {
+  backgroundRegistrars.add(register);
+  if (pending) register(pending);
+  try { return await task(); } finally { backgroundRegistrars.delete(register); }
+}
 
 const num = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : null;
 
@@ -118,14 +129,14 @@ async function fetchPyth(key: string): Promise<Map<string, { price: number; asOf
 }
 
 async function fetchProbe(mint: string, key: string): Promise<QuoteProbe | null> {
-  const url = new URL("https://api.jup.ag/swap/v1/quote");
+  const url = new URL("https://api.jup.ag/swap/v2/order");
   url.searchParams.set("inputMint", USDC); url.searchParams.set("outputMint", mint); url.searchParams.set("amount", String(probeSizeUsdc * 1_000_000));
-  url.searchParams.set("slippageBps", "50"); url.searchParams.set("restrictIntermediateTokens", "true");
+  url.searchParams.set("excludeRouters", "jupiterz,dflow,okx"); url.searchParams.set("excludeDexes", "Manifest");
   const res = await fetch(url, { headers: { "x-api-key": key }, signal: AbortSignal.timeout(6000) });
   if (!res.ok) return null;
-  const quote = await res.json() as { outputMint?: unknown; priceImpactPct?: unknown };
-  const impact = Number(quote?.priceImpactPct);
-  return quote?.outputMint === mint && Number.isFinite(impact) && impact >= 0 ? { sizeUsdc: probeSizeUsdc, priceImpactPct: impact * 100, asOf: new Date().toISOString() } : null;
+  const quote = await res.json() as { outputMint?: unknown; priceImpactPct?: unknown; priceImpact?: unknown; errorCode?: unknown };
+  const impact = typeof quote.priceImpact === "number" && Number.isFinite(quote.priceImpact) ? quote.priceImpact : typeof quote.priceImpactPct === "string" ? Number(quote.priceImpactPct) * 100 : NaN;
+  return quote?.errorCode === undefined && quote?.outputMint === mint && Number.isFinite(impact) ? { sizeUsdc: probeSizeUsdc, priceImpactPct: Math.max(0, -impact), asOf: new Date().toISOString() } : null;
 }
 
 /** One fixed-size quote per mint, four at a time; a failed probe keeps the previous value. */
@@ -138,10 +149,11 @@ async function fetchProbes(mints: string[], key: string, previous: Map<string, Q
 }
 
 async function refresh(): Promise<Snapshot> {
+  const mints = [...trackedMints];
+  for (const mint of mints) attemptedMints.add(mint);
   const key = secret("JupiterApiKey");
   if (!key) throw new Error("Jupiter is not configured");
   const pythKey = secret("PythApiKey");
-  const mints = [...trackedMints];
   const probesDue = probeExpiresAt <= Date.now();
   const [jupiter, pyth, probes, reference24h] = await Promise.all([
     fetchJupiter(mints, key),
@@ -153,30 +165,59 @@ async function refresh(): Promise<Snapshot> {
   return { mints: jupiter, pyth, probes, reference24h, asOf: new Date().toISOString() };
 }
 
-/** Current snapshot (stale-while-revalidate). Awaits only when nothing has been cached yet. */
-export async function marketSnapshot(): Promise<Snapshot | null> {
-  if (!feature("market") || trackedMints.size === 0) return null;
-  if (expiresAt <= Date.now() && !pending) {
+function startRefresh(): Promise<Snapshot | null> {
+  if (!pending) {
     pending = refresh().then((next) => { snapshot = next; expiresAt = Date.now() + ttl; return next; })
       .catch(() => { expiresAt = Date.now() + failureTtl; return snapshot; })
       .finally(() => { pending = undefined; });
+    for (const register of backgroundRegistrars) register(pending);
   }
-  if (!snapshot && pending) await pending;
+  return pending;
+}
+
+/** Current snapshot (stale-while-revalidate); missing requested mints get a bounded fill. */
+export async function marketSnapshot(requestedMint?: string): Promise<Snapshot | null> {
+  if (requestedMint) trackMints([requestedMint]);
+  if (!feature("market") || trackedMints.size === 0) return null;
+  if (requestedMint && trackedMints.has(requestedMint) && !attemptedMints.has(requestedMint) && !awaitedMints.has(requestedMint)) {
+    awaitedMints.add(requestedMint);
+    const fill = async () => {
+      await startRefresh();
+      // An in-flight refresh may have captured its mint list before this request added the mint.
+      if (!attemptedMints.has(requestedMint)) await startRefresh();
+    };
+    const filling = fill();
+    for (const register of backgroundRegistrars) register(filling);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try { await Promise.race([filling, new Promise<void>((resolve) => { timer = setTimeout(resolve, 6500); })]); }
+    finally { clearTimeout(timer); }
+    return snapshot;
+  }
+  if (expiresAt <= Date.now()) startRefresh();
+  if (!requestedMint && !snapshot && pending) await pending;
   return snapshot;
 }
+
+/** Jupiter Price v3 usdPrice from the cached snapshot, without triggering or awaiting a refresh (null when unknown). */
+export function cachedUsdPrice(mint: string): number | null {
+  const price = snapshot?.mints.get(mint)?.price ?? null;
+  return price !== null && price > 0 ? price : null;
+}
+
+export function cachedScaledUiMultiplier(mint: string): number { return snapshot?.mints.get(mint)?.multiplier ?? 1; }
 
 /** Token-2022 scaled-UI multiplier from the latest Jupiter price snapshot (1 when unknown). */
 export async function scaledUiMultiplier(mint: string): Promise<number> {
   trackMints([mint]);
-  return (await marketSnapshot())?.mints.get(mint)?.multiplier ?? 1;
+  return (await marketSnapshot(mint))?.mints.get(mint)?.multiplier ?? 1;
 }
 
 /** Market block for one asset; `underlyingTicker` enables Pyth/Jupiter stock reference, `mark` is the PreStocks issuer mark. */
 export async function assetMarket(mint: string | null, options: { underlyingTicker?: string | null; mark?: { price: number; asOf: string } | null } = {}): Promise<AssetMarket | null> {
   if (!mint) return null;
-  const current = await marketSnapshot();
+  const current = await marketSnapshot(mint);
   const data = current?.mints.get(mint);
-  if (!current || !data) return null;
+  if (!current || !data || (data.price === null && data.liquidity === null && data.organicScore === null && data.holderCount === null && data.volume24h === null && data.stock === null && data.change === null && data.multiplier === 1)) return null;
   let underlying: Underlying | null = null;
   if (options.mark) underlying = { source: "prestocks", price: options.mark.price, asOf: options.mark.asOf };
   else if (options.underlyingTicker) {
@@ -215,4 +256,4 @@ export function bagMarket(assets: { symbol: string; weightBps: number; market: A
     worstLiquidityUsd: worst?.liquidity ?? null, worstLiquiditySymbol: worst?.symbol ?? null, worstImpactPct: worstImpact?.impact ?? null, worstImpactSymbol: worstImpact?.symbol ?? null, asOf: priced[0]!.market!.asOf };
 }
 
-export function resetMarketCache() { snapshot = null; expiresAt = 0; pending = undefined; probeExpiresAt = 0; referenceLoader = null; trackedMints.clear(); }
+export function resetMarketCache() { snapshot = null; expiresAt = 0; pending = undefined; probeExpiresAt = 0; referenceLoader = null; trackedMints.clear(); attemptedMints.clear(); awaitedMints.clear(); }

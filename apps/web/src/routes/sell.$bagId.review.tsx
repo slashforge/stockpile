@@ -33,9 +33,9 @@ function SellReviewScreen() {
     if (!ready || !bagData) return [];
     const total = ready.transactions.length;
     return ready.transactions.flatMap((tx, index) =>
-      legBlocking(tx, bagData, index, total, auth.walletAddress, "sell").map((problem) => `${tx.symbol}: ${problem}`),
+      legBlocking(tx, bagData, index, total, auth.walletAddress, "sell", flow.position?.legs.map((leg) => leg.mint)).map((problem) => `${tx.symbol}: ${problem}`),
     );
-  }, [ready, bagData, auth.walletAddress]);
+  }, [ready, bagData, auth.walletAddress, flow.position]);
 
   if (!bagData || !ready) {
     return (
@@ -69,7 +69,7 @@ function SellReviewScreen() {
       return;
     }
     navigate({ to: "/sell/$bagId/progress", params: { bagId: flow.bagId } });
-    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index]!.transaction })));
+    signing.signAll(toSign.map((index) => ({ index, transaction: ready.transactions[index]!.transaction, requestId: ready.transactions[index]!.requestId, lastValidBlockHeight: ready.transactions[index]!.lastValidBlockHeight })));
   };
 
   return (

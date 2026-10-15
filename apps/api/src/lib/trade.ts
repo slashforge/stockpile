@@ -2,15 +2,15 @@ import { secret } from "./config";
 import { bagAssets, findBag, knownSymbol, resolveAsset, trackerBlocked, type Bag } from "./bags";
 import { scaledUiMultiplier } from "./market";
 import { bagPosition, looseBalances } from "./positions";
-import { inspectTransaction } from "./solana-tx";
-import { type BuildResponse, compileSponsored, paymaster, rpcUrl } from "./sponsor";
+import { JupiterError, order, type JupiterOrder } from "./jupiter";
+import { getBalance, MAX_PRIORITY_FEE_LAMPORTS, minimumSponsorBalance, paymaster, rpcUrl, sponsoredSwapExcludedDexes, sponsorSwapTransaction } from "./sponsor";
 import { tokenMetadata } from "./token-meta";
 
 import { USDC } from "./constants";
 export { USDC };
 export const tradeErrorCodes = [
   "NO_WALLET", "UNSUPPORTED_INPUT_MINT", "PROVIDER_NOT_CONFIGURED", "BAG_NOT_TRADABLE", "AMOUNT_TOO_SMALL",
-  "NO_ROUTE", "TOKEN_NOT_TRADABLE", "SLIPPAGE_REJECTED", "QUOTE_MISMATCH", "PROVIDER_ERROR", "PROVIDER_TIMEOUT", "INVALID_TRANSACTION", "NO_POSITION",
+  "NO_ROUTE", "TOKEN_NOT_TRADABLE", "INSUFFICIENT_FUNDS", "SLIPPAGE_REJECTED", "QUOTE_MISMATCH", "PROVIDER_ERROR", "PROVIDER_TIMEOUT", "INVALID_TRANSACTION", "NO_POSITION",
 ] as const;
 export type TradeErrorCode = (typeof tradeErrorCodes)[number];
 export type TradeError = { code: TradeErrorCode; message: string; legIndex: number | null; symbol: string | null };
@@ -23,18 +23,15 @@ export type TradeRequest = { bagId: string; side?: TradeSide; inputMint?: string
 /** Direct sell of tokens held outside every bag position: `portionBps` of each mint's loose balance, swapped to USDC. */
 export type TokenSellRequest = { mints: string[]; portionBps: number; slippageBps?: number | null };
 export type TradeContext = { userId: string; walletAddress: string | null };
-export type JupiterQuote = { inputMint: string; outputMint: string; inAmount: string; outAmount: string; otherAmountThreshold?: string; slippageBps?: number; priceImpactPct?: string; routePlan?: unknown[]; [key: string]: unknown };
+export type JupiterQuote = JupiterOrder;
 export type QuoteLeg = { index: number; symbol: string; weightBps: number; inputMint: string; outputMint: string; outputDecimals: number | null; uiAmountMultiplier: number; inputAmount: string; outAmount: string; minOutAmount: string | null; priceImpactPct: string | null; routeSteps: number };
-export type PreparedLeg = QuoteLeg & { transaction: string; lastValidBlockHeight: number | null; slippageBps: number | null; feePayer: string };
+export type PreparedLeg = QuoteLeg & { transaction: string; requestId: string; lastValidBlockHeight: number | null; slippageBps: number | null; feePayer: string };
 type Leg = { index: number; asset: { symbol: string; weightBps: number }; inputMint: string; outputMint: string; outputDecimals: number | null; uiAmountMultiplier: number; amount: bigint };
 type Result<T> = { ok: true; value: T } | { ok: false; error: TradeError };
 
 const fail = (code: TradeErrorCode, message: string, leg?: { index: number; symbol: string }): Result<never> => ({ ok: false, error: { code, message, legIndex: leg?.index ?? null, symbol: leg?.symbol ?? null } });
 const at = (leg: Leg) => ({ index: leg.index, symbol: leg.asset.symbol });
-const jupiterHeaders = () => ({ "x-api-key": secret("JupiterApiKey") ?? "", "Content-Type": "application/json" });
 export const tradeSide = (request: TradeRequest): TradeSide => request.side ?? "buy";
-/** Slippage used for indicative quotes when the user leaves protection on automatic. */
-const INDICATIVE_SLIPPAGE_BPS = 50;
 /** Codes worth one more attempt for the same leg: flaky upstreams, not user or route problems. */
 const TRANSIENT: ReadonlySet<TradeErrorCode> = new Set(["PROVIDER_ERROR", "PROVIDER_TIMEOUT", "QUOTE_MISMATCH"]);
 
@@ -90,32 +87,33 @@ export async function sellLegs(bag: Bag, context: TradeContext, portionBps: numb
   return { ok: true, value: legs };
 }
 
-async function providerError(res: Response, leg: Leg, fallback: string): Promise<Result<never>> {
-  const body = await res.json().catch(() => null) as { error?: string; errorCode?: string } | null;
-  const code = body?.errorCode ?? "";
-  const message = body?.error && body.error.length < 200 ? body.error : fallback;
-  if (code === "NO_ROUTES_FOUND" || code === "COULD_NOT_FIND_ANY_ROUTE") return fail("NO_ROUTE", `No route for ${leg.asset.symbol}: ${message}`, at(leg));
-  if (code === "TOKEN_NOT_TRADABLE") return fail("TOKEN_NOT_TRADABLE", `${leg.asset.symbol} is not tradable on Jupiter right now`, at(leg));
-  if (/slippage/i.test(code) || /slippage/i.test(message)) return fail("SLIPPAGE_REJECTED", message, at(leg));
-  return fail("PROVIDER_ERROR", `Jupiter ${res.status} for ${leg.asset.symbol}: ${message}`, at(leg));
+function orderProblem(leg: Leg, code: number | string | null, message: string, status?: number | null): Result<never> {
+  if (status && status >= 500 || status === 429) return fail("PROVIDER_ERROR", `Jupiter ${status}: ${message}`, at(leg));
+  if (/insufficient|not enough|balance|funds/i.test(message)) return fail("INSUFFICIENT_FUNDS", message, at(leg));
+  if (/NO_ROUTES_FOUND|COULD_NOT_FIND_ANY_ROUTE/.test(String(code)) || /no.*route|route.*not found/i.test(message)) return fail("NO_ROUTE", `No route for ${leg.asset.symbol}: ${message}`, at(leg));
+  if (code === "TOKEN_NOT_TRADABLE" || /not tradable/i.test(message)) return fail("TOKEN_NOT_TRADABLE", `${leg.asset.symbol} is not tradable on Jupiter right now`, at(leg));
+  if (/slippage/i.test(String(code)) || /slippage/i.test(message)) return fail("SLIPPAGE_REJECTED", message, at(leg));
+  return fail("PROVIDER_ERROR", `Jupiter order for ${leg.asset.symbol}: ${message}`, at(leg));
 }
 
-async function quoteLeg(leg: Leg, slippageBps: number): Promise<Result<JupiterQuote>> {
-  const url = new URL("https://api.jup.ag/swap/v1/quote");
-  for (const [key, value] of Object.entries({ inputMint: leg.inputMint, outputMint: leg.outputMint, amount: leg.amount.toString(), slippageBps: String(slippageBps), restrictIntermediateTokens: "true" })) url.searchParams.set(key, value);
-  let res: Response;
-  try { res = await fetch(url, { headers: jupiterHeaders(), signal: AbortSignal.timeout(8000) }); }
-  catch (error) { return fail(error instanceof Error && error.name === "TimeoutError" ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR", `Jupiter quote unavailable for ${leg.asset.symbol}`, at(leg)); }
-  if (!res.ok) return providerError(res, leg, "quote rejected");
-  const quote = await res.json().catch(() => null) as JupiterQuote | null;
-  if (!quote || quote.inputMint !== leg.inputMint || quote.outputMint !== leg.outputMint || quote.inAmount !== leg.amount.toString() || !/^\d+$/.test(quote.outAmount ?? "")) return fail("QUOTE_MISMATCH", `Jupiter quote did not match the requested ${leg.asset.symbol} leg`, at(leg));
+async function quoteLeg(leg: Leg, slippageBps: number | null, sponsor?: { walletAddress: string; payer: string }): Promise<Result<JupiterOrder>> {
+  let quote: JupiterOrder;
+  try {
+    quote = await order({ inputMint: leg.inputMint, outputMint: leg.outputMint, amount: leg.amount.toString(), excludeRouters: "jupiterz,dflow,okx", excludeDexes: sponsoredSwapExcludedDexes(), ...(slippageBps == null ? {} : { slippageBps }),
+      ...(sponsor ? { taker: sponsor.walletAddress, payer: sponsor.payer, closeAuthority: sponsor.walletAddress, priorityFeeLamports: Number(MAX_PRIORITY_FEE_LAMPORTS), broadcastFeeType: "maxCap" as const } : {}) });
+  } catch (error) {
+    if (error instanceof JupiterError) return error.timeout ? fail("PROVIDER_TIMEOUT", `Jupiter order unavailable for ${leg.asset.symbol}`, at(leg)) : orderProblem(leg, error.code, error.message, error.status);
+    return fail("PROVIDER_ERROR", `Jupiter order unavailable for ${leg.asset.symbol}`, at(leg));
+  }
+  if (quote.errorCode !== undefined || quote.error || (sponsor && !quote.transaction)) return orderProblem(leg, quote.errorCode ?? null, quote.errorMessage ?? quote.error ?? "Jupiter did not return a transaction");
+  if (quote.inputMint !== leg.inputMint || quote.outputMint !== leg.outputMint || quote.inAmount !== leg.amount.toString() || !/^\d+$/.test(quote.outAmount ?? "")) return fail("QUOTE_MISMATCH", `Jupiter order did not match the requested ${leg.asset.symbol} leg`, at(leg));
   return { ok: true, value: quote };
 }
 
 export function toQuoteLeg(leg: Leg, quote: JupiterQuote): QuoteLeg {
   return { index: leg.index, symbol: leg.asset.symbol, weightBps: leg.asset.weightBps, inputMint: leg.inputMint, outputMint: leg.outputMint, outputDecimals: leg.outputDecimals, uiAmountMultiplier: leg.uiAmountMultiplier, inputAmount: quote.inAmount, outAmount: quote.outAmount,
     minOutAmount: typeof quote.otherAmountThreshold === "string" && /^\d+$/.test(quote.otherAmountThreshold) ? quote.otherAmountThreshold : null,
-    priceImpactPct: typeof quote.priceImpactPct === "string" ? quote.priceImpactPct : null, routeSteps: Array.isArray(quote.routePlan) ? quote.routePlan.length : 0 };
+    priceImpactPct: typeof quote.priceImpact === "number" && Number.isFinite(quote.priceImpact) ? String(quote.priceImpact / 100) : typeof quote.priceImpactPct === "string" ? quote.priceImpactPct : null, routeSteps: Array.isArray(quote.routePlan) ? quote.routePlan.length : 0 };
 }
 
 /** Validates the request and sizes every leg; shared by quote and prepare. */
@@ -141,7 +139,7 @@ async function quoteLegs(legs: Leg[], slippageBps: number | null): Promise<Resul
   const auto = slippageBps == null;
   const quotes: JupiterQuote[] = [];
   for (const leg of legs) {
-    const quoted = await withLegRetry(leg, "quote", () => quoteLeg(leg, slippageBps ?? INDICATIVE_SLIPPAGE_BPS));
+    const quoted = await withLegRetry(leg, "quote", () => quoteLeg(leg, slippageBps));
     if (!quoted.ok) return quoted;
     // With automatic protection the real minimum is only known once the swap is built.
     quotes.push(auto ? { ...quoted.value, otherAmountThreshold: undefined } : quoted.value);
@@ -187,22 +185,7 @@ export async function prepareTokenSell(request: TokenSellRequest, walletAddress:
   return prepareLegs(split.value, walletAddress, request.slippageBps ?? null);
 }
 
-async function buildLeg(leg: Leg, walletAddress: string, payer: string, slippageBps: number | null): Promise<Result<BuildResponse>> {
-  const url = new URL("https://api.jup.ag/swap/v2/build");
-  for (const [key, value] of Object.entries({ inputMint: leg.inputMint, outputMint: leg.outputMint, amount: leg.amount.toString(), taker: walletAddress, payer, slippageBps: slippageBps == null ? "rtse" : String(slippageBps), wrapAndUnwrapSol: "false" })) url.searchParams.set(key, value);
-  let res: Response;
-  try { res = await fetch(url, { headers: jupiterHeaders(), signal: AbortSignal.timeout(8000) }); }
-  catch (error) { return fail(error instanceof Error && error.name === "TimeoutError" ? "PROVIDER_TIMEOUT" : "PROVIDER_ERROR", `Jupiter could not prepare the ${leg.asset.symbol} leg`, at(leg)); }
-  if (!res.ok) return providerError(res, leg, "swap build rejected");
-  const build = await res.json().catch(() => null) as BuildResponse | null;
-  if (!build || build.inputMint !== leg.inputMint || build.outputMint !== leg.outputMint || build.inAmount !== leg.amount.toString() || !/^\d+$/.test(build.outAmount ?? "")) return fail("QUOTE_MISMATCH", `Jupiter build did not match the requested ${leg.asset.symbol} leg`, at(leg));
-  return { ok: true, value: build };
-}
-
-/**
- * Builds one swap transaction per leg, paid (network fee + token-account rent) by the Stockpile paymaster and pre-signed by it.
- * The user's wallet only signs the swap. All-or-nothing.
- */
+/** Jupiter builds one order per leg; Stockpile inspects and pre-signs it without modifying the message. */
 export async function prepareBag(request: TradeRequest, walletAddress: string, context: TradeContext | null = null): Promise<Result<PreparedLeg[]>> {
   const split = await tradeLegs(request, context);
   if (!split.ok) return split;
@@ -211,36 +194,32 @@ export async function prepareBag(request: TradeRequest, walletAddress: string, c
 
 async function prepareLegs(legs: Leg[], walletAddress: string, slippageBps: number | null): Promise<Result<PreparedLeg[]>> {
   const payer = paymaster();
+  if (!payer) return fail("PROVIDER_NOT_CONFIGURED", "Sponsored network fees are not configured on this server");
   const url = rpcUrl();
-  if (!payer || !url) return fail("PROVIDER_NOT_CONFIGURED", "Sponsored network fees are not configured on this server");
-  const payerKey = payer.publicKey.toBase58();
+  if (url) {
+    try {
+      if (await getBalance(url, payer.publicKey.toBase58()) < minimumSponsorBalance(legs.length)) return fail("PROVIDER_ERROR", "Fee sponsor is low on SOL");
+    } catch { return fail("PROVIDER_ERROR", "Fee sponsor balance unavailable"); }
+  }
   const prepared: PreparedLeg[] = [];
   for (const leg of legs) {
-    // A fresh build per attempt: a retry after a failed simulation must not reuse the stale route or blockhash.
-    const result = await withLegRetry(leg, "prepare", () => prepareLeg(leg, walletAddress, payer, url, slippageBps));
+    const result = await withLegRetry(leg, "prepare", () => prepareLeg(leg, walletAddress, payer, slippageBps));
     if (!result.ok) return result;
     prepared.push(result.value);
   }
   return { ok: true, value: prepared };
 }
 
-async function prepareLeg(leg: Leg, walletAddress: string, payer: NonNullable<ReturnType<typeof paymaster>>, url: string, slippageBps: number | null): Promise<Result<PreparedLeg>> {
+async function prepareLeg(leg: Leg, walletAddress: string, payer: NonNullable<ReturnType<typeof paymaster>>, slippageBps: number | null): Promise<Result<PreparedLeg>> {
   const payerKey = payer.publicKey.toBase58();
-  const built = await buildLeg(leg, walletAddress, payerKey, slippageBps);
+  const built = await quoteLeg(leg, slippageBps, { walletAddress, payer: payerKey });
   if (!built.ok) return built;
   const build = built.value;
-  let sponsored: Awaited<ReturnType<typeof compileSponsored>>;
-  try { sponsored = await compileSponsored(build, walletAddress, payer, url); }
-  catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be built`, at(leg)); }
-  if (!sponsored.ok) {
-    if (sponsored.reason === "slippage") return fail("SLIPPAGE_REJECTED", `${leg.asset.symbol}: ${sponsored.message}`, at(leg));
-    if (sponsored.reason === "rpc") return fail("PROVIDER_ERROR", `Couldn't prepare ${leg.asset.symbol}: ${sponsored.message}`, at(leg));
-    if (sponsored.reason === "simulation") return fail("PROVIDER_ERROR", `${leg.asset.symbol} swap would fail: ${sponsored.message}`, at(leg));
-    return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction was refused: ${sponsored.message}`, at(leg));
-  }
-  try {
-    const summary = inspectTransaction(sponsored.transaction);
-    if (summary.feePayer !== payerKey || summary.feePayer === walletAddress) return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction is not sponsored`, at(leg));
-  } catch { return fail("INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction could not be inspected`, at(leg)); }
-  return { ok: true, value: { ...toQuoteLeg(leg, build as JupiterQuote), transaction: sponsored.transaction, lastValidBlockHeight: sponsored.lastValidBlockHeight, slippageBps: typeof build.slippageBps === "number" ? build.slippageBps : null, feePayer: payerKey } };
+  const height = build.lastValidBlockHeight;
+  const lastValidBlockHeight = typeof height === "number" || typeof height === "string" && /^\d+$/.test(height) ? Number(height) : NaN;
+  if (typeof build.requestId !== "string" || !build.requestId || !Number.isSafeInteger(lastValidBlockHeight) || lastValidBlockHeight < 0) return fail("INVALID_TRANSACTION", "Jupiter order is missing execution metadata", at(leg));
+  let transaction: string;
+  try { transaction = sponsorSwapTransaction(build.transaction!, payer, walletAddress); }
+  catch (error) { return fail(error instanceof Error && /unsponsorable priority fee/.test(error.message) ? "PROVIDER_ERROR" : "INVALID_TRANSACTION", `Prepared ${leg.asset.symbol} transaction was refused: ${error instanceof Error ? error.message : "invalid transaction"}`, at(leg)); }
+  return { ok: true, value: { ...toQuoteLeg(leg, build), transaction, requestId: build.requestId, lastValidBlockHeight, slippageBps: typeof build.slippageBps === "number" ? build.slippageBps : null, feePayer: payerKey } };
 }

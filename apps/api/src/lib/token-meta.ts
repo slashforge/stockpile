@@ -34,8 +34,18 @@ function parseToken(raw: unknown, asOf: string): TokenMeta | null {
   };
 }
 
+// The same API key also serves the market refresh and quote probes, so a 429 here is routine; one short retry
+// (honouring a small Retry-After) keeps the portfolio priced instead of rendering unpriced balances.
+const retryable = (status: number) => status === 429 || status >= 500;
+function retryDelay(response: Response) {
+  const seconds = Number(response.headers.get("retry-after"));
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 1500) : 300;
+}
+
 async function fetchBatch(mints: string[], key: string): Promise<Map<string, TokenMeta>> {
-  const response = await fetch(`https://api.jup.ag/tokens/v2/search?query=${mints.join(",")}`, { headers: { "x-api-key": key }, signal: AbortSignal.timeout(6000) });
+  const request = () => fetch(`https://api.jup.ag/tokens/v2/search?query=${mints.join(",")}`, { headers: { "x-api-key": key }, signal: AbortSignal.timeout(6000) });
+  let response = await request();
+  if (retryable(response.status)) { await new Promise((resolve) => setTimeout(resolve, retryDelay(response))); response = await request(); }
   if (!response.ok) throw new Error(`Jupiter tokens ${response.status}`);
   const tokens: unknown = await response.json();
   const asOf = new Date().toISOString();
@@ -67,10 +77,11 @@ export async function tokenMetadata(mints: Iterable<string>): Promise<Map<string
         if (meta) result.set(mint, meta);
       }
     } catch {
+      // Keep serving stale metadata for a short while; with nothing stale, cache nothing so the next read retries
+      // instead of pinning a transient outage (e.g. a rate-limit burst) as "unpriced" for every caller.
       for (const mint of batch) {
         const stale = cache.get(mint)?.meta ?? null;
-        cache.set(mint, { expiresAt: Date.now() + failureTtl, meta: stale });
-        if (stale) result.set(mint, stale);
+        if (stale) { cache.set(mint, { expiresAt: Date.now() + failureTtl, meta: stale }); result.set(mint, stale); }
       }
     }
   }

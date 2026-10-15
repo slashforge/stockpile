@@ -12,16 +12,17 @@ export function legLabelProblems(
   index: number,
   total: number,
   side: TradeSide = "buy",
+  allowedSellMints: readonly string[] = [],
 ): string[] {
   const problems: string[] = [];
   const asset = bag.assets.find((candidate) => candidate.mint === legAssetMint(leg, side));
-  if (!asset) {
+  if (!asset && !(side === "sell" && allowedSellMints.includes(leg.inputMint))) {
     problems.push(
       side === "sell"
         ? "This transaction sells a token that isn’t in this bag."
         : "This transaction buys a token that isn’t in this bag.",
     );
-  } else if (asset.symbol !== leg.symbol) problems.push("The token label doesn’t match this bag.");
+  } else if (asset && asset.symbol !== leg.symbol) problems.push("The token label doesn’t match this bag.");
   if (side === "sell") {
     if (leg.outputMint !== USDC_MINT) problems.push("This transaction doesn’t pay out USDC.");
   } else if (leg.inputMint !== USDC_MINT) problems.push("This transaction doesn’t spend USDC.");
@@ -61,6 +62,7 @@ export function totalOutput(legs: Pick<QuoteLeg, "outAmount">[]): bigint {
 }
 
 const FRIENDLY: Partial<Record<NonNullable<TradeError>["code"] | "INVALID_REQUEST", string>> = {
+  INSUFFICIENT_FUNDS: "There isn’t enough balance in your wallet for this trade. Try a smaller amount.",
   NO_POSITION: "You don’t hold any of this bag’s tokens in your wallet.",
   INVALID_REQUEST: "That request wasn’t valid. Try again.",
   NO_WALLET: "Your wallet isn’t ready yet. Try again in a moment.",
@@ -110,14 +112,15 @@ export const IMPACT_CONFIRM_PCT = 5;
 export type ImpactLevel = "ok" | "warn" | "high" | "unknown";
 
 /**
- * Jupiter's `priceImpactPct` (passed through unchanged by the API) is a fraction string:
- * "0.0214" means 2.14%. Returns the percentage, or null when missing/unparseable.
+ * Jupiter's `priceImpactPct` (passed through unchanged by the API) is a signed fraction string:
+ * negative is adverse ("-0.0214" = 2.14% worse), positive is favourable. Returns the adverse
+ * percentage (0 when favourable), or null when missing/unparseable.
  */
 export function impactPercent(priceImpactPct: string | null): number | null {
   if (priceImpactPct == null || priceImpactPct.trim() === "") return null;
   const value = Number(priceImpactPct);
   if (!Number.isFinite(value)) return null;
-  return Math.abs(value) * 100;
+  return Math.max(0, -value) * 100;
 }
 
 export function impactLevel(priceImpactPct: string | null): ImpactLevel {

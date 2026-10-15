@@ -7,12 +7,16 @@ import {
   legsToSign,
   purchaseConfirmMessage,
   purchaseStatus,
+  retryableCount,
   serialize,
+  shownLegState,
 } from "./purchase";
-import type { LegSigningState } from "./signing";
+import { type CarriedLegs, type LegSigningState, NO_CARRIED } from "./signing";
 
 const mints = ["A", "B", "C"];
-const none = new Set<string>();
+const none = NO_CARRIED;
+const boughtB: CarriedLegs = { B: { status: "confirmed", signature: "b0" } };
+const pendingB: CarriedLegs = { B: { status: "submitted", signature: "b0" } };
 
 describe("legsToSign", () => {
   test("signs every fresh leg", () => {
@@ -23,7 +27,11 @@ describe("legsToSign", () => {
       0: { status: "failed", error: "x", signature: "s" },
       2: { status: "failed", error: "cancelled" },
     };
-    expect(legsToSign(mints, states, new Set(["B"]))).toEqual([2]);
+    expect(legsToSign(mints, states, boughtB)).toEqual([2]);
+  });
+  test("never re-sends a mint whose earlier leg is still pending; re-sends one that failed", () => {
+    expect(legsToSign(mints, {}, pendingB)).toEqual([0, 2]);
+    expect(legsToSign(mints, {}, { B: { status: "failed", signature: "b0", error: "x" } })).toEqual([0, 1, 2]);
   });
 });
 
@@ -43,7 +51,21 @@ describe("purchaseStatus", () => {
       0: { status: "confirmed", signature: "a" },
       2: { status: "confirmed", signature: "c" },
     };
-    expect(purchaseStatus(mints, states, new Set(["B"]))).toBe("complete");
+    expect(purchaseStatus(mints, states, boughtB)).toBe("complete");
+  });
+  test("a carried pending leg is never reported complete", () => {
+    const states: Record<number, LegSigningState> = {
+      0: { status: "confirmed", signature: "a" },
+      2: { status: "confirmed", signature: "c" },
+    };
+    expect(purchaseStatus(mints, states, pendingB)).toBe("partial");
+    expect(purchaseStatus(mints, states, pendingB, true)).toBe("running");
+    expect(purchaseStatus(mints, states, { B: { status: "failed", signature: "b0", error: "x" } })).toBe("partial");
+  });
+  test("carried legs outside the current set still count", () => {
+    const states: Record<number, LegSigningState> = { 0: { status: "confirmed", signature: "a" } };
+    expect(purchaseStatus(["A"], states, { Z: { status: "submitted", signature: "z" } })).toBe("partial");
+    expect(purchaseStatus(["A"], states, { Z: { status: "confirmed", signature: "z" } })).toBe("complete");
   });
   test("partial when a leg failed or confirmation is unknown after the run", () => {
     expect(
@@ -74,9 +96,33 @@ describe("purchaseStatus", () => {
 
 describe("legDisplayStatus", () => {
   test("maps signing states and earlier purchases", () => {
-    expect(legDisplayStatus(undefined, false)).toBe("queued");
-    expect(legDisplayStatus({ status: "idle" }, true)).toBe("earlier");
-    expect(legDisplayStatus({ status: "confirmed", signature: "s" }, true)).toBe("confirmed");
+    expect(legDisplayStatus(undefined, undefined)).toBe("queued");
+    expect(legDisplayStatus({ status: "idle" }, boughtB.B)).toBe("earlier");
+    expect(legDisplayStatus(undefined, pendingB.B)).toBe("submitted");
+    expect(legDisplayStatus({ status: "confirmed", signature: "s" }, boughtB.B)).toBe("confirmed");
+  });
+  test("rows fall back to the carried leg for signature and error", () => {
+    expect(shownLegState(undefined, pendingB.B)).toEqual(pendingB.B);
+    expect(shownLegState({ status: "signing" }, pendingB.B)).toEqual({ status: "signing" });
+  });
+});
+
+describe("retryableCount", () => {
+  test("counts signable legs plus carried failures missing from the set", () => {
+    const failedZ: CarriedLegs = { Z: { status: "failed", signature: "z", error: "x" } };
+    expect(retryableCount(mints, { 0: { status: "confirmed", signature: "a" } }, pendingB)).toBe(1);
+    expect(retryableCount(["A"], { 0: { status: "confirmed", signature: "a" } }, failedZ)).toBe(1);
+  });
+  test("a leg that failed or expired on chain is rebuildable; a pending one is not", () => {
+    const expired: Record<number, LegSigningState> = {
+      0: { status: "confirmed", signature: "a" },
+      1: { status: "failed", signature: "b", error: "This swap waited too long and expired." },
+      2: { status: "submitted", signature: "c" },
+    };
+    expect(retryableCount(mints, expired, none)).toBe(1);
+    // The same signed transaction is still never re-sent; only a fresh rebuild is offered.
+    expect(legsToSign(mints, expired, none)).toEqual([]);
+    expect(retryableCount(mints, { 2: { status: "submitted", signature: "c" } }, none)).toBe(2);
   });
 });
 

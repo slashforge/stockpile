@@ -102,25 +102,32 @@ test("tradeErrorMessage prefers friendly copy and names the token", () => {
 describe("price impact", () => {
   const { impactPercent, impactLevel, highImpactLegs } =
     require("./legs") as typeof import("./legs");
-  test("reads Jupiter's fraction string as a percentage", () => {
-    expect(impactPercent("0.0214")).toBeCloseTo(2.14);
+  test("reads Jupiter's signed fraction string as an adverse percentage", () => {
+    expect(impactPercent("-0.0214")).toBeCloseTo(2.14);
+    expect(impactPercent("-0.00062")).toBeCloseTo(0.062);
+    expect(impactPercent("0.0214")).toBe(0);
     expect(impactPercent("0")).toBe(0);
     expect(impactPercent(null)).toBeNull();
     expect(impactPercent("abc")).toBeNull();
   });
   test("warns at 1% and requires confirmation at 5%", () => {
-    expect(impactLevel("0.0099")).toBe("ok");
-    expect(impactLevel("0.01")).toBe("warn");
-    expect(impactLevel("0.0499")).toBe("warn");
-    expect(impactLevel("0.05")).toBe("high");
+    expect(impactLevel("-0.0099")).toBe("ok");
+    expect(impactLevel("-0.01")).toBe("warn");
+    expect(impactLevel("-0.0499")).toBe("warn");
+    expect(impactLevel("-0.05")).toBe("high");
     expect(impactLevel("-0.08")).toBe("high");
     expect(impactLevel(null)).toBe("unknown");
   });
+  test("a favourable price never warns", () => {
+    expect(impactLevel("0.08")).toBe("ok");
+    expect(impactLevel("0.01")).toBe("ok");
+  });
   test("highImpactLegs picks only the legs that need confirmation", () => {
     const legs = [
-      { symbol: "NVDAx", priceImpactPct: "0.0019" },
-      { symbol: "AMDx", priceImpactPct: "0.0214" },
-      { symbol: "NFLXx", priceImpactPct: "0.071" },
+      { symbol: "NVDAx", priceImpactPct: "-0.0019" },
+      { symbol: "AMDx", priceImpactPct: "-0.0214" },
+      { symbol: "NFLXx", priceImpactPct: "-0.071" },
+      { symbol: "TSLAx", priceImpactPct: "0.09" },
     ];
     expect(highImpactLegs(legs).map((leg) => leg.symbol)).toEqual(["NFLXx"]);
   });
@@ -177,6 +184,24 @@ describe("sell legs", () => {
 
   test("totals the USDC out", () => {
     expect(totalOutput([sellLeg, { ...sellLeg, outAmount: "1" }])).toBe(5000001n);
+  });
+
+  test("accepts historical position mints only for sells", () => {
+    const historical = { ...sellLeg, inputMint: "Removed", symbol: "OLD" };
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Removed"])).toEqual([]);
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell").length).toBeGreaterThan(0);
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Unrelated"]).length).toBeGreaterThan(0);
+    expect(legLabelProblems({ ...historical, inputMint: USDC_MINT, outputMint: "Removed" }, sellBag, 0, 1, "buy", ["Removed"]).length).toBeGreaterThan(0);
+  });
+
+  test("position membership does not bypass payout, label, order, or amount checks", () => {
+    expect(legLabelProblems({ ...sellLeg, symbol: "WRONG" }, sellBag, 0, 1, "sell", ["AAPL"]).length).toBeGreaterThan(0);
+    const historical = { ...sellLeg, inputMint: "Removed", outputMint: "OTHER", index: 1, inputAmount: "0" };
+    expect(legLabelProblems(historical, sellBag, 0, 1, "sell", ["Removed"])).toEqual([
+      "This transaction doesn’t pay out USDC.",
+      "Transaction order doesn’t match the quote.",
+      "Invalid input amount.",
+    ]);
   });
 });
 

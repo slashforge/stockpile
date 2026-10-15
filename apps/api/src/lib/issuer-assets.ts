@@ -41,6 +41,8 @@ const mints: Record<string, string> = {
 };
 const decimals = 8;
 
+export function pinnedXStocks(): [string, string][] { return Object.entries(mints); }
+
 export function issuerAsset(symbol: string) {
   const mint = mints[symbol];
   return mint ? { mint, decimals, logoUrl: `https://xstocks-metadata.backed.fi/logos/tokens/${symbol}.png` } : null;

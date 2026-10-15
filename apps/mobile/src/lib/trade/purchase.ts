@@ -1,4 +1,4 @@
-import { canSignLeg, type LegSigningState } from "./signing";
+import { type CarriedLegs, carriedBlocks, canSignLeg, type LegSigningState } from "./signing";
 
 /** Whole-bag purchase status, aggregated from each leg's signing state. */
 export type PurchaseStatus =
@@ -6,7 +6,7 @@ export type PurchaseStatus =
   | "idle"
   /** At least one leg is signing or waiting for confirmation. */
   | "running"
-  /** Every leg confirmed (or was bought in an earlier set). */
+  /** Every leg confirmed (here or in an earlier set). Pending legs never count. */
   | "complete"
   /** Nothing in flight, but some legs failed or never got sent. */
   | "partial";
@@ -15,7 +15,7 @@ export type LegDisplayStatus = "queued" | "signing" | "submitted" | "confirmed" 
 
 export function legDisplayStatus(
   state: LegSigningState | undefined,
-  alreadyBought: boolean,
+  carried: LegSigningState | undefined,
 ): LegDisplayStatus {
   switch (state?.status) {
     case "signing":
@@ -26,36 +26,84 @@ export function legDisplayStatus(
       return "confirmed";
     case "failed":
       return "failed";
+  }
+  switch (carried?.status) {
+    case "confirmed":
+      return "earlier";
+    case "submitted":
+      return "submitted";
+    case "failed":
+      return "failed";
     default:
-      return alreadyBought ? "earlier" : "queued";
+      return "queued";
   }
 }
 
-/** Indices of legs that should be signed now: never broadcast here and not bought in an earlier set. */
+/**
+ * What a leg row shows: this set's state once it has one, else the leg carried from an earlier set
+ * (so pending/failed carried legs keep their explorer link and error).
+ */
+export function shownLegState(
+  state: LegSigningState | undefined,
+  carried: LegSigningState | undefined,
+): LegSigningState | undefined {
+  return state && state.status !== "idle" ? state : carried;
+}
+
+/** Indices of legs that should be signed now: never broadcast here and not pending/done in an earlier set. */
 export function legsToSign(
   outputMints: string[],
   states: Record<number, LegSigningState>,
-  alreadyBought: ReadonlySet<string>,
+  carried: CarriedLegs,
 ): number[] {
   return outputMints.flatMap((mint, index) =>
-    canSignLeg(states[index]) && !alreadyBought.has(mint) ? [index] : [],
+    canSignLeg(states[index]) && !carriedBlocks(carried[mint]) ? [index] : [],
   );
+}
+
+/**
+ * Legs a retry would rebuild: never sent or definitively failed here (on chain or expired, so a
+ * fresh transaction can't double up), plus carried legs that failed and aren't in this set.
+ * Pending legs, here or carried, are never rebuilt.
+ */
+export function retryableCount(
+  assetMints: string[],
+  states: Record<number, LegSigningState>,
+  carried: CarriedLegs,
+): number {
+  const outside = Object.entries(carried).filter(
+    ([mint, state]) => state.status === "failed" && !assetMints.includes(mint),
+  ).length;
+  const here = assetMints.filter(
+    (mint, index) =>
+      (canSignLeg(states[index]) || states[index]?.status === "failed") && !carriedBlocks(carried[mint]),
+  ).length;
+  return here + outside;
+}
+
+/** Carried legs confirmed in earlier sets. */
+export function confirmedEarlier(carried: CarriedLegs): number {
+  return Object.values(carried).filter((state) => state.status === "confirmed").length;
 }
 
 /**
  * `inFlight` is true while a sign-all run is still awaiting results. A leg whose confirmation timed
  * out stays "submitted" after the run ends; it may still land, so the purchase reads as partial.
+ * Carried legs outside this set (e.g. a pending sell of a token no longer in the rebuild) count too.
  */
 export function purchaseStatus(
   outputMints: string[],
   states: Record<number, LegSigningState>,
-  alreadyBought: ReadonlySet<string>,
+  carried: CarriedLegs,
   inFlight = false,
 ): PurchaseStatus {
   if (outputMints.length === 0) return "idle";
-  const display = outputMints.map((mint, index) =>
-    legDisplayStatus(states[index], alreadyBought.has(mint)),
-  );
+  const display = [
+    ...outputMints.map((mint, index) => legDisplayStatus(states[index], carried[mint])),
+    ...Object.entries(carried)
+      .filter(([mint]) => !outputMints.includes(mint))
+      .map(([, state]) => legDisplayStatus(undefined, state)),
+  ];
   if (display.includes("signing")) return "running";
   if (inFlight && display.includes("submitted")) return "running";
   if (display.every((status) => status === "confirmed" || status === "earlier")) return "complete";

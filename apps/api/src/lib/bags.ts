@@ -3,7 +3,7 @@ import { issuerAsset } from "./issuer-assets";
 import { PRESTOCKS_DISCLAIMER, preStock, preStocksDirectory, type PreStock } from "./prestocks";
 import { knownMint, seededMint, verifyListedMint } from "./mint-registry";
 import { xStockListing } from "./xstocks";
-import { assetMarket, bagMarket, liquidityTier, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
+import { assetMarket, bagMarket, cachedScaledUiMultiplier, liquidityTier, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
 import { congressConsensus, loadDisclosures, pelosiTracker, tickerToSymbol, type Evidence, type TrackerAsset } from "./congress";
 
 export type Issuer = "xstocks" | "prestocks";
@@ -197,11 +197,20 @@ export function catalogueName(symbol: string): string | null {
 
 /** IDs of every bag (editorial or tracker) whose current assets include the known mint, in catalogue order. */
 export async function bagIdsForMint(mint: string): Promise<string[]> {
-  const symbol = knownSymbol(mint);
-  if (!symbol) return [];
-  const ids: string[] = [];
-  for (const bag of bags) if ((await bagAssets(bag)).some((asset) => asset.symbol === symbol)) ids.push(bag.id);
-  return ids;
+  return (await bagIdsForMints([mint])).get(mint) ?? [];
+}
+
+/** `bagIdsForMint` for many mints, loading each bag's assets once (tracker bags read the disclosures table). */
+export async function bagIdsForMints(mints: Iterable<string>): Promise<Map<string, string[]>> {
+  const symbols = new Map<string, string>();
+  for (const mint of mints) { const symbol = knownSymbol(mint); if (symbol) symbols.set(mint, symbol); }
+  const result = new Map<string, string[]>();
+  if (!symbols.size) return result;
+  // Sequential on purpose: the first tracker bag fills the disclosures cache, the second reuses it.
+  const assets: Set<string>[] = [];
+  for (const bag of bags) assets.push(new Set((await bagAssets(bag)).map((asset) => asset.symbol)));
+  for (const [mint, symbol] of symbols) result.set(mint, bags.filter((_, i) => assets[i]!.has(symbol)).map((bag) => bag.id));
+  return result;
 }
 
 /**
@@ -214,7 +223,7 @@ export async function resolveAsset(bag: Bag, asset: BagAssetDefinition): Promise
     const snapshot = issuerAsset(asset.symbol);
     const base = { issuer: "xstocks" as const, assetClass: "public-equity" as const, reference: null };
     const seeded = seededMint(asset.symbol);
-    if (seeded) return { ...base, mint: seeded, decimals: snapshot?.decimals ?? null, uiAmountMultiplier: await scaledUiMultiplier(seeded), issuerIconUrl: snapshot?.logoUrl ?? null, issuerMint: snapshot?.mint ?? null };
+    if (seeded) return { ...base, mint: seeded, decimals: snapshot?.decimals ?? null, uiAmountMultiplier: cachedScaledUiMultiplier(seeded), issuerIconUrl: snapshot?.logoUrl ?? null, issuerMint: snapshot?.mint ?? null };
     const listed = await xStockListing(asset.symbol);
     const icons = { issuerIconUrl: listed?.logoUrl ?? snapshot?.logoUrl ?? null, issuerMint: listed?.mint ?? snapshot?.mint ?? null };
     const resolution = listed ? await verifyListedMint(asset.symbol, listed.mint, "xstocks") : null;

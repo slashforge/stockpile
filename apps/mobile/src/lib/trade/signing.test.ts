@@ -1,14 +1,19 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Buffer } from "buffer";
+import bs58 from "bs58";
 import { Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import {
+  base58,
   canSignLeg,
+  definiteRejection,
   isPreparedExpired,
   type LegSigningState,
   PREPARED_TTL_MS,
   signLeg,
+  SubmissionError,
   tradeProgress,
+  transactionSignature,
 } from "./signing";
 
 const wallet = Keypair.generate();
@@ -99,6 +104,67 @@ describe("signLeg", () => {
     const result = await signLeg(unsignedTx(), walletAddress, h.deps);
     expect(result).toEqual({ status: "submitted", signature: "sig-1" });
     expect(canSignLeg(result)).toBe(false);
+  });
+
+  test("lost submit response keeps the signature, polls it and is never re-sendable", async () => {
+    const h = harness({
+      sign: async () => {
+        throw new SubmissionError("Can't reach Stockpile right now.", "sig-lost", false);
+      },
+      confirm: "confirmed",
+    });
+    const result = await signLeg(unsignedTx(), walletAddress, h.deps);
+    expect(result).toEqual({ status: "confirmed", signature: "sig-lost" });
+    expect(h.states.map((s) => s.status)).toEqual(["signing", "submitted", "confirmed"]);
+  });
+
+  test("unknown submit outcome whose status stays unknown remains pending, not failed", async () => {
+    const h = harness({
+      sign: async () => {
+        throw new SubmissionError("Transaction provider is busy.", "sig-lost", false);
+      },
+      confirm: "unknown",
+    });
+    const result = await signLeg(unsignedTx(), walletAddress, h.deps);
+    expect(result).toEqual({ status: "submitted", signature: "sig-lost" });
+    expect(canSignLeg(result)).toBe(false);
+  });
+
+  test("definite rejection (preflight 400) fails without a signature so it can be rebuilt", async () => {
+    const h = harness({
+      sign: async () => {
+        throw new SubmissionError("Transaction simulation failed", "sig-x", true);
+      },
+    });
+    const result = await signLeg(unsignedTx(), walletAddress, h.deps);
+    expect(result.status).toBe("failed");
+    expect(result).not.toHaveProperty("signature");
+    expect(canSignLeg(result)).toBe(true);
+  });
+});
+
+describe("submission outcome", () => {
+  test("only 4xx (except timeouts) are definite rejections", () => {
+    expect(definiteRejection(400)).toBe(true);
+    expect(definiteRejection(401)).toBe(true);
+    expect(definiteRejection(429)).toBe(true);
+    expect(definiteRejection(408)).toBe(false);
+    expect(definiteRejection(0)).toBe(false);
+    expect(definiteRejection(500)).toBe(false);
+    expect(definiteRejection(503)).toBe(false);
+  });
+
+  test("derives the transaction id from the first signature", () => {
+    const tx = VersionedTransaction.deserialize(Buffer.from(unsignedTx(), "base64"));
+    expect(transactionSignature(tx)).toBeNull();
+    tx.sign([wallet]);
+    expect(transactionSignature(tx)).toBe(bs58.encode(tx.signatures[0]!));
+  });
+
+  test("base58 matches the reference encoder, including leading zeros", () => {
+    for (const bytes of [new Uint8Array([0, 0, 1, 2, 255]), new Uint8Array(64).fill(7), new Uint8Array([0])]) {
+      expect(base58(bytes)).toBe(bs58.encode(bytes));
+    }
   });
 });
 
