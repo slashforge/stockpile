@@ -1,10 +1,10 @@
 const env = process.env.EXPO_PUBLIC_ENV;
 const bundleIdentifier = env
-  ? `sh.nitish.stockpile.app.${env}`
-  : `sh.nitish.stockpile.app`;
-const scheme = env ? `stockpile${env}` : `stockpile`;
+  ? `sh.nitish.newsbid.app.${env}`
+  : `sh.nitish.newsbid.app`;
+const scheme = env ? `newsbid${env}` : `newsbid`;
 
-const name = env ? `Stockpile (${env.toUpperCase()})` : "Stockpile";
+const name = env ? `Newsbid (${env.toUpperCase()})` : "Newsbid";
 
 // Release builds block cleartext HTTP. Allow it only when the configured API is plain http
 // (local/LAN testing); https deployments keep Android's default strict policy.
@@ -14,7 +14,7 @@ const allowCleartext = apiUrl.trim().toLowerCase().startsWith("http://");
 const config = {
   expo: {
     name: name,
-    slug: "stockpile",
+    slug: "newsbid",
     version: "1.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",

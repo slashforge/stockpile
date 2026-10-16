@@ -65,7 +65,7 @@ type Props<E extends ElementType> = {
   lines?: number;
 } & Omit<ComponentPropsWithoutRef<E>, "as">;
 
-/** Stockpile type scale: friendly platform sans (SF Pro / system) throughout. */
+/** Newsbid type scale: friendly platform sans (SF Pro / system) throughout. */
 export function T<E extends ElementType = "p">({
   as,
   variant = "body",

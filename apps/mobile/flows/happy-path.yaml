@@ -1,13 +1,13 @@
 executionPrerequisite: >-
   Full happy path, generated from the fragments in this folder (edit those, then re-concatenate).
-  Starts signed out with the dev client on Metro; needs STOCKPILE_TEST_EMAIL and
-  STOCKPILE_TEST_CODE in ~/.argent/secrets.env. Never signs or submits a transaction.
+  Starts signed out with the dev client on Metro; needs NEWSBID_TEST_EMAIL and
+  NEWSBID_TEST_CODE in ~/.argent/secrets.env. Never signs or submits a transaction.
 steps:
   - echo: "== browse-to-detail"
   - echo: Open the story feed
   - tool: open-url
     args:
-      url: "stockpile://"
+      url: "newsbid://"
   - tool: await-ui-element
     args:
       condition: visible
@@ -77,7 +77,7 @@ steps:
   - tool: keyboard
     delayMs: 500
     args:
-      text: "{{secret:STOCKPILE_TEST_EMAIL}}"
+      text: "{{secret:NEWSBID_TEST_EMAIL}}"
   - tool: gesture-tap
     delayMs: 500
     args:
@@ -97,7 +97,7 @@ steps:
   - tool: keyboard
     delayMs: 500
     args:
-      text: "{{secret:STOCKPILE_TEST_CODE}}"
+      text: "{{secret:NEWSBID_TEST_CODE}}"
       key: enter
   - tool: await-ui-element
     args:

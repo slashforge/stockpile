@@ -25,7 +25,7 @@ function RootLayout() {
 function NotFound() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
-      <MessageState icon={IoCompassOutline} title="Page not found" body="That page doesn’t exist in Stockpile." />
+      <MessageState icon={IoCompassOutline} title="Page not found" body="That page doesn’t exist in Newsbid." />
     </div>
   );
 }

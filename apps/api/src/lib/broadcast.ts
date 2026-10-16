@@ -6,7 +6,7 @@ import { execute, JupiterError } from "./jupiter";
 /**
  * Broadcast and confirmation for wallet-signed swaps, relayed server-side so the app never talks to
  * a public RPC (rate-limited) or ships an RPC key. Only transactions the caller's own wallet has
- * signed, paid by that wallet or the Stockpile paymaster, are relayed.
+ * signed, paid by that wallet or the Newsbid paymaster, are relayed.
  *
  * Orders with a requestId use Jupiter Swap v2 execute. Legacy clients still send two ways:
  * - Helius RPC `sendTransaction` with preflight first, which rejects swaps that would fail

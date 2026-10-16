@@ -7,7 +7,7 @@ export type SubmittedTransaction = { signature: string };
  */
 export type SubmitOptions = { bagId?: string; requestId?: string };
 
-export type StockpileAuth = {
+export type NewsbidAuth = {
   /** Privy IDs present in this build. When false the app is browse-only. */
   configured: boolean;
   /** Privy SDK finished restoring the session. */
@@ -18,7 +18,7 @@ export type StockpileAuth = {
   walletAddress: string | null;
   logout: () => Promise<void>;
   /**
-   * Adds the embedded wallet's signature to one base64 transaction (already signed by Stockpile's
+   * Adds the embedded wallet's signature to one base64 transaction (already signed by Newsbid's
    * fee payer) and broadcasts it. Null when no wallet is available. When the wallet signed but the
    * broadcast request failed it throws a `SubmissionError` (lib/trade/signing) carrying the signature
    * and whether the rejection is definite (nothing broadcast) or the outcome is unknown.
@@ -32,7 +32,7 @@ export type StockpileAuth = {
   fundWithCard: (() => Promise<void>) | null;
 };
 
-export const browseOnlyAuth: StockpileAuth = {
+export const browseOnlyAuth: NewsbidAuth = {
   configured: false,
   ready: true,
   authenticated: false,
@@ -43,8 +43,8 @@ export const browseOnlyAuth: StockpileAuth = {
   fundWithCard: null,
 };
 
-export const AuthContext = createContext<StockpileAuth>(browseOnlyAuth);
+export const AuthContext = createContext<NewsbidAuth>(browseOnlyAuth);
 
-export function useStockpileAuth(): StockpileAuth {
+export function useNewsbidAuth(): NewsbidAuth {
   return useContext(AuthContext);
 }

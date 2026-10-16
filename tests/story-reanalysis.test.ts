@@ -8,7 +8,7 @@ const predicates: string[] = [];
 let selectedLimit = 0;
 let claimWon = true;
 const dialect = new PgDialect();
-mock.module("@stockpile/core/db", () => ({ db: {
+mock.module("@newsbid/core/db", () => ({ db: {
   select: () => ({ from: () => ({ where: (condition: SQL) => {
     predicates.push(dialect.sqlToQuery(condition).sql);
     return { orderBy: () => ({ limit: async (limit: number) => { selectedLimit = limit; return rows.slice(0, limit); } }) };

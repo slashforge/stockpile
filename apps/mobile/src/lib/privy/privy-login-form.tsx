@@ -2,10 +2,10 @@ import { useLoginWithEmail } from "@privy-io/expo";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { Field } from "@/components/stockpile/field";
-import { T } from "@/components/stockpile/type";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { Field } from "@/components/newsbid/field";
+import { T } from "@/components/newsbid/type";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { useNewsbidAuth } from "@/providers/auth-context";
 
 type Props = { onSuccess: () => void };
 
@@ -21,7 +21,7 @@ export function PrivyLoginForm({ onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [slow, setSlow] = useState(false);
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const busy = state.status === "sending-code" || state.status === "submitting-code" || (verified && !slow);
 
   // Close only once the app-wide session is visible, so callers never land on a signed-out screen.

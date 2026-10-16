@@ -4,7 +4,7 @@
 // the running sum of lots per (bag, mint), reconciled against live Jupiter holdings (Helius fallback, shared with the portfolio) and
 // priced with the same Jupiter token batch. Nothing here submits transactions.
 import { secret } from "./config";
-import { createId } from "@stockpile/core/db/schema";
+import { createId } from "@newsbid/core/db/schema";
 import { feePayerOf, rawTokenDelta, signersOf, transactionMeta, walletChanges, type Activity, type ActivityPage } from "./activity";
 import { bagAssets, bags, knownSymbol, findBag, resolveAsset, type Bag } from "./bags";
 import { USDC } from "./constants";
@@ -52,7 +52,7 @@ export async function fetchTransaction(signature: string, key: string): Promise<
 export function parseSwap(tx: Json, wallet: string): { ok: true; value: ParsedSwap } | { ok: false; code: LegErrorCode; error: string } {
   const meta = transactionMeta(tx);
   if (meta.failed) return { ok: false, code: "TRANSACTION_FAILED", error: "The transaction failed on-chain" };
-  // Stockpile's paymaster pays the fee on sponsored swaps, so the wallet only has to have signed it.
+  // Newsbid's paymaster pays the fee on sponsored swaps, so the wallet only has to have signed it.
   if (feePayerOf(tx) !== wallet && !signersOf(tx).includes(wallet)) return { ok: false, code: "NOT_YOUR_TRANSACTION", error: "The transaction was not signed by your wallet" };
   const { changes } = walletChanges(tx, wallet);
   const outs = changes.filter((change) => change.delta < 0n), ins = changes.filter((change) => change.delta > 0n);

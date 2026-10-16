@@ -1,4 +1,4 @@
-# Web (`apps/web`, `@stockpile/web`)
+# Web (`apps/web`, `@newsbid/web`)
 
 Vite + React 19 SPA, the web twin of the mobile app. TanStack Router (file-based) + TanStack Query, Tailwind v4,
 Privy (`@privy-io/react-auth`, email OTP + embedded Solana wallet). Deployed by `infra/web.ts` to `app.<host>`.
@@ -15,7 +15,7 @@ Privy (`@privy-io/react-auth`, email OTP + embedded Solana wallet). Deployed by 
 ```
 src/routes/            File routes (__root.tsx = app shell + sheets)
 src/components/ui/     Primitives: T (type scale), buttons, layout (Page, Card, Collapsible…), theme helpers
-src/components/stockpile/  Bag art/cards, story reel, market lines, charts, token avatars
+src/components/newsbid/  Bag art/cards, story reel, market lines, charts, token avatars
 src/components/sheets/ Sign-in, fund, bag preview (bottom sheet on phones, dialog on desktop)
 src/components/trade/  Buy / sell / token-sell flow state + UI (review, slide-to-confirm, progress)
 src/lib, services/api, hooks, utils   Ported verbatim from apps/mobile/src (platform-free logic)

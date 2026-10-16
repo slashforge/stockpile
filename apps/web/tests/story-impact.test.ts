@@ -1,5 +1,5 @@
 import { expect, it } from "bun:test";
-import type { StoryBagConnection } from "@stockpile/api-client";
+import type { StoryBagConnection } from "@newsbid/api-client";
 import { newsPulse, storyImpact } from "../src/lib/story-impact";
 import { storyImpact as mobileImpact } from "../../mobile/src/lib/story-impact";
 

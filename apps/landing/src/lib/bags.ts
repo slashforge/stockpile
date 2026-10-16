@@ -1,7 +1,7 @@
 /**
  * Bag catalogue for the landing page.
  *
- * At build time we try the Stockpile API (`LANDING_API_URL`, default
+ * At build time we try the Newsbid API (`LANDING_API_URL`, default
  * http://localhost:4040). If it is unreachable we fall back to a static
  * snapshot of the same twelve bags. Only composition metadata is used —
  * never prices — so a stale snapshot is still truthful.
@@ -59,7 +59,7 @@ const p = (symbol: string, slug: string, name: string, weightBps: number, brandC
   evidenceCount: 0,
 });
 
-const editorial = { kind: 'editorial' as const, name: 'Stockpile Editorial' };
+const editorial = { kind: 'editorial' as const, name: 'Newsbid Editorial' };
 
 /** Static snapshot of the catalogue (composition only; weights are editorial). */
 export const STATIC_BAGS: LandingBag[] = [

@@ -35,7 +35,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
   const background = '#f5f6fb';
   const path = normalize(pathname);
   const label = getPageLabel(path);
-  const url = path === '/' ? 'stockpile.cash' : `stockpile.cash${path}`;
+  const url = path === '/' ? 'newsbid.trade' : `newsbid.trade${path}`;
 
   return Promise.resolve(
     h(
@@ -102,7 +102,7 @@ export async function renderOpenGraphImage({ title, description, pathname }) {
                   letterSpacing: '-0.03em',
                 },
               },
-              'Stockpile',
+              'Newsbid',
             ),
           ),
           h(

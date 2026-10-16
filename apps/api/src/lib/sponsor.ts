@@ -2,7 +2,7 @@ import { secret } from "./config";
 import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 
-/** Jupiter orders use Stockpile's paymaster for fees and ATA rent only; the wallet signs the swap. */
+/** Jupiter orders use Newsbid's paymaster for fees and ATA rent only; the wallet signs the swap. */
 const ATA_PROGRAM = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 const MAX_COMPUTE_UNITS = 1_400_000n;
 export const MAX_PRIORITY_FEE_LAMPORTS = 200_000n;
@@ -44,7 +44,7 @@ export function inspectSponsoredSwap(transaction: VersionedTransaction, payer: P
   const { message } = transaction;
   const keys = message.staticAccountKeys;
   const signers = keys.slice(0, message.header.numRequiredSignatures);
-  if (!signers[0]?.equals(payer) || payer.equals(taker)) throw new SwapSponsorshipError("The swap is not paid by Stockpile's paymaster");
+  if (!signers[0]?.equals(payer) || payer.equals(taker)) throw new SwapSponsorshipError("The swap is not paid by Newsbid's paymaster");
   if (!signers.some((key) => key.equals(taker)) || signers.some((key) => !key.equals(payer) && !key.equals(taker))) throw new SwapSponsorshipError("Unexpected swap signers");
   if (!transaction.signatures[0]?.every((byte) => byte === 0)) throw new SwapSponsorshipError("The swap is already signed by the paymaster");
   if (keys.slice(1).some((key) => key.equals(payer))) throw new SwapSponsorshipError("Duplicate paymaster key");

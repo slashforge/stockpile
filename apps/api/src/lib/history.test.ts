@@ -7,7 +7,7 @@ const now = new Date("2026-09-25T12:00:00Z");
 const nowSec = Math.floor(now.getTime() / 1000);
 // price_snapshots rows served by the mocked DB (hourly, flat), keyed per mint.
 let snapshotRows: { mint: string; usdPrice: string; ts: Date }[] = [];
-mock.module("@stockpile/core/db", () => ({ db: { select: () => ({ from: () => ({ where: () => ({ orderBy: async () => snapshotRows, then: (resolve: (rows: unknown) => void) => resolve(snapshotRows) }) }) }), insert: () => ({ values: () => ({ onConflictDoNothing: async () => undefined }) }) } }));
+mock.module("@newsbid/core/db", () => ({ db: { select: () => ({ from: () => ({ where: () => ({ orderBy: async () => snapshotRows, then: (resolve: (rows: unknown) => void) => resolve(snapshotRows) }) }) }), insert: () => ({ values: () => ({ onConflictDoNothing: async () => undefined }) }) } }));
 
 const { assetChart, bagHistory, bagIndex, changePct, rangeInterval } = await import("./history");
 const { bags } = await import("./bags");

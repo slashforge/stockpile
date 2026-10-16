@@ -5,13 +5,13 @@ import { SellAmountStep } from "@/components/trade/sell-amount";
 import { MessageState, Skeleton } from "@/components/ui/layout";
 import { formatUsdValue } from "@/lib/portfolio";
 import { tradeErrorMessage } from "@/lib/trade/legs";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 
 export const Route = createFileRoute("/sell/$bagId/")({ component: SellAmountScreen });
 
 function SellAmountScreen() {
   const flow = useSellFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const navigate = useNavigate();
   const { bag, quote, prepare, prepared, portionBps, position } = flow;
 

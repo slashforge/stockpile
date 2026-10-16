@@ -2,7 +2,7 @@ import type { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import type { GradientName } from "@/config/theme";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { HeroState } from "./hero-state";
 import { LoadingState } from "./layout";
 import { useSignInSheet } from "./sign-in-sheet";
@@ -25,7 +25,7 @@ export function AuthGate({
   gradient?: GradientName;
   children: React.ReactNode;
 }) {
-  const { configured, ready, authenticated } = useStockpileAuth();
+  const { configured, ready, authenticated } = useNewsbidAuth();
   const { requestSignIn } = useSignInSheet();
 
   if (!configured) {

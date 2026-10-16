@@ -562,7 +562,7 @@ export type PreparedTransaction = QuoteLeg & {
      */
     requestId: string;
     /**
-     * Base64 legacy or v0 Jupiter order transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature.
+     * Base64 legacy or v0 Jupiter order transaction, already signed by the Newsbid fee payer; the user's wallet adds its signature.
      */
     transaction: string;
     lastValidBlockHeight: number | null;
@@ -571,7 +571,7 @@ export type PreparedTransaction = QuoteLeg & {
      */
     slippageBps: number | null;
     /**
-     * Stockpile paymaster that pays the network fee and token-account rent.
+     * Newsbid paymaster that pays the network fee and token-account rent.
      */
     feePayer: string;
 };
@@ -586,7 +586,7 @@ export type SubmitTransactionRequest = {
      */
     requestId?: string;
     /**
-     * Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored).
+     * Base64 transaction fully signed by the user's wallet (and the Newsbid fee payer when sponsored).
      */
     transaction: string;
     /**
@@ -1224,7 +1224,7 @@ export type SubmitTransactionError = SubmitTransactionErrors[keyof SubmitTransac
 
 export type SubmitTransactionResponses = {
     /**
-     * Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status
+     * Execute through Jupiter (legacy: Newsbid RPC); confirm with /trade/status
      */
     200: SubmitTransactionResponse;
 };

@@ -40,7 +40,7 @@ type Props = TextProps & {
   align?: "left" | "center" | "right";
 };
 
-/** Stockpile type scale: friendly platform sans (SF Pro / Roboto) throughout. */
+/** Newsbid type scale: friendly platform sans (SF Pro / Roboto) throughout. */
 export function T({ variant = "body", tone = "primary", align, style, ...props }: Props) {
   styles.useVariants({ variant, tone });
   return (

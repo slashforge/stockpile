@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { PRIVY_CONFIGURED } from "@/config/env";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { usePrivyMounted } from "@/providers/root-provider";
 import { Sheet } from "./sheet";
 
@@ -40,7 +40,7 @@ function SignInArt() {
 }
 
 export function SignInSheetProvider({ children }: { children: ReactNode }) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const privyMounted = usePrivyMounted();
   const [open, setOpen] = useState(false);
   // Remount the form on every open so a previous attempt never leaks into the next.

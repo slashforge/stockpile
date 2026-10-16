@@ -3,8 +3,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { waitForConfirmation } from "@/lib/solana/rpc";
 import { serialize } from "@/lib/trade/purchase";
 import { canSignLeg, type LegSigningState, signLeg as runSignLeg } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
-import { prepareTrade, quoteTrade } from "@/services/api/stockpile";
+import { useNewsbidAuth } from "@/providers/auth-context";
+import { prepareTrade, quoteTrade } from "@/services/api/newsbid";
 import type { TradeRequest } from "@/services/api/types";
 import { queryKeys } from "./query-keys";
 
@@ -34,7 +34,7 @@ export function usePrepareTrade() {
  * Nothing is signed unless `signLeg` is called for that index.
  */
 export function useLegSigning(bagId?: string) {
-  const { signAndSendTransaction, walletAddress } = useStockpileAuth();
+  const { signAndSendTransaction, walletAddress } = useNewsbidAuth();
   // Tags every submit with the bag so the server links confirmed legs itself, and with the leg's
   // Jupiter order id so it is executed through Jupiter.
   const send = useMemo(

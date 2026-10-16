@@ -12,7 +12,7 @@ import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useBag } from "@/hooks/use-bags";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
 import { formatBps } from "@/utils/amounts";
 import { AllocationBar, useAssetColors } from "./allocation";
@@ -47,7 +47,7 @@ function BagSheetBody({
   onBuy: () => void;
   bottomInset: number;
 }) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const bag = useBag(bagId);
   const assets = bag.data?.assets ?? [];
   const colors = useAssetColors(assets);

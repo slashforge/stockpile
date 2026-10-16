@@ -2,13 +2,13 @@ import { router } from "expo-router";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { bagTradable, researchOnlyReason } from "@/components/stockpile/bag-card";
-import { Chip, heroSize } from "@/components/stockpile/buy/controls";
-import { useBuyFlow } from "@/components/stockpile/buy/flow-context";
-import { MessageState, Skeleton } from "@/components/stockpile/layout";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { UsdcLogo } from "@/components/stockpile/token-logos";
-import { T } from "@/components/stockpile/type";
+import { bagTradable, researchOnlyReason } from "@/components/newsbid/bag-card";
+import { Chip, heroSize } from "@/components/newsbid/buy/controls";
+import { useBuyFlow } from "@/components/newsbid/buy/flow-context";
+import { MessageState, Skeleton } from "@/components/newsbid/layout";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { UsdcLogo } from "@/components/newsbid/token-logos";
+import { T } from "@/components/newsbid/type";
 import Numpad from "@/components/ui/numpad";
 import {
   type AmountKey,
@@ -17,15 +17,15 @@ import {
   formatAmountInput,
 } from "@/lib/trade/amount-input";
 import { tradeErrorMessage } from "@/lib/trade/legs";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatBaseUnits, formatMoney } from "@/utils/amounts";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 const PRESETS = ["10", "25", "50", "100"];
 
 export default function BuyAmountScreen() {
   const flow = useBuyFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const insets = useSafeAreaInsets();
   const {
     bag,

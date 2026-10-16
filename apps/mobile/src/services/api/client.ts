@@ -1,4 +1,4 @@
-import { client } from "@stockpile/api-client";
+import { client } from "@newsbid/api-client";
 import { API_URL } from "@/config/env";
 import { getIdentityToken } from "./identity-token";
 
@@ -16,5 +16,5 @@ client.interceptors.request.use(async (request) => {
   return request;
 });
 
-export * from "@stockpile/api-client";
+export * from "@newsbid/api-client";
 export { API_URL };

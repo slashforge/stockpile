@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useCarriedLegs } from "@/components/stockpile/buy/flow-context";
+import { useCarriedLegs } from "@/components/newsbid/buy/flow-context";
 import { queryKeys } from "@/hooks/query-keys";
 import { useLooseHoldings } from "@/hooks/use-loose-holdings";
 import { useLegSigning } from "@/hooks/use-trade";
@@ -17,8 +17,8 @@ import {
   NO_CARRIED,
   secondsUntilExpiry,
 } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
-import { prepareTokenSell, quoteTokenSell } from "@/services/api/stockpile";
+import { useNewsbidAuth } from "@/providers/auth-context";
+import { prepareTokenSell, quoteTokenSell } from "@/services/api/newsbid";
 import type { PreparedTransaction, TokenSellPrepared, TokenSellRequest } from "@/services/api/types";
 
 /** Everything that blocks signing a token-sell leg: decode errors, unsafe instructions, label mismatches. */
@@ -45,7 +45,7 @@ export function tokenLegBlocking(
  */
 function useTokenSellFlowState(mints: string[]) {
   const navigation = useNavigation();
-  const { authenticated, walletAddress } = useStockpileAuth();
+  const { authenticated, walletAddress } = useNewsbidAuth();
   const loose = useLooseHoldings();
   const signing = useLegSigning();
   const prepare = useMutation({ mutationFn: (request: TokenSellRequest) => prepareTokenSell(request) });

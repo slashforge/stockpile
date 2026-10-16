@@ -3,7 +3,7 @@ import { useBlocker, useRouter, useRouterState } from "@tanstack/react-router";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { IoChevronBack, IoClose } from "react-icons/io5";
 import { useFundSheet } from "@/components/sheets/fund-sheet";
-import { LogoCluster } from "@/components/stockpile/bag-art";
+import { LogoCluster } from "@/components/newsbid/bag-art";
 import { T } from "@/components/ui/type";
 import { queryKeys } from "@/hooks/query-keys";
 import { usePortfolio } from "@/hooks/use-account";
@@ -27,8 +27,8 @@ import {
   pollUntilSettled,
   secondsUntilExpiry,
 } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
-import { prepareTokenSell, quoteTokenSell, quoteTrade } from "@/services/api/stockpile";
+import { useNewsbidAuth } from "@/providers/auth-context";
+import { prepareTokenSell, quoteTokenSell, quoteTrade } from "@/services/api/newsbid";
 import type {
   BagAsset,
   PreparedTrade,
@@ -257,7 +257,7 @@ export function minTotalOut(legs: QuoteLeg[]) {
 
 function useSellFlowState(bagId: string) {
   const core = useTradeFlowCore(bagId, "sell");
-  const { authenticated, walletAddress } = useStockpileAuth();
+  const { authenticated, walletAddress } = useNewsbidAuth();
   const { position, query: positions } = useBagPosition(bagId);
   const [portionBps, setPortionBps] = useState<number>(10000);
   // Sell: the server sizes each leg from what the wallet holds times `portionBps`.
@@ -309,7 +309,7 @@ export function tokenLegBlocking(
  * links swaps to a bag: the server only sells loose balances, so bag positions are untouched.
  */
 function useTokenSellFlowState(mints: string[]) {
-  const { authenticated, walletAddress } = useStockpileAuth();
+  const { authenticated, walletAddress } = useNewsbidAuth();
   const loose = useLooseHoldings();
   const signing = useLegSigning();
   const prepare = useMutation({ mutationFn: (request: TokenSellRequest) => prepareTokenSell(request) });

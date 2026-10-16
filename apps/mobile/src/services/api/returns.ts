@@ -1,7 +1,7 @@
-import type { BagReturnsResponse } from "@stockpile/api-client";
+import type { BagReturnsResponse } from "@newsbid/api-client";
 import { normalizePoints } from "./charts";
 import { getBagReturns as sdkGetBagReturns } from "./client";
-import { unwrap } from "./stockpile";
+import { unwrap } from "./newsbid";
 
 /** Longer-horizon index returns for one bag. Percentages; null when the window has no history. */
 export type BagReturnEntry = {

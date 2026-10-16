@@ -2,7 +2,7 @@ import { domains } from "./domains";
 import { isDeployed } from "./utils";
 
 const AUTH_FROM_EMAIL = "onboarding@resend.dev";
-const APP_SCHEME = "stockpile";
+const APP_SCHEME = "newsbid";
 
 export const appConfig = new sst.Linkable("AppConfig", {
   properties: isDeployed()

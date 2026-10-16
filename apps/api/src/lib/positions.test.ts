@@ -96,7 +96,7 @@ describe("parseSwap", () => {
     expect(parseSwap({ ...buyTx(1, NVDAX, "1000000", "440000"), meta: { ...buyTx(1, NVDAX, "1000000", "440000").meta, err: { InstructionError: [0, "Custom"] } } }, WALLET)).toMatchObject({ ok: false, code: "TRANSACTION_FAILED" });
     expect(parseSwap(buyTx(1, NVDAX, "1000000", "440000"), OTHER)).toMatchObject({ ok: false, code: "NOT_YOUR_TRANSACTION" });
     expect(parseSwap(swapTx(4, { feePayer: OTHER, pre: [], post: [] }), WALLET)).toMatchObject({ ok: false, code: "NOT_YOUR_TRANSACTION" });
-    // Sponsored swap: the Stockpile paymaster pays the fee, the wallet signs as the second signer.
+    // Sponsored swap: the Newsbid paymaster pays the fee, the wallet signs as the second signer.
     const sponsored = buyTx(7, NVDAX, "1000000", "440000");
     const keys = sponsored.transaction.message.accountKeys;
     keys.unshift({ pubkey: "PAYmaster1111111111111111111111111111111111", signer: true, writable: true, source: "transaction" });

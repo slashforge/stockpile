@@ -1,12 +1,12 @@
 import { router } from "expo-router";
-import { AuthGate } from "@/components/stockpile/auth-gate";
-import { BagCard } from "@/components/stockpile/bag-card";
-import { HeroState } from "@/components/stockpile/hero-state";
-import { CardSkeleton, Screen } from "@/components/stockpile/layout";
+import { AuthGate } from "@/components/newsbid/auth-gate";
+import { BagCard } from "@/components/newsbid/bag-card";
+import { HeroState } from "@/components/newsbid/hero-state";
+import { CardSkeleton, Screen } from "@/components/newsbid/layout";
 import { useSavedBagIds } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";
 import { useBagReturns } from "@/hooks/use-returns";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 
 function SavedList() {
   const saved = useSavedBagIds();
@@ -65,7 +65,7 @@ function SavedList() {
 
 export default function SavedScreen() {
   const saved = useSavedBagIds();
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return (
     <Screen title="Saved" onRefresh={authenticated ? () => saved.refetch() : undefined}>
       <AuthGate

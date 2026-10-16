@@ -4,8 +4,8 @@
 // same candle shape (o=h=l=c=snapshot price, v=null) and labelled `source:"snapshot"` so the client can say so.
 import { secret } from "./config";
 import { and, asc, gte, inArray, lte } from "drizzle-orm";
-import { db } from "@stockpile/core/db";
-import { priceSnapshots } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { priceSnapshots } from "@newsbid/core/db/schema";
 import { bagAssets, resolveAsset, trackAllMints, type Bag } from "./bags";
 import { marketSnapshot } from "./market";
 import { candlesFor, type Candle, type TokensInterval } from "./tokens-api";

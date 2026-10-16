@@ -1,10 +1,10 @@
 ---
-title: 'Introducing Stockpile'
+title: 'Introducing Newsbid'
 description: 'A swipeable feed of real stories, each linked to a source-backed bag of tokenized stocks and pre-IPO tokens you can buy in one flow on Solana.'
 pubDate: 'Sep 25 2026'
 ---
 
-Stockpile is a mobile app for iOS and Android built on Solana. You swipe through a vertical feed of real news,
+Newsbid is a mobile app for iOS and Android built on Solana. You swipe through a vertical feed of real news,
 podcast episodes, and STOCK Act disclosures. Every story is linked to a **bag**: a curated basket of tokenized
 stocks (xStocks) and pre-IPO tokens (PreStocks), with the evidence behind each holding one tap away.
 
@@ -14,7 +14,7 @@ A bag is a weighted list of tokens with a thesis, a curator, a disclosure paragr
 there are twelve:
 
 - **Editorial xStocks bags** — Megacap Builders, AI Infrastructure, Consumer Frontiers, Crypto & Fintech Rails,
-  Cloud & Software, Everyday Brands, Index Basics. Hand-picked by Stockpile Editorial from the issuer's product directory and
+  Cloud & Software, Everyday Brands, Index Basics. Hand-picked by Newsbid Editorial from the issuer's product directory and
   gated by live Jupiter liquidity (a 10 USDC quote must route with at most 2.5% price impact). Tokens: NVDAx, AAPLx,
   MSFTx, GOOGLx, AMZNx, METAx, TSLAx, NFLXx, AMDx, AVGOx, PLTRx, ORCLx, INTCx, COINx, HOODx, MSTRx, CRCLx, BACx,
   MCDx, WMTx, KOx, PGx, PEPx, SPYx, QQQx, GLDx.
@@ -35,12 +35,12 @@ because a token has no verified mint, it is marked research-only.
 ## Buying a bag
 
 Sign in with email, and a Privy embedded Solana wallet is created for you. Fund it with USDC, choose an amount, and
-Stockpile splits it across the bag by weight and asks Jupiter for one swap per holding. Each transaction is inspected
-on your device and signed by your wallet. Stockpile never holds your keys, never signs, and never submits.
+Newsbid splits it across the bag by weight and asks Jupiter for one swap per holding. Each transaction is inspected
+on your device and signed by your wallet. Newsbid never holds your keys, never signs, and never submits.
 
 ## Disclosures
 
-Stockpile is not investment advice. xStocks and PreStocks are issuer products with their own eligibility rules;
+Newsbid is not investment advice. xStocks and PreStocks are issuer products with their own eligibility rules;
 PreStocks are not available to U.S. persons. Holders do not own the underlying shares. Liquidity can be thin, prices
 can diverge from exchange prices, and total loss is possible. Disclosure bags reflect public filings that lag trades
 by 30–45 days and report ranges rather than amounts.

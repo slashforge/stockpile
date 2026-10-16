@@ -1,9 +1,9 @@
-import type { BagPosition, PositionsResponse } from "@stockpile/api-client";
+import type { BagPosition, PositionsResponse } from "@newsbid/api-client";
 import { classifyRecordResponse, type RecordAttempt } from "@/lib/trade/record-lot";
 import { getBagPositions as sdkGetBagPositions, recordBagLeg as sdkRecordBagLeg } from "./client";
-import { unwrap } from "./stockpile";
+import { unwrap } from "./newsbid";
 
-export type { BagPosition, PositionLeg } from "@stockpile/api-client";
+export type { BagPosition, PositionLeg } from "@newsbid/api-client";
 export type BagPositions = PositionsResponse;
 
 /** Positions with nothing left in the wallet are history, not holdings. */
@@ -22,6 +22,6 @@ export async function recordBagLeg(bagId: string, signature: string): Promise<Re
     const result = await sdkRecordBagLeg({ body: { bagId, signature } });
     return classifyRecordResponse(result.response?.status ?? 0, result.error ?? result.data);
   } catch {
-    return { kind: "error", message: "Can't reach Stockpile right now." };
+    return { kind: "error", message: "Can't reach Newsbid right now." };
   }
 }

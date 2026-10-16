@@ -3,8 +3,8 @@ import { createContext, useContext, useState } from "react";
 import { queryKeys } from "@/hooks/query-keys";
 import { useBagPosition } from "@/hooks/use-positions";
 import { totalOutput } from "@/lib/trade/legs";
-import { useStockpileAuth } from "@/providers/auth-context";
-import { quoteTrade } from "@/services/api/stockpile";
+import { useNewsbidAuth } from "@/providers/auth-context";
+import { quoteTrade } from "@/services/api/newsbid";
 import type { QuoteLeg, TradeRequest } from "@/services/api/types";
 import { useTradeFlowCore } from "./flow-context";
 
@@ -32,7 +32,7 @@ export function sellTotalOut(response: {
 
 function useSellFlowState(bagId: string) {
   const core = useTradeFlowCore(bagId, "sell");
-  const { authenticated, walletAddress } = useStockpileAuth();
+  const { authenticated, walletAddress } = useNewsbidAuth();
   const { position, query: positions } = useBagPosition(bagId);
   const [portionBps, setPortionBps] = useState<number>(10000);
   const request = sellRequest(bagId, portionBps, core.slippageBps);

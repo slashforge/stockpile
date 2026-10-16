@@ -15,14 +15,14 @@ import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel, totalInput } from "@/lib/trade/legs";
 import { legsToSign } from "@/lib/trade/purchase";
 import { isPreparedExpired } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatMoney, shortAddress } from "@/utils/amounts";
 
 export const Route = createFileRoute("/buy/$bagId/review")({ component: BuyReviewScreen });
 
 function BuyReviewScreen() {
   const flow = useBuyFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const navigate = useNavigate();
   const router = useRouter();
   const { bag, prepared, preparedAt, expired, secondsLeft, request, prepare, signing } = flow;
@@ -174,7 +174,7 @@ function BuyReviewScreen() {
       ) : null}
       <T variant="caption" tone="tertiary" align="center">
         Swiping signs every swap from your wallet at once. Estimates move until they land; price protection cancels a swap
-        if the price moves too far. Stockpile covers network fees. Not investment advice.
+        if the price moves too far. Newsbid covers network fees. Not investment advice.
       </T>
     </StepFrame>
   );

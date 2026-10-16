@@ -1,7 +1,7 @@
 import { secret } from "./config";
 import { verifyIdentityToken } from "@privy-io/node";
-import { db } from "@stockpile/core/db";
-import { users } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { users } from "@newsbid/core/db/schema";
 
 export type Identity = { id: string; email: string | null; walletAddress: string | null };
 

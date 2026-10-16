@@ -1,6 +1,6 @@
 import { and, desc, eq, lt, or, sql } from "drizzle-orm";
-import { db } from "@stockpile/core/db";
-import { stories } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { stories } from "@newsbid/core/db/schema";
 
 export async function listStories(limit: number, cursor?: string, bagId?: string, format?: "article" | "podcast" | "disclosure") {
   const match = bagId ? sql`${stories.connections} @> ${JSON.stringify([{ bagId }])}::jsonb` : undefined;

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useSignInSheet } from "@/components/sheets/sign-in-sheet";
 import { cn } from "@/components/ui/type";
 import { useSavedBagIds, useToggleSaved } from "@/hooks/use-account";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 
 /** Bookmark toggle. Signed-out users are sent to sign in; browse-only builds hide it. */
 export function SaveButton({
@@ -16,7 +16,7 @@ export function SaveButton({
   title: string;
   variant?: "plain" | "circle" | "glass";
 }) {
-  const { configured, authenticated } = useStockpileAuth();
+  const { configured, authenticated } = useNewsbidAuth();
   const saved = useSavedBagIds();
   const toggle = useToggleSaved();
   const { requestSignIn } = useSignInSheet();

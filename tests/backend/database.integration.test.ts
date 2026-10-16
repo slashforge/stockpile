@@ -4,12 +4,12 @@ import { Client } from "pg";
 import { Resource } from "sst";
 import { randomUUID } from "node:crypto";
 
-const id = `stockpile-test-${randomUUID()}`;
+const id = `newsbid-test-${randomUUID()}`;
 mock.module("../../apps/api/src/lib/identity", () => ({
   verifyIdentity: async (token: string) => token === "local-test-token" ? { id, email: null, walletAddress: null } : null,
   syncUser: async (identity: { id: string; email: string | null; walletAddress: string | null }) => {
-    const { db } = await import("@stockpile/core/db");
-    const { users } = await import("@stockpile/core/db/schema");
+    const { db } = await import("@newsbid/core/db");
+    const { users } = await import("@newsbid/core/db/schema");
     const [user] = await db.insert(users).values({ id: identity.id, email: identity.email, wallet: identity.walletAddress }).onConflictDoUpdate({ target: users.id, set: { email: identity.email, wallet: identity.walletAddress } }).returning();
     return { id: user!.id, email: user!.email, walletAddress: user!.wallet, createdAt: user!.createdAt.toISOString() };
   },

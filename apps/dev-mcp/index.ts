@@ -25,7 +25,7 @@ const FIXTURES = {
   basic_user_flow: {
     userId: "usr_dev_seed",
     authUserId: "auth_dev_seed",
-    email: "dev.seed@stockpile.local",
+    email: "dev.seed@newsbid.local",
     wallet: "DevSeedWallet1111111111111111111111111111111",
     username: "dev_seed",
   },
@@ -190,7 +190,7 @@ async function resetBasicUserFixture() {
 
 function createDevMcpServer() {
   const server = new McpServer({
-    name: "stockpile-dev-mcp",
+    name: "newsbid-dev-mcp",
     version: "1.0.0",
   });
   const tool = server.tool.bind(server) as (
@@ -406,7 +406,7 @@ app.use("*", cors());
 
 app.get("/health", (c) => c.json({
   status: "ok",
-  service: "stockpile-dev-mcp",
+  service: "newsbid-dev-mcp",
   writeAccessEnabled: WRITE_ACCESS_ENABLED,
   apiBaseUrl: API_BASE_URL,
 }));

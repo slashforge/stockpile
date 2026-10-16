@@ -8,9 +8,9 @@ import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from "@/config/env";
 import { PRIVATE_QUERY_PREFIX } from "@/hooks/query-keys";
 import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
 import { definiteRejection, SubmissionError, transactionSignature } from "@/lib/trade/signing";
-import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
+import { AuthContext, type NewsbidAuth } from "@/providers/auth-context";
 import { clearIdentityTokenGetter, setIdentityTokenGetter } from "@/services/api/identity-token";
-import { ApiError, submitSignedTransaction } from "@/services/api/stockpile";
+import { ApiError, submitSignedTransaction } from "@/services/api/newsbid";
 
 /** True when the JWT is missing an `exp` or expires within a minute. */
 function tokenExpiring(token: string): boolean {
@@ -121,11 +121,11 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     await privyLogout();
   }, [privyLogout, queryClient]);
 
-  const signAndSendTransaction = useMemo<StockpileAuth["signAndSendTransaction"]>(() => {
+  const signAndSendTransaction = useMemo<NewsbidAuth["signAndSendTransaction"]>(() => {
     const address = wallet?.address;
     if (!wallet || !address) return null;
-    // Swaps arrive pre-signed by Stockpile's fee payer, so the wallet only adds its signature. The
-    // exact checked bytes are broadcast through the Stockpile API, never a public RPC from the browser.
+    // Swaps arrive pre-signed by Newsbid's fee payer, so the wallet only adds its signature. The
+    // exact checked bytes are broadcast through the Newsbid API, never a public RPC from the browser.
     // Privy's own confirmation UI is off: the app already shows a review and a slide-to-confirm.
     return async (base64Transaction: string, options?: { bagId?: string; requestId?: string }) => {
       const transaction = decodeTransaction(base64Transaction);
@@ -158,7 +158,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     };
   }, [wallet, signTransaction]);
 
-  const value = useMemo<StockpileAuth>(
+  const value = useMemo<NewsbidAuth>(
     () => ({
       configured: true,
       ready,

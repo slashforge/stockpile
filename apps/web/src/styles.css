@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Stockpile design tokens, mirrored from apps/mobile/src/config/theme.ts (bright, cool, consumer).
+ * Newsbid design tokens, mirrored from apps/mobile/src/config/theme.ts (bright, cool, consumer).
  * Text/background pairs meet WCAG AA; vivid hues are for fills.
  */
 :root {
@@ -130,7 +130,7 @@
   --shadow-bar: var(--shadow-bar);
 }
 
-/* Type scale (apps/mobile/src/components/stockpile/type.tsx). */
+/* Type scale (apps/mobile/src/components/newsbid/type.tsx). */
 @utility t-display {
   font-size: 34px;
   line-height: 40px;

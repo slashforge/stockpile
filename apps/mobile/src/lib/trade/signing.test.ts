@@ -109,7 +109,7 @@ describe("signLeg", () => {
   test("lost submit response keeps the signature, polls it and is never re-sendable", async () => {
     const h = harness({
       sign: async () => {
-        throw new SubmissionError("Can't reach Stockpile right now.", "sig-lost", false);
+        throw new SubmissionError("Can't reach Newsbid right now.", "sig-lost", false);
       },
       confirm: "confirmed",
     });

@@ -6,19 +6,19 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { FlatList, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { LogoCluster } from "@/components/stockpile/bag-art";
-import { Skeleton } from "@/components/stockpile/layout";
-import { useBagSheet } from "@/components/stockpile/bag-sheet";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { StoryReel } from "@/components/stockpile/story-reel";
-import { useTabBarInset } from "@/components/stockpile/tab-bar";
-import { T } from "@/components/stockpile/type";
+import { LogoCluster } from "@/components/newsbid/bag-art";
+import { Skeleton } from "@/components/newsbid/layout";
+import { useBagSheet } from "@/components/newsbid/bag-sheet";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { StoryReel } from "@/components/newsbid/story-reel";
+import { useTabBarInset } from "@/components/newsbid/tab-bar";
+import { T } from "@/components/newsbid/type";
 import { lightImpact, selection } from "@/components/utils/haptics";
 import { useBags } from "@/hooks/use-bags";
 import { collectStories, useFeed } from "@/hooks/use-feed";
 import { relatedBags, type Story } from "@/services/api/feed";
 import type { Bag } from "@/services/api/types";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 /** Full-screen, bright, honest state used for loading/unavailable/empty/error. */
 function FeedState({

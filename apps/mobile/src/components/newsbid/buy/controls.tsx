@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { T } from "@/components/stockpile/type";
+import { T } from "@/components/newsbid/type";
 import type { ImpactLevel } from "@/lib/trade/legs";
 import { formatBps } from "@/utils/amounts";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 /** `null` = automatic: Jupiter picks the limit per swap from live market conditions. */
 export const SLIPPAGE_OPTIONS: { bps: number | null; label: string }[] = [

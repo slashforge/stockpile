@@ -9,7 +9,7 @@ export type WaitOptions = {
   lastValidBlockHeight?: number | null;
 };
 
-/** Stockpile's `/trade/status` accepts up to this many signatures per call. */
+/** Newsbid's `/trade/status` accepts up to this many signatures per call. */
 const BATCH = 50;
 
 type Waiter = { deadline: number; timer: ReturnType<typeof setTimeout>; resolve: (result: ConfirmationResult) => void };

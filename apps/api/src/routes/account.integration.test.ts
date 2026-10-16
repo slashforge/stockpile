@@ -39,7 +39,7 @@ mock.module("../lib/lots-store", () => ({
   insertLot: async (values: Omit<Lot, "createdAt">) => { if (lots.some((lot) => lot.signature === values.signature)) return null; const lot = { ...values, createdAt: new Date() }; lots.push(lot); return lot; },
   lotLinks: async (userId: string, signatures: string[]) => new Map(lots.filter((lot) => lot.userId === userId && signatures.includes(lot.signature)).map((lot) => [lot.signature, lot.bagId])),
 }));
-mock.module("@stockpile/core/db", () => ({
+mock.module("@newsbid/core/db", () => ({
   db: {
     select: () => ({ from: () => ({ where: (expression: unknown) => {
       // Drizzle SQL expressions are exercised; the mock only simulates the single test user.

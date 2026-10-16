@@ -5,7 +5,7 @@ import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { PRIVY_CONFIGURED } from "@/config/env";
 import { successNotification } from "@/components/utils/haptics";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { NativeSheet } from "./native-sheet";
 import { T } from "./type";
 
@@ -48,7 +48,7 @@ function SignInArt() {
 
 export function SignInSheetProvider({ children }: { children: React.ReactNode }) {
   const { theme } = useUnistyles();
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const [open, setOpen] = useState(false);
   // Remount the form on every open so a previous attempt never leaks into the next.
   const [formKey, setFormKey] = useState(0);

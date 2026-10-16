@@ -1,5 +1,5 @@
 import { IoAlertCircle, IoCheckmarkCircle, IoOpenOutline } from "react-icons/io5";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
 import { Spinner } from "@/components/ui/button";
 import { Pill } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";

@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { clearIdentityTokenGetter, setIdentityTokenGetter } from "./identity-token";
-import { ApiError, fetchBags, fetchPortfolio, prepareTrade, saveBag, submitSignedTransaction } from "./stockpile";
+import { ApiError, fetchBags, fetchPortfolio, prepareTrade, saveBag, submitSignedTransaction } from "./newsbid";
 
 type Call = { url: string; method: string; headers: Headers; body: string | null };
 
@@ -81,7 +81,7 @@ describe("error mapping", () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error.isNotFound).toBe(true);
     expect(error.message).not.toContain("<html>");
-    expect(error.message).toContain("Stockpile API");
+    expect(error.message).toContain("Newsbid API");
   });
 
   test("503 means Privy isn't configured on the server", async () => {
@@ -98,7 +98,7 @@ describe("error mapping", () => {
     const error = await fetchBags().catch((e) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(0);
-    expect(error.message).toContain("Can't reach Stockpile");
+    expect(error.message).toContain("Can't reach Newsbid");
   });
 
   test("unavailable trade prepare is data, not an error, and carries no transactions", async () => {

@@ -12,15 +12,15 @@ import {
   IoOpenOutline,
   IoShieldCheckmark,
 } from "react-icons/io5";
-import { useAssetColors } from "@/components/stockpile/allocation";
-import { bagTheme } from "@/components/stockpile/bag-art";
-import { bagTradable, researchOnlyReason, TradeStatus } from "@/components/stockpile/bag-card";
-import { toneClass } from "@/components/stockpile/market";
-import { PriceChart, RangeChips, useChartColor } from "@/components/stockpile/price-chart";
-import { SaveButton } from "@/components/stockpile/save-button";
-import { exposureLine, ImpactBreakdown, ImpactChip, NewsPulseCard } from "@/components/stockpile/story-impact";
-import { formatStoryDate } from "@/components/stockpile/story-reel";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { useAssetColors } from "@/components/newsbid/allocation";
+import { bagTheme } from "@/components/newsbid/bag-art";
+import { bagTradable, researchOnlyReason, TradeStatus } from "@/components/newsbid/bag-card";
+import { toneClass } from "@/components/newsbid/market";
+import { PriceChart, RangeChips, useChartColor } from "@/components/newsbid/price-chart";
+import { SaveButton } from "@/components/newsbid/save-button";
+import { exposureLine, ImpactBreakdown, ImpactChip, NewsPulseCard } from "@/components/newsbid/story-impact";
+import { formatStoryDate } from "@/components/newsbid/story-reel";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
 import { PrimaryButton } from "@/components/ui/button";
 import { Collapsible, Divider, MessageState, Page, Skeleton } from "@/components/ui/layout";
 import { GRADIENT_CLASS } from "@/components/ui/theme";
@@ -40,7 +40,7 @@ import {
 } from "@/lib/market";
 import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
 import { newsPulse, type StoryImpact, storyImpact } from "@/lib/story-impact";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { type BagChart, type ChartPoint, type ChartRange, isDrawable } from "@/services/api/charts";
 import { connectionFor, type Story } from "@/services/api/feed";
 import type { BagPosition } from "@/services/api/positions";
@@ -466,7 +466,7 @@ function RelatedStories({ bag }: { bag: Bag }) {
 
 // Fallback only; the API supplies bag-specific risks.
 const GENERAL_RISKS = [
-  "Inclusion and weights are Stockpile's reading of the sources, not claims by them or a recommendation.",
+  "Inclusion and weights are Newsbid's reading of the sources, not claims by them or a recommendation.",
   "Tokenized stocks are issued by third parties, may not carry shareholder rights and can trade away from the share price.",
   "Prices can fall. Swaps have slippage and network fees, and you may lose money.",
 ];
@@ -489,7 +489,7 @@ function DetailSkeleton() {
 
 /** Buy / sell actions and position summary. Footer on small screens, side card on large ones. */
 function TradeActions({ bag, position }: { bag: Bag; position: BagPosition | null }) {
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const openBuy = useOpenBuy();
   const openSell = useOpenSell();
   if (!auth.configured) return null;
@@ -542,7 +542,7 @@ function BagScreen() {
   const [range, setRange] = useState<ChartRange>("1M");
   const chart = useBagChart(id, range);
   const openBuy = useOpenBuy();
-  const { configured } = useStockpileAuth();
+  const { configured } = useNewsbidAuth();
   const { position } = useBagPosition(id);
 
   // `/bag/<id>?buy=1` opens "Put money in the bag" once the bag has loaded (same as the mobile deep link).

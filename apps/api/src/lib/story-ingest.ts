@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
-import { db } from "@stockpile/core/db";
-import { stories } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { stories } from "@newsbid/core/db/schema";
 import { canonicalUrl, curate, editorial, safeText, storyId, type Draft } from "./story-curator";
 import { boundedBody, fetchNoRedirect } from "./strict-fetch";
 import { secret } from "./config";

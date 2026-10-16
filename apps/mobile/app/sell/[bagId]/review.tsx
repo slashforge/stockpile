@@ -3,24 +3,24 @@ import { useMemo, useState } from "react";
 import { Alert, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native-unistyles";
-import { protectionLabel } from "@/components/stockpile/buy/controls";
-import { legBlocking, LegRow } from "@/components/stockpile/buy/leg-row";
-import { sellTotalOut, useSellFlow } from "@/components/stockpile/buy/sell-flow-context";
-import { Card, Divider, MessageState, Notice, Pill } from "@/components/stockpile/layout";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { SlideToConfirm } from "@/components/stockpile/slide-to-confirm";
-import { T } from "@/components/stockpile/type";
+import { protectionLabel } from "@/components/newsbid/buy/controls";
+import { legBlocking, LegRow } from "@/components/newsbid/buy/leg-row";
+import { sellTotalOut, useSellFlow } from "@/components/newsbid/buy/sell-flow-context";
+import { Card, Divider, MessageState, Notice, Pill } from "@/components/newsbid/layout";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { SlideToConfirm } from "@/components/newsbid/slide-to-confirm";
+import { T } from "@/components/newsbid/type";
 import { warningNotification } from "@/components/utils/haptics";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel } from "@/lib/trade/legs";
 import { legsToSign } from "@/lib/trade/purchase";
 import { isPreparedExpired } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatMoney, shortAddress } from "@/utils/amounts";
 
 export default function SellReviewScreen() {
   const flow = useSellFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const insets = useSafeAreaInsets();
   const { bag, prepared, preparedAt, expired, secondsLeft, request, prepare, signing, portionBps } = flow;
   const bagData = bag.data;
@@ -151,7 +151,7 @@ export default function SellReviewScreen() {
         ) : null}
         <T variant="caption" tone="tertiary" align="center">
           Your tokens are swapped to USDC in your wallet. Swiping signs every swap at once. Estimates
-          move until they land. Stockpile covers network fees. This can’t be undone.
+          move until they land. Newsbid covers network fees. This can’t be undone.
         </T>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>

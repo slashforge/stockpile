@@ -23,11 +23,11 @@ import {
   IoWalletOutline,
 } from "react-icons/io5";
 import { useCopyFeedback, useFundSheet } from "@/components/sheets/fund-sheet";
-import { AuthGate } from "@/components/stockpile/auth-gate";
-import { LogoCluster } from "@/components/stockpile/bag-art";
-import { GradientCard, HeroState } from "@/components/stockpile/hero-state";
-import { toneClass } from "@/components/stockpile/market";
-import { TokenAvatar, UsdcLogo } from "@/components/stockpile/token-avatar";
+import { AuthGate } from "@/components/newsbid/auth-gate";
+import { LogoCluster } from "@/components/newsbid/bag-art";
+import { GradientCard, HeroState } from "@/components/newsbid/hero-state";
+import { toneClass } from "@/components/newsbid/market";
+import { TokenAvatar, UsdcLogo } from "@/components/newsbid/token-avatar";
 import { PrimaryButton, Spinner } from "@/components/ui/button";
 import { CardSkeleton, Divider, type IconType, Page, Section, Skeleton } from "@/components/ui/layout";
 import { cn, T } from "@/components/ui/type";
@@ -48,7 +48,7 @@ import {
 } from "@/lib/portfolio";
 import { USDC_MINT } from "@/lib/solana/transaction";
 import { spendableUsdc } from "@/lib/trade/balance";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { type BagPosition, heldPositions } from "@/services/api/positions";
 import type { Activity, Bag, Holding, Portfolio } from "@/services/api/types";
 import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
@@ -262,7 +262,7 @@ type Row = {
   usdValue: number | null;
 };
 
-/** USDC and SOL stay in the wallet: USDC is what you sell into and SOL covers fees outside Stockpile. */
+/** USDC and SOL stay in the wallet: USDC is what you sell into and SOL covers fees outside Newsbid. */
 function isSellable(row: Row) {
   return row.mint != null && row.key !== "usdc" && row.key !== "sol";
 }
@@ -571,7 +571,7 @@ function PortfolioBody({
 }) {
   const { holdings: loose, portfolio, positions, settled } = useLooseHoldings();
   const bags = useBags();
-  const { walletAddress: embeddedWallet } = useStockpileAuth();
+  const { walletAddress: embeddedWallet } = useNewsbidAuth();
   const bagsById = useMemo(() => new Map((bags.data ?? []).map((bag) => [bag.id, bag])), [bags.data]);
 
   if (portfolio.isPending) return <CardSkeleton />;

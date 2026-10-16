@@ -1,13 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
 import { recordLotWithRetry } from "@/lib/trade/record-lot";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { fetchPositions, heldPositions, recordBagLeg } from "@/services/api/positions";
 import { queryKeys } from "./query-keys";
 
 /** Per-bag positions derived by the server from linked swaps and the wallet's balances. */
 export function usePositions() {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return useQuery({
     queryKey: queryKeys.positions,
     queryFn: fetchPositions,

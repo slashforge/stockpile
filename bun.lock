@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "stockpile",
+      "name": "newsbid",
       "dependencies": {
         "drizzle-orm": "^0.44.7",
         "pg": "^8.16.3",
@@ -23,9 +23,9 @@
       "name": "api",
       "dependencies": {
         "@hono/zod-openapi": "^1.1.5",
+        "@newsbid/core": "workspace:*",
         "@privy-io/node": "^0.7.0",
         "@solana/web3.js": "^1.98.4",
-        "@stockpile/core": "workspace:*",
         "bs58": "^6.0.0",
         "drizzle-orm": "^0.44.7",
         "fast-xml-parser": "^5.2.5",
@@ -76,7 +76,7 @@
       },
     },
     "apps/mobile": {
-      "name": "@stockpile/mobile",
+      "name": "@newsbid/mobile",
       "version": "1.0.0",
       "dependencies": {
         "@ethersproject/shims": "^5.8.0",
@@ -85,6 +85,7 @@
         "@gorhom/bottom-sheet": "^5.2.14",
         "@hookform/resolvers": "^5.2.2",
         "@legendapp/list": "^3.4.0",
+        "@newsbid/api-client": "workspace:*",
         "@noble/curves": "^2.0.1",
         "@privy-io/expo": "0.63.0",
         "@privy-io/expo-native-extensions": "0.0.6",
@@ -98,7 +99,6 @@
         "@solana/webcrypto-ed25519-polyfill": "^5.1.0",
         "@somesoap/react-native-image-palette": "^1.2.2",
         "@stardazed/streams-text-encoding": "^1.0.2",
-        "@stockpile/api-client": "workspace:*",
         "@tanstack/react-query": "^5.90.10",
         "@types/lodash": "^4.17.20",
         "@ungap/structured-clone": "^1.3.0",
@@ -179,9 +179,10 @@
       },
     },
     "apps/web": {
-      "name": "@stockpile/web",
+      "name": "@newsbid/web",
       "version": "0.0.1",
       "dependencies": {
+        "@newsbid/api-client": "workspace:*",
         "@noble/curves": "^2.4.0",
         "@privy-io/react-auth": "^3.45.0",
         "@solana-program/memo": "^0.10.0",
@@ -189,7 +190,6 @@
         "@solana-program/token": "^0.9.0",
         "@solana/kit": "^5.1.0",
         "@solana/web3.js": "^1.99.0",
-        "@stockpile/api-client": "workspace:*",
         "@tanstack/react-query": "^5.104.0",
         "@tanstack/react-router": "^1.170.40",
         "buffer": "^6.0.3",
@@ -211,22 +211,22 @@
       },
     },
     "functions": {
-      "name": "@stockpile/functions",
+      "name": "@newsbid/functions",
       "version": "0.0.0",
       "dependencies": {
-        "@stockpile/core": "*",
+        "@newsbid/core": "*",
         "sst": "*",
       },
     },
     "packages/api-client": {
-      "name": "@stockpile/api-client",
+      "name": "@newsbid/api-client",
       "version": "0.0.0",
       "devDependencies": {
         "@hey-api/openapi-ts": "^0.84.4",
       },
     },
     "packages/core": {
-      "name": "@stockpile/core",
+      "name": "@newsbid/core",
       "version": "0.0.0",
       "dependencies": {
         "nanoid": "^5.1.5",
@@ -866,6 +866,16 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@0.2.12", "", { "dependencies": { "@emnapi/core": "^1.4.3", "@emnapi/runtime": "^1.4.3", "@tybys/wasm-util": "^0.10.0" } }, "sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ=="],
 
+    "@newsbid/api-client": ["@newsbid/api-client@workspace:packages/api-client"],
+
+    "@newsbid/core": ["@newsbid/core@workspace:packages/core"],
+
+    "@newsbid/functions": ["@newsbid/functions@workspace:functions"],
+
+    "@newsbid/mobile": ["@newsbid/mobile@workspace:apps/mobile"],
+
+    "@newsbid/web": ["@newsbid/web@workspace:apps/web"],
+
     "@noble/ciphers": ["@noble/ciphers@1.3.0", "", {}, "sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw=="],
 
     "@noble/curves": ["@noble/curves@2.0.1", "", { "dependencies": { "@noble/hashes": "2.0.1" } }, "sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw=="],
@@ -1317,16 +1327,6 @@
     "@standard-schema/utils": ["@standard-schema/utils@0.3.0", "", {}, "sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g=="],
 
     "@stardazed/streams-text-encoding": ["@stardazed/streams-text-encoding@1.0.2", "", {}, "sha512-f2Z15BId3t44a/u21yYSGXFAkCyKocmAyduoAy7swnZ4xIfbaZlOWsgly/jDNNOuj6hYQN72UaBRe3Z/tOHfqg=="],
-
-    "@stockpile/api-client": ["@stockpile/api-client@workspace:packages/api-client"],
-
-    "@stockpile/core": ["@stockpile/core@workspace:packages/core"],
-
-    "@stockpile/functions": ["@stockpile/functions@workspace:functions"],
-
-    "@stockpile/mobile": ["@stockpile/mobile@workspace:apps/mobile"],
-
-    "@stockpile/web": ["@stockpile/web@workspace:apps/web"],
 
     "@stripe/crypto": ["@stripe/crypto@1.1.3", "", { "peerDependencies": { "@stripe/stripe-js": "^1.46.0" } }, "sha512-1Qz1B9uuF1wwuu3IXtHP2Rllm/pCOZ80is6jWweoPPQLwTnCjTT1Keia4IHHSSRN88Miq8s8UQ5wT5M0A/b6ZQ=="],
 
@@ -4110,6 +4110,14 @@
 
     "@modelcontextprotocol/sdk/jose": ["jose@6.2.2", "", {}, "sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ=="],
 
+    "@newsbid/mobile/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
+
+    "@newsbid/web/@noble/curves": ["@noble/curves@2.4.0", "", { "dependencies": { "@noble/hashes": "2.4.0" } }, "sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew=="],
+
+    "@newsbid/web/@tanstack/react-query": ["@tanstack/react-query@5.104.0", "", { "dependencies": { "@tanstack/query-core": "5.104.0" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-e1TZmDCQnWIfiDVryIHeA6Idj+Lfx1hORLOhXS/l5wcgvtVD4yYqbTDl378sGQKIi2cSgb0TEMC9cKK8GGoJEw=="],
+
+    "@newsbid/web/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
+
     "@poppinss/colors/kleur": ["kleur@4.1.5", "", {}, "sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ=="],
 
     "@poppinss/dumper/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
@@ -4209,14 +4217,6 @@
     "@solana/web3.js/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "@solana/web3.js/bs58": ["bs58@4.0.1", "", { "dependencies": { "base-x": "^3.0.2" } }, "sha512-Ok3Wdf5vOIlBrgCvTq96gBkJw+JUEzdBgyaza5HLtPm7yTHkjRy8+JzNyHF7BHa0bNWOQIp3m5YF0nnFcOIKLw=="],
-
-    "@stockpile/mobile/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
-
-    "@stockpile/web/@noble/curves": ["@noble/curves@2.4.0", "", { "dependencies": { "@noble/hashes": "2.4.0" } }, "sha512-P4/62zrgfH33CneE3Dn4WhJVA22YUU0eR51wKIan4NVRvwsA0YnPTwWGpNbpuacSujmSFLvyzpyuR30+fbq2Ew=="],
-
-    "@stockpile/web/@tanstack/react-query": ["@tanstack/react-query@5.104.0", "", { "dependencies": { "@tanstack/query-core": "5.104.0" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-e1TZmDCQnWIfiDVryIHeA6Idj+Lfx1hORLOhXS/l5wcgvtVD4yYqbTDl378sGQKIi2cSgb0TEMC9cKK8GGoJEw=="],
-
-    "@stockpile/web/typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
 
     "@tailwindcss/node/jiti": ["jiti@2.7.0", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ=="],
 
@@ -4888,6 +4888,10 @@
 
     "@modelcontextprotocol/sdk/ajv/json-schema-traverse": ["json-schema-traverse@1.0.0", "", {}, "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug=="],
 
+    "@newsbid/web/@noble/curves/@noble/hashes": ["@noble/hashes@2.4.0", "", {}, "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA=="],
+
+    "@newsbid/web/@tanstack/react-query/@tanstack/query-core": ["@tanstack/query-core@5.104.0", "", {}, "sha512-JrC2r/JQlXt7khBSdUpsgxNvybzOg+aITa+ARRMlP2AFo93Y8vIqz077rp+e61mJetSZ0T6AJbwW1JHer1vrPQ=="],
+
     "@privy-io/are-addresses-equal/viem/@noble/curves": ["@noble/curves@1.9.1", "", { "dependencies": { "@noble/hashes": "1.8.0" } }, "sha512-k11yZxZg+t+gWvBbIswW0yoJlu8cHOC7dhunwOzoWH/mXGBiYyR4YY6hAEK/3EUs4UpB8la1RfdRpeGsFHkWsA=="],
 
     "@privy-io/are-addresses-equal/viem/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
@@ -4995,10 +4999,6 @@
     "@safe-global/safe-apps-sdk/viem/ws": ["ws@8.21.0", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g=="],
 
     "@solana/web3.js/bs58/base-x": ["base-x@3.0.11", "", { "dependencies": { "safe-buffer": "^5.0.1" } }, "sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA=="],
-
-    "@stockpile/web/@noble/curves/@noble/hashes": ["@noble/hashes@2.4.0", "", {}, "sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA=="],
-
-    "@stockpile/web/@tanstack/react-query/@tanstack/query-core": ["@tanstack/query-core@5.104.0", "", {}, "sha512-JrC2r/JQlXt7khBSdUpsgxNvybzOg+aITa+ARRMlP2AFo93Y8vIqz077rp+e61mJetSZ0T6AJbwW1JHer1vrPQ=="],
 
     "@tanstack/router-generator/@babel/types/@babel/helper-string-parser": ["@babel/helper-string-parser@7.29.7", "", {}, "sha512-Pb5ijPrZ89GDH8223L4UP8i6QApWxs04RbPQJTeWDV0/keR2E36MeKnyr6LYmUUvqRRI+Iv87SuF1W6ErINzYw=="],
 

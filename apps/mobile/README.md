@@ -1,4 +1,4 @@
-# Stockpile Mobile
+# Newsbid Mobile
 
 Expo (SDK 56) app for discovering source-backed baskets of tokenized stocks, saving them, viewing on-chain
 holdings, and buying a basket through user-approved Jupiter swaps signed by a Privy embedded Solana wallet.
@@ -12,13 +12,13 @@ cp apps/mobile/.env.example apps/mobile/.env   # then fill in values
 
 | Variable | Purpose |
 | --- | --- |
-| `EXPO_PUBLIC_API_URL` | Stockpile API base URL. Simulator: `http://localhost:4040`; device: `http://<LAN-IP>:4040`. |
+| `EXPO_PUBLIC_API_URL` | Newsbid API base URL. Simulator: `http://localhost:4040`; device: `http://<LAN-IP>:4040`. |
 | `EXPO_PUBLIC_PRIVY_APP_ID` / `EXPO_PUBLIC_PRIVY_CLIENT_ID` | Privy app + mobile client IDs. Leave empty for browse-only mode. |
 | `EXPO_PUBLIC_SOLANA_RPC_URL` | RPC used to submit user-signed swaps, read mint decimals and poll confirmations. Defaults to public mainnet RPC (rate limited; use a dedicated RPC in practice). |
 
 `EXPO_PUBLIC_*` values are inlined at bundle time; restart the bundler after changing `.env`. The app no
 longer depends on SST. The Privy client ID's allowed app identifiers must include the bundle ID
-(`sh.nitish.stockpile.app[.<env>]`) and URL scheme from `app.config.ts`.
+(`sh.nitish.newsbid.app[.<env>]`) and URL scheme from `app.config.ts`.
 
 **Native modules changed** (`@privy-io/expo`, `@privy-io/expo-native-extensions`, `expo-application`,
 `@solana/web3.js` runtime). Rebuild the dev client (`bunx expo run:ios` / `run:android` or an EAS dev
@@ -54,7 +54,7 @@ src/lib/privy/         All @privy-io/expo usage (provider bridge, login form)
 src/lib/solana/        Transaction inspection, RPC helpers
 src/services/api/      Generated SDK client config, typed wrappers (contract types in types.ts)
 src/hooks/             TanStack Query hooks (baskets, account, trade, mint decimals)
-src/components/stockpile/  Design system: type scale (T), Screen/Card/Section/states, buttons, fields, tab bar, basket cards
+src/components/newsbid/  Design system: type scale (T), Screen/Card/Section/states, buttons, fields, tab bar, basket cards
 src/config/theme.ts    Tokens: `theme.ds` (paper/ink/green palette), `theme.chart`, `theme.fonts`
 ```
 
@@ -65,13 +65,13 @@ oversized real token logos (`basket-art.tsx`). Stories render as full-screen ver
 never stock photos. Tapping a reel's pile opens `PileSheetProvider`'s bottom sheet. Tabs use
 `expo-router/unstable-native-tabs` (Liquid Glass on iOS 26+, Material bottom navigation on Android).
 
-Token logos: `TokenAvatar` (`src/components/stockpile/token-avatar.tsx`) renders the API's `asset.iconUrl` with `expo-image`
+Token logos: `TokenAvatar` (`src/components/newsbid/token-avatar.tsx`) renders the API's `asset.iconUrl` with `expo-image`
 (`cachePolicy="memory-disk"`), accepting HTTPS URLs only. It falls back to a ticker monogram when the URL is missing or fails
 to load. Logos are branding only: tradability still depends solely on `asset.mint` (see `basketTradable`). The app
 never calls Jupiter directly; icon URLs are resolved and cached server-side.
 
 API contract: `docs/api-contract.md`. After backend changes run `bun run generate:sdk` at the root;
-`src/services/api/stockpile.ts` assigns SDK responses to the contract types so drift fails typecheck.
+`src/services/api/newsbid.ts` assigns SDK responses to the contract types so drift fails typecheck.
 
 ## Checks
 
@@ -79,21 +79,21 @@ API contract: `docs/api-contract.md`. After backend changes run `bun run generat
 cd apps/mobile
 bunx tsc --noEmit
 bun test src
-bunx eslint app src/components/stockpile src/lib src/hooks src/services src/config
+bunx eslint app src/components/newsbid src/lib src/hooks src/services src/config
 ```
 
 Unit coverage (`bun test src`):
 
 - `src/config/env.test.ts`: Privy gating needs both IDs (whitespace ignored), API URL defaults and normalisation.
 - `src/providers/auth-provider.test.tsx`: without IDs the provider is browse-only, cannot sign, and never loads `@privy-io`.
-- `src/services/api/stockpile.test.ts`: the real generated SDK client against a mocked `fetch`. Covers public calls without a token, the `privy-id-token` header when signed in, a failing token getter, server error messages, 401/404/503 mapping, network failure, and unavailable prepare as data.
+- `src/services/api/newsbid.test.ts`: the real generated SDK client against a mocked `fetch`. Covers public calls without a token, the `privy-id-token` header when signed in, a failing token getter, server error messages, 401/404/503 mapping, network failure, and unavailable prepare as data.
 - `src/lib/solana/transaction.test.ts`: on-device transaction inspection (fee payer / sole signer / no wallet / bad base64).
 - `src/lib/trade/signing.test.ts`: the approval and signing state machine. Unsafe or undecodable transactions never reach the wallet; a user rejection is retryable; anything broadcast is never re-sent; partial completion is tracked without claiming success; prepared transactions expire.
 - `src/utils/amounts.test.ts`: exact decimal/base-unit conversion.
 
 ## Wallet funding
 
-"Add funds" opens a sheet from three places: the Portfolio wallet card, the Account wallet row, and the buy sheet's "Add USDC" button. The sheet (`src/components/stockpile/fund-sheet.tsx`) shows:
+"Add funds" opens a sheet from three places: the Portfolio wallet card, the Account wallet row, and the buy sheet's "Add USDC" button. The sheet (`src/components/newsbid/fund-sheet.tsx`) shows:
 
 - A QR code of the embedded Solana wallet address, drawn with `react-native-qrcode-styled`. It's pure JS on `react-native-svg` and is a required peer of `@privy-io/expo/ui`, so no dev-client rebuild is needed.
 - The address, with Copy and Share buttons.
@@ -120,7 +120,7 @@ These requests don't come from the app. They come from a host daemon.
 
 - Neither the app bundle nor the mobile SDKs (`@privy-io/*`, `@solana/*`, `expo-*`) contain the string `quarantine`. The only match in `node_modules` is an unrelated Cloudflare Queues comment in `wrangler`.
 - `lsof -nP -iTCP:4040` shows the peer is `~/.local/bin/cred daemon --foreground`. That is the opencred daemon, started by `~/Library/LaunchAgents/xyz.opencred.daemon.plist`. The binary polls `/v1/quarantine/intents`.
-- `~/.config/opencred/config.json` sets `cloud.url` to `http://localhost:4040`. That is the same port as the Stockpile API, so the daemon polls our API and gets 404s.
+- `~/.config/opencred/config.json` sets `cloud.url` to `http://localhost:4040`. That is the same port as the Newsbid API, so the daemon polls our API and gets 404s.
 
 The app needs no changes. To stop the noise, point opencred's `cloud.url` at its own server, or run the API on a different port and update `EXPO_PUBLIC_API_URL`.
 
@@ -141,7 +141,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
   `.env` delete `android/app/build/generated/assets/react/release` before rebuilding.
 - The release APK is signed with the template debug keystore. Use EAS or your own keystore for distribution.
 - Cleartext HTTP is enabled only when `EXPO_PUBLIC_API_URL` starts with `http://` (local testing).
-- The API must be the Stockpile API. If another process already holds port 4040, run the API on a free port and point the
+- The API must be the Newsbid API. If another process already holds port 4040, run the API on a free port and point the
   emulator at it with `adb reverse tcp:4040 tcp:<port>`.
 - Buying needs the backend's `JUPITER_API_KEY` (mints are resolved live from the issuers and verified on Jupiter): baskets whose assets have `mint: null` are research only.
 
@@ -153,10 +153,10 @@ Verified with Xcode 26.4 and CocoaPods 1.16 on the iPhone 17 Pro (iOS 26.4) simu
 cd apps/mobile
 CI=1 bunx expo prebuild --platform ios --no-install   # revert the android/ios scripts prebuild writes to package.json
 cd ios && LANG=en_US.UTF-8 pod install
-xcodebuild -workspace Stockpile.xcworkspace -scheme Stockpile -configuration Release \
+xcodebuild -workspace Newsbid.xcworkspace -scheme Newsbid -configuration Release \
   -destination 'id=<simulator-udid>' -derivedDataPath build/dd CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
-xcrun simctl install <simulator-udid> build/dd/Build/Products/Release-iphonesimulator/Stockpile.app
-xcrun simctl launch <simulator-udid> sh.nitish.stockpile.app
+xcrun simctl install <simulator-udid> build/dd/Build/Products/Release-iphonesimulator/Newsbid.app
+xcrun simctl launch <simulator-udid> sh.nitish.newsbid.app
 ```
 
 - Keep ad-hoc signing (`CODE_SIGN_IDENTITY=-`). Building with `CODE_SIGNING_ALLOWED=NO` removes the keychain

@@ -185,7 +185,7 @@ export async function prepareTokenSell(request: TokenSellRequest, walletAddress:
   return prepareLegs(split.value, walletAddress, request.slippageBps ?? null);
 }
 
-/** Jupiter builds one order per leg; Stockpile inspects and pre-signs it without modifying the message. */
+/** Jupiter builds one order per leg; Newsbid inspects and pre-signs it without modifying the message. */
 export async function prepareBag(request: TradeRequest, walletAddress: string, context: TradeContext | null = null): Promise<Result<PreparedLeg[]>> {
   const split = await tradeLegs(request, context);
   if (!split.ok) return split;

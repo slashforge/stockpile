@@ -1,7 +1,7 @@
 import { secret } from "./config";
 import { createHash } from "node:crypto";
 import { bagAssets, bags } from "./bags";
-import type { StoryConnection } from "@stockpile/core/db/schema";
+import type { StoryConnection } from "@newsbid/core/db/schema";
 import { z } from "zod";
 import { CurationOutputSchema } from "../schemas/story-analysis";
 import { boundedBody, fetchNoRedirect } from "./strict-fetch";

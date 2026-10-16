@@ -12,10 +12,10 @@ test("without Privy IDs the provider is browse-only and never loads the Privy SD
     PRIVY_CONFIGURED: false,
   }));
   const { AuthProvider } = await import("./auth-provider");
-  const { useStockpileAuth } = await import("./auth-context");
+  const { useNewsbidAuth } = await import("./auth-context");
 
   function Probe() {
-    const auth = useStockpileAuth();
+    const auth = useNewsbidAuth();
     return (
       <span>
         {[auth.configured, auth.authenticated, auth.signAndSendTransaction !== null].join(",")}

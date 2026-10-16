@@ -1,8 +1,8 @@
 import { StyleSheet } from "react-native-unistyles";
-import { BagCard } from "@/components/stockpile/bag-card";
-import { HeroState } from "@/components/stockpile/hero-state";
-import { CardSkeleton, Screen } from "@/components/stockpile/layout";
-import { T } from "@/components/stockpile/type";
+import { BagCard } from "@/components/newsbid/bag-card";
+import { HeroState } from "@/components/newsbid/hero-state";
+import { CardSkeleton, Screen } from "@/components/newsbid/layout";
+import { T } from "@/components/newsbid/type";
 import { useBags } from "@/hooks/use-bags";
 import { useBagReturns } from "@/hooks/use-returns";
 

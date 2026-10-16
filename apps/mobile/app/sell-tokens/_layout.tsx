@@ -1,8 +1,8 @@
 import { Stack, useGlobalSearchParams } from "expo-router";
 import { type ReactNode, useState } from "react";
 import { useUnistyles } from "react-native-unistyles";
-import { FlowShell } from "@/components/stockpile/buy/flow-header";
-import { TokenSellFlowProvider, useTokenSellFlow } from "@/components/stockpile/sell-tokens/flow-context";
+import { FlowShell } from "@/components/newsbid/buy/flow-header";
+import { TokenSellFlowProvider, useTokenSellFlow } from "@/components/newsbid/sell-tokens/flow-context";
 
 const TITLES = { amount: "Sell tokens", review: "Review", progress: "Selling tokens" };
 

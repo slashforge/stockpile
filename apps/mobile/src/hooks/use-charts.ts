@@ -4,7 +4,7 @@ import {
   fetchAssetChart,
   fetchBagChart,
 } from "@/services/api/charts";
-import { ApiError } from "@/services/api/stockpile";
+import { ApiError } from "@/services/api/newsbid";
 import { queryKeys } from "./query-keys";
 
 // 4xx (e.g. endpoint not deployed yet, unknown mint) won't change on retry: fail soft immediately.

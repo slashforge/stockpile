@@ -3,7 +3,7 @@
  * docs/api-contract.md). Types come straight from the generated contract.
  */
 import { listBagStories, listStories, type Story, type StoryBagConnection } from "./client";
-import { ApiError, unwrap } from "./stockpile";
+import { ApiError, unwrap } from "./newsbid";
 
 export type { Story };
 export type StoryConnection = StoryBagConnection;

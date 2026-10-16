@@ -21,7 +21,7 @@ import type { IconType } from "@/components/ui/layout";
 import { cn, T } from "@/components/ui/type";
 import { usePortfolio } from "@/hooks/use-account";
 import { formatUsdValue } from "@/lib/portfolio";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { shortAddress } from "@/utils/amounts";
 
 type TabItem = {
@@ -74,7 +74,7 @@ export function BrandMark({ size = 34 }: { size?: number }) {
 }
 
 function AccountCard() {
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const portfolio = usePortfolio();
   const { requestSignIn } = useSignInSheet();
   const { openFund } = useFundSheet();
@@ -82,7 +82,7 @@ function AccountCard() {
   if (!auth.authenticated) {
     return (
       <div className="hidden flex-col gap-2.5 rounded-3xl bg-surface p-4 shadow-card lg:flex">
-        <T variant="subhead">Sign in to Stockpile</T>
+        <T variant="subhead">Sign in to Newsbid</T>
         <T variant="footnote" tone="secondary">
           Save bags, see your balance and put money in a bag.
         </T>
@@ -127,9 +127,9 @@ function Sidebar({ pathname }: { pathname: string }) {
   const current = activeTab(pathname);
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r border-line bg-canvas/90 px-3 py-5 backdrop-blur-xl md:flex lg:w-[260px] lg:px-4">
-      <Link to="/" className="mb-6 flex items-center gap-2.5 px-1.5 lg:px-2" aria-label="Stockpile home">
+      <Link to="/" className="mb-6 flex items-center gap-2.5 px-1.5 lg:px-2" aria-label="Newsbid home">
         <BrandMark />
-        <span className="hidden text-[21px] font-extrabold tracking-[-0.5px] text-ink lg:inline">Stockpile</span>
+        <span className="hidden text-[21px] font-extrabold tracking-[-0.5px] text-ink lg:inline">Newsbid</span>
       </Link>
       <nav className="flex flex-col gap-1" aria-label="Main">
         {TABS.map((tab) => {

@@ -20,7 +20,7 @@ const KNOWN_PROGRAMS: Record<string, string> = {
 export type TransactionSummary = {
   version: VersionedTransaction["version"];
   feePayer: string;
-  /** True when someone other than the user (the Stockpile paymaster) pays the network fee. */
+  /** True when someone other than the user (the Newsbid paymaster) pays the network fee. */
   sponsored: boolean;
   requiredSigners: string[];
   instructionCount: number;
@@ -44,7 +44,7 @@ export function decodeTransaction(base64: string): VersionedTransaction {
 /**
  * Decodes an unsigned transaction returned by the API and checks it can only be
  * signed by the user's own wallet before anything is shown to the signer. The only other
- * signer allowed is a fee payer (Stockpile's paymaster) that has already validly signed.
+ * signer allowed is a fee payer (Newsbid's paymaster) that has already validly signed.
  */
 export function inspectTransaction(base64: string, walletAddress: string | null): TransactionSummary {
   const tx = decodeTransaction(base64);
@@ -82,7 +82,7 @@ export function inspectTransaction(base64: string, walletAddress: string | null)
   const unknown = programIds.filter((id) => !KNOWN_PROGRAMS[id]);
   if (unknown.length > 0) {
     warnings.push(
-      `Calls ${unknown.length} program(s) Stockpile does not recognise (typically Jupiter route venues).`,
+      `Calls ${unknown.length} program(s) Newsbid does not recognise (typically Jupiter route venues).`,
     );
   }
   if (!programIds.includes("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4")) {

@@ -4,12 +4,12 @@ import { type ReactNode, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { LogoCluster } from "@/components/stockpile/bag-art";
-import { TradeSettingsButton, TradeSettingsPopover } from "@/components/stockpile/buy/controls";
-import { T } from "@/components/stockpile/type";
+import { LogoCluster } from "@/components/newsbid/bag-art";
+import { TradeSettingsButton, TradeSettingsPopover } from "@/components/newsbid/buy/controls";
+import { T } from "@/components/newsbid/type";
 import type { PurchaseStatus } from "@/lib/trade/purchase";
 import type { BagAsset } from "@/services/api/types";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 /** What the flow trades: a bag, or a hand-picked set of tokens. */
 type FlowSubject = { title: string; assets: Pick<BagAsset, "symbol" | "iconUrl">[] };

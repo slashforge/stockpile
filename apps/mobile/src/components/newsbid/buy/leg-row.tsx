@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Pill } from "@/components/stockpile/layout";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
-import { T } from "@/components/stockpile/type";
+import { Pill } from "@/components/newsbid/layout";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
+import { T } from "@/components/newsbid/type";
 import { useMintDecimals } from "@/hooks/use-mint-decimals";
 import { explorerTxUrl, inspectTransaction, USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel, impactPercent, legAssetMint, legLabelProblems, type TradeSide } from "@/lib/trade/legs";
@@ -12,7 +12,7 @@ import type { LegDisplayStatus } from "@/lib/trade/purchase";
 import type { Bag, PreparedTransaction, QuoteLeg } from "@/services/api/types";
 import { formatMoney, formatTokenAmount } from "@/utils/amounts";
 import { ImpactLabel } from "./controls";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 /** Everything that blocks signing a leg: decode errors, unsafe instructions, label mismatches. */
 export function legBlocking(

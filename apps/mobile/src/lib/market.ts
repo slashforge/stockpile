@@ -7,7 +7,7 @@ import type {
   Curator,
   Evidence,
   UnderlyingPrice,
-} from "@stockpile/api-client";
+} from "@newsbid/api-client";
 
 /**
  * Market data, curator and evidence helpers over the generated contract. Nothing here is ever

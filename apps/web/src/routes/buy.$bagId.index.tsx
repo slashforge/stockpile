@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { IoAddCircle, IoAlertCircleOutline, IoLockClosed, IoPersonCircle, IoWalletOutline } from "react-icons/io5";
-import { bagTradable, researchOnlyReason } from "@/components/stockpile/bag-card";
-import { UsdcLogo } from "@/components/stockpile/token-avatar";
+import { bagTradable, researchOnlyReason } from "@/components/newsbid/bag-card";
+import { UsdcLogo } from "@/components/newsbid/token-avatar";
 import { Chip, heroSize, Numpad } from "@/components/trade/controls";
 import { useBuyFlow } from "@/components/trade/flows";
 import { PrimaryButton } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { MessageState, Skeleton } from "@/components/ui/layout";
 import { cn, T } from "@/components/ui/type";
 import { type AmountKey, applyAmountKey, clampAmountDecimals, formatAmountInput } from "@/lib/trade/amount-input";
 import { tradeErrorMessage } from "@/lib/trade/legs";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatBaseUnits, formatMoney } from "@/utils/amounts";
 
 export const Route = createFileRoute("/buy/$bagId/")({ component: BuyAmountScreen });
@@ -20,7 +20,7 @@ const KEYS = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "."]);
 
 function BuyAmountScreen() {
   const flow = useBuyFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const navigate = useNavigate();
   const { bag, balance, amountInput, amountPending, amount, insufficient, needsFunds, request, prepare, prepared } = flow;
 

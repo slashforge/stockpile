@@ -1,9 +1,9 @@
-executionPrerequisite: Stockpile dev client running on Metro (either auth state). Starts from any screen.
+executionPrerequisite: Newsbid dev client running on Metro (either auth state). Starts from any screen.
 steps:
   - echo: Open the story feed
   - tool: open-url
     args:
-      url: "stockpile://"
+      url: "newsbid://"
   - tool: await-ui-element
     args:
       condition: visible

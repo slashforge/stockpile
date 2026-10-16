@@ -3,12 +3,12 @@ import type {
   BagChartResponse,
   ChartRange,
   ChartReason,
-} from "@stockpile/api-client";
+} from "@newsbid/api-client";
 import {
   getAssetChart as sdkGetAssetChart,
   getBagChart as sdkGetBagChart,
 } from "./client";
-import { unwrap } from "./stockpile";
+import { unwrap } from "./newsbid";
 
 export type { ChartRange };
 export const CHART_RANGES: ChartRange[] = ["1D", "1W", "1M", "1Y", "ALL"];

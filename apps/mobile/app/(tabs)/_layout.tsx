@@ -8,7 +8,7 @@ import {
   TabBarVisibilityProvider,
   useTabBarHidden,
   type TabBarItem,
-} from "@/components/stockpile/tab-bar";
+} from "@/components/newsbid/tab-bar";
 
 /** Route names double as keys; keep in the same order as the iOS triggers. */
 const ITEMS: TabBarItem[] = [

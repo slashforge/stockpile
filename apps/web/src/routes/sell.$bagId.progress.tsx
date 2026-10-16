@@ -11,14 +11,14 @@ import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { legAssetMint, tradeErrorMessage } from "@/lib/trade/legs";
 import { legDisplayStatus, legsToSign, retryableCount, shownLegState } from "@/lib/trade/purchase";
 import { legSignature } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatMoney } from "@/utils/amounts";
 
 export const Route = createFileRoute("/sell/$bagId/progress")({ component: SellProgressScreen });
 
 function SellProgressScreen() {
   const flow = useSellFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const navigate = useNavigate();
   const { bag, prepared, signing, alreadyBought, request, prepare, lots } = flow;
   const [retryError, setRetryError] = useState<string | null>(null);

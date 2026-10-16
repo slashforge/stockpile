@@ -3,7 +3,7 @@ import { generateColorTheme } from "@/utils/colors";
 import { density, layout, radius, rounded, sizing, spacing, typography } from "./sizing";
 
 // Legacy generated palette, still consumed by template primitives (sonner, Box, Button...).
-// Tuned to the bright Stockpile palette so those pieces blend in.
+// Tuned to the bright Newsbid palette so those pieces blend in.
 const theme = generateColorTheme({
   base: {
     light: {
@@ -40,7 +40,7 @@ const theme = generateColorTheme({
 });
 
 /**
- * Stockpile design tokens (bright, cool, consumer). Screens and `src/components/stockpile`
+ * Newsbid design tokens (bright, cool, consumer). Screens and `src/components/newsbid`
  * use these exclusively. Text/background pairs meet WCAG AA; vivid hues are for fills.
  */
 const ds = {

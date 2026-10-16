@@ -1,5 +1,5 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { UsdcLogo } from "@/components/stockpile/token-avatar";
+import { UsdcLogo } from "@/components/newsbid/token-avatar";
 import { Spinner, PrimaryButton } from "@/components/ui/button";
 import { Card, Divider, Skeleton } from "@/components/ui/layout";
 import { cn, T } from "@/components/ui/type";

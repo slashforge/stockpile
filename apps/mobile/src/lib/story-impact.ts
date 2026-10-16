@@ -1,4 +1,4 @@
-import type { StoryBagConnection } from "@stockpile/api-client";
+import type { StoryBagConnection } from "@newsbid/api-client";
 
 type AssetLike = { symbol: string; name: string; weightBps: number };
 export type ImpactSignal = "tailwind" | "headwind" | "neutral" | "mixed" | "unclear" | "unavailable";

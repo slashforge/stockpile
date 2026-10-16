@@ -64,7 +64,7 @@ function errorMessage(error: unknown, status: number): string {
   // Non-JSON bodies (plain text, HTML from proxies or a different service) are never shown verbatim.
   if (status === 401) return "Please sign in again.";
   if (status === 404)
-    return "Not found. The server may not be the Stockpile API or may be out of date.";
+    return "Not found. The server may not be the Newsbid API or may be out of date.";
   if (status === 503)
     return "This feature is not configured on the server yet.";
   return `Request failed (${status || "network"})`;
@@ -77,7 +77,7 @@ export async function unwrap<T>(call: Promise<SdkResult<T>>): Promise<T> {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(
-      "Can't reach Stockpile right now. Check your connection.",
+      "Can't reach Newsbid right now. Check your connection.",
       0,
     );
   }
@@ -148,7 +148,7 @@ export async function prepareTokenSell(body: TokenSellRequest): Promise<TokenSel
 }
 
 /**
- * Broadcasts a wallet-signed transaction through Stockpile, which executes it via Jupiter using the
+ * Broadcasts a wallet-signed transaction through Newsbid, which executes it via Jupiter using the
  * prepared leg's `requestId` (without one the server falls back to its legacy relay). Returns its signature.
  */
 export async function submitSignedTransaction(transaction: string, bagId?: string, requestId?: string): Promise<string> {

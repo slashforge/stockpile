@@ -4,15 +4,15 @@ import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, BackHandler, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { AuthGate } from "@/components/stockpile/auth-gate";
-import { GradientCard } from "@/components/stockpile/gradient-card";
-import { useFundSheet } from "@/components/stockpile/fund-sheet";
-import { HeroState } from "@/components/stockpile/hero-state";
-import { CardSkeleton, Divider, Screen, Skeleton } from "@/components/stockpile/layout";
-import { useHideTabBar } from "@/components/stockpile/tab-bar";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
-import { UsdcLogo } from "@/components/stockpile/token-logos";
-import { T } from "@/components/stockpile/type";
+import { AuthGate } from "@/components/newsbid/auth-gate";
+import { GradientCard } from "@/components/newsbid/gradient-card";
+import { useFundSheet } from "@/components/newsbid/fund-sheet";
+import { HeroState } from "@/components/newsbid/hero-state";
+import { CardSkeleton, Divider, Screen, Skeleton } from "@/components/newsbid/layout";
+import { useHideTabBar } from "@/components/newsbid/tab-bar";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
+import { UsdcLogo } from "@/components/newsbid/token-logos";
+import { T } from "@/components/newsbid/type";
 import { density } from "@/config/sizing";
 import { useActivity, usePortfolio } from "@/hooks/use-account";
 import { indexAssetsByMint, useBags } from "@/hooks/use-bags";
@@ -22,7 +22,7 @@ import { useOpenSell } from "@/hooks/use-open-sell";
 import { usePositions } from "@/hooks/use-positions";
 import { changeTone, formatSignedPct } from "@/lib/market";
 import { type BagPosition, heldPositions } from "@/services/api/positions";
-import { LogoCluster } from "@/components/stockpile/bag-art";
+import { LogoCluster } from "@/components/newsbid/bag-art";
 import {
   activityVisual,
   describeActivity,
@@ -34,11 +34,11 @@ import {
 } from "@/lib/portfolio";
 import { USDC_MINT } from "@/lib/solana/transaction";
 import { solBalance, spendableUsdc } from "@/lib/trade/balance";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import type { Activity, Bag, Holding, Portfolio } from "@/services/api/types";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
 import { formatMoney, formatTokenAmount, shortAddress } from "@/utils/amounts";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 /*
  * Layout system for this screen:
@@ -415,7 +415,7 @@ const HoldingSelection = createContext<HoldingSelectionValue>({
   toggle: () => {},
 });
 
-/** USDC and SOL stay in the wallet: USDC is what you sell into and SOL covers fees outside Stockpile. */
+/** USDC and SOL stay in the wallet: USDC is what you sell into and SOL covers fees outside Newsbid. */
 function isSellable(row: Row) {
   return row.mint != null && row.key !== "usdc" && row.key !== "sol";
 }
@@ -717,7 +717,7 @@ function ActivitySection({ bagsById, assets }: { bagsById: Map<string, Bag>; ass
 function PortfolioBody() {
   const { holdings: loose, portfolio, positions, settled } = useLooseHoldings();
   const bags = useBags();
-  const { walletAddress: embeddedWallet } = useStockpileAuth();
+  const { walletAddress: embeddedWallet } = useNewsbidAuth();
   const bagsById = new Map((bags.data ?? []).map((bag) => [bag.id, bag]));
 
   if (portfolio.isPending) return <CardSkeleton />;
@@ -780,7 +780,7 @@ export default function PortfolioScreen() {
   const portfolio = usePortfolio();
   const activity = useActivity();
   const positions = usePositions();
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const { holdings: loose } = useLooseHoldings();
   const [picks, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   // Only picks still listed count: anything sold or moved into a bag drops out on its own.

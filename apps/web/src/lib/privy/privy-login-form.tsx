@@ -4,7 +4,7 @@ import { IoMailOutline } from "react-icons/io5";
 import { PrimaryButton } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { T } from "@/components/ui/type";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** First-ever login also creates the embedded wallet; the session can take a moment to surface. */
@@ -18,7 +18,7 @@ export function PrivyLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [slow, setSlow] = useState(false);
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const busy = state.status === "sending-code" || state.status === "submitting-code" || (verified && !slow);
 
   // Close only once the app-wide session is visible, so callers never land on a signed-out screen.

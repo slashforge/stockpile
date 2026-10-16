@@ -20,7 +20,7 @@ argent flow run browse-to-detail.yaml --device <UDID>
 
 ## Secrets
 
-`sign-in` types `{{secret:STOCKPILE_TEST_EMAIL}}` and `{{secret:STOCKPILE_TEST_CODE}}`. Put them in `~/.argent/secrets.env`, never in the repo. Run `argent secrets` to check they're picked up.
+`sign-in` types `{{secret:NEWSBID_TEST_EMAIL}}` and `{{secret:NEWSBID_TEST_CODE}}`. Put them in `~/.argent/secrets.env`, never in the repo. Run `argent secrets` to check they're picked up.
 
 ## Simulator keyboard caveat
 

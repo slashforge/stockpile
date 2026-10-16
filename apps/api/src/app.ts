@@ -7,7 +7,7 @@ import accountRoutes from "./routes/account";
 import bagRoutes, { assetRoutes } from "./routes/bags";
 import storyRoutes, { bagStoryRoutes } from "./routes/stories";
 
-export const openApiConfig = { openapi: "3.1.0", info: { title: "Stockpile API", version: "1.0.0" } } as const;
+export const openApiConfig = { openapi: "3.1.0", info: { title: "Newsbid API", version: "1.0.0" } } as const;
 export const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", cors({ origin: (origin) => {

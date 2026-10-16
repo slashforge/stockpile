@@ -8,7 +8,7 @@ import { defineConfig } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://stockpile.cash',
+	site: 'https://newsbid.trade',
 	adapter: cloudflare({
 		configPath: process.env.SST_WRANGLER_PATH,
 	}),

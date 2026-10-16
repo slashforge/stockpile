@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchBag, fetchBags } from "@/services/api/stockpile";
+import { fetchBag, fetchBags } from "@/services/api/newsbid";
 import type { Bag } from "@/services/api/types";
 import { queryKeys } from "./query-keys";
 

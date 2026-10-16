@@ -11,7 +11,7 @@ SST v4 on Cloudflare (`home: "cloudflare"`). Entry: `sst.config.ts`, which impor
 ```
 config.ts    AppConfig Linkable: apiUrl/webUrl/corsOrigins/authFromEmail/appScheme, switches on isDeployed()
 secrets.ts   SST secrets: DatabaseUrl, Privy*, JupiterApiKey, HeliusApiKey, SolanaPaymasterKey, TokensApiKey, PythApiKey, CongressApiKey, OpenaiApiKey, BlockedMints (`apiSecrets` = those linked to the API)
-domains.ts   stockpile.cash; stage-prefixed subdomains except prod (api.<host>, <host>)
+domains.ts   newsbid.trade; stage-prefixed subdomains except prod (api.<host>, <host>)
 database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
 api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
 landing.ts   Astro site deployment

@@ -5,8 +5,8 @@
 import { secret } from "./config";
 import { and, desc, gte, inArray, lte } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { db } from "@stockpile/core/db";
-import { congressDisclosures, stories } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { congressDisclosures, stories } from "@newsbid/core/db/schema";
 import { fetchNoRedirect } from "./strict-fetch";
 
 export const CONGRESS_SOURCE = "congressinvests";
@@ -49,7 +49,7 @@ export function parseDisclosure(row: unknown): Disclosure | null {
 }
 
 async function fetchTicker(ticker: string): Promise<Disclosure[]> {
-  const headers: Record<string, string> = { Accept: "application/json", "User-Agent": "Stockpile/1.0 (+https://stockpile.app)" };
+  const headers: Record<string, string> = { Accept: "application/json", "User-Agent": "Newsbid/1.0 (+https://newsbid.trade)" };
   const apiKey = secret("CongressApiKey");
   if (apiKey) headers["X-Api-Key"] = apiKey;
   const response = await fetchNoRedirect(`${base}/trades/${encodeURIComponent(ticker)}?limit=500`, { headers, signal: AbortSignal.timeout(15000) });

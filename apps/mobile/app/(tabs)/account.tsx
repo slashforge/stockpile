@@ -4,28 +4,28 @@ import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { CopyRow } from "@/components/stockpile/copy-row";
-import { useFundSheet } from "@/components/stockpile/fund-sheet";
-import { GradientCard } from "@/components/stockpile/gradient-card";
-import { HeroState } from "@/components/stockpile/hero-state";
+import { CopyRow } from "@/components/newsbid/copy-row";
+import { useFundSheet } from "@/components/newsbid/fund-sheet";
+import { GradientCard } from "@/components/newsbid/gradient-card";
+import { HeroState } from "@/components/newsbid/hero-state";
 import {
   Card,
   Collapsible,
   ListRow,
   Screen,
-} from "@/components/stockpile/layout";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { useSignInSheet } from "@/components/stockpile/sign-in-sheet";
-import { T } from "@/components/stockpile/type";
+} from "@/components/newsbid/layout";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { useSignInSheet } from "@/components/newsbid/sign-in-sheet";
+import { T } from "@/components/newsbid/type";
 import { API_URL } from "@/config/env";
 import { useMe } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";
 import { useSonner } from "@/hooks/use-sonner";
-import { useStockpileAuth } from "@/providers/auth-context";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { useNewsbidAuth } from "@/providers/auth-context";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 const RISKS = [
-  "Bags are Stockpile’s editorial research, not investment advice or a recommendation.",
+  "Bags are Newsbid’s editorial research, not investment advice or a recommendation.",
   "Tokenized stocks are issued by third parties, may not carry shareholder rights and can trade away from the share price.",
   "Swaps have slippage and network fees. You can lose money.",
 ];
@@ -89,7 +89,7 @@ function Disclosures() {
 }
 
 export default function AccountScreen() {
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const me = useMe();
   const sonner = useSonner();
   const { requestSignIn } = useSignInSheet();
@@ -164,7 +164,7 @@ export default function AccountScreen() {
           </Card>
           {me.isError ? (
             <T variant="footnote" tone="danger">
-              Couldn’t reach your Stockpile profile: {me.error.message}
+              Couldn’t reach your Newsbid profile: {me.error.message}
             </T>
           ) : null}
         </>
@@ -173,7 +173,7 @@ export default function AccountScreen() {
           gradient="rose"
           icon="person"
           accents={["mail", "shield-checkmark"]}
-          title="Sign in to Stockpile"
+          title="Sign in to Newsbid"
           body="Save bags, see your balance and put money in a bag."
           actionLabel="Sign in"
           actionIcon="mail"
@@ -199,7 +199,7 @@ export default function AccountScreen() {
         align="center"
         style={styles.version}
       >
-        Stockpile {Constants.expoConfig?.version ?? ""}
+        Newsbid {Constants.expoConfig?.version ?? ""}
         {__DEV__ ||
         apiHost.startsWith("localhost") ||
         apiHost.startsWith("127.")

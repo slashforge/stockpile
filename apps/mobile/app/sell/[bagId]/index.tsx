@@ -2,17 +2,17 @@ import { router } from "expo-router";
 import { ActivityIndicator, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { Chip, heroSize } from "@/components/stockpile/buy/controls";
-import { LegRow } from "@/components/stockpile/buy/leg-row";
-import { SELL_PORTIONS, sellTotalOut, useSellFlow } from "@/components/stockpile/buy/sell-flow-context";
-import { Card, Divider, MessageState, Skeleton } from "@/components/stockpile/layout";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { UsdcLogo } from "@/components/stockpile/token-logos";
-import { T } from "@/components/stockpile/type";
+import { Chip, heroSize } from "@/components/newsbid/buy/controls";
+import { LegRow } from "@/components/newsbid/buy/leg-row";
+import { SELL_PORTIONS, sellTotalOut, useSellFlow } from "@/components/newsbid/buy/sell-flow-context";
+import { Card, Divider, MessageState, Skeleton } from "@/components/newsbid/layout";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { UsdcLogo } from "@/components/newsbid/token-logos";
+import { T } from "@/components/newsbid/type";
 import { formatUsdValue } from "@/lib/portfolio";
 import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { tradeErrorMessage } from "@/lib/trade/legs";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import type { QuoteLeg } from "@/services/api/types";
 import { formatMoney } from "@/utils/amounts";
 
@@ -74,7 +74,7 @@ function SellScreenSkeleton() {
 
 export default function SellAmountScreen() {
   const flow = useSellFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const insets = useSafeAreaInsets();
   const { theme } = useUnistyles();
   const { bag, quote, prepare, prepared, portionBps, position } = flow;

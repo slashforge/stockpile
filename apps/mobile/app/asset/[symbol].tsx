@@ -5,22 +5,22 @@ import { useState } from "react";
 import { Platform, ScrollView, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { bagTradable } from "@/components/stockpile/bag-card";
-import { Divider, MessageState, Skeleton } from "@/components/stockpile/layout";
-import { EvidenceList } from "@/components/stockpile/market";
+import { bagTradable } from "@/components/newsbid/bag-card";
+import { Divider, MessageState, Skeleton } from "@/components/newsbid/layout";
+import { EvidenceList } from "@/components/newsbid/market";
 import {
   PriceChart,
   RangeChips,
   useChartColor,
-} from "@/components/stockpile/price-chart";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
-import { T } from "@/components/stockpile/type";
+} from "@/components/newsbid/price-chart";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
+import { T } from "@/components/newsbid/type";
 import { useOpenBuy } from "@/hooks/use-open-buy";
 import { density } from "@/config/sizing";
 import { usePortfolio } from "@/hooks/use-account";
 import { useBag, useBags } from "@/hooks/use-bags";
 import { useAssetChart } from "@/hooks/use-charts";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
 import {
   changeTone,
@@ -38,7 +38,7 @@ import {
 } from "@/services/api/charts";
 import type { Bag, BagAsset } from "@/services/api/types";
 import { formatBps } from "@/utils/amounts";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 const RANGE_WORD: Record<ChartRange, string> = {
   "1D": "Today",
@@ -74,7 +74,7 @@ function useAssetLookup(symbol: string | undefined, bagId: string | undefined) {
 }
 
 function Balance({ asset }: { asset: BagAsset }) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const portfolio = usePortfolio();
   if (!authenticated || portfolio.data?.status !== "live") return null;
   const holding = asset.mint
@@ -102,7 +102,7 @@ function Balance({ asset }: { asset: BagAsset }) {
 
 function BuyButton({ bag }: { bag: Bag }) {
   const { theme } = useUnistyles();
-  const { configured } = useStockpileAuth();
+  const { configured } = useNewsbidAuth();
   const openBuy = useOpenBuy();
   if (!configured || !bagTradable(bag)) return null;
   return (

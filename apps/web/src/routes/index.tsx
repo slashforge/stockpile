@@ -11,10 +11,10 @@ import {
   IoSparkles,
 } from "react-icons/io5";
 import { useBagSheet } from "@/components/sheets/bag-sheet";
-import { BagArt, LogoCluster } from "@/components/stockpile/bag-art";
-import { ImpactBreakdown, ImpactChip, ImpactCompare, UnavailableNotice } from "@/components/stockpile/story-impact";
-import { formatStoryDate, StoryReel, storyHost } from "@/components/stockpile/story-reel";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { BagArt, LogoCluster } from "@/components/newsbid/bag-art";
+import { ImpactBreakdown, ImpactChip, ImpactCompare, UnavailableNotice } from "@/components/newsbid/story-impact";
+import { formatStoryDate, StoryReel, storyHost } from "@/components/newsbid/story-reel";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
 import { IconButton, PrimaryButton } from "@/components/ui/button";
 import { type IconType, Skeleton } from "@/components/ui/layout";
 import { useMediaQuery } from "@/components/ui/theme";
@@ -267,7 +267,7 @@ function StoryContext({ story, bags }: { story: Story; bags: Bag[] }) {
       ) : (
         <div className="flex flex-col gap-2 rounded-3xl bg-surface p-4 shadow-card">
           <T variant="headline">No bag linked yet</T>
-          <T variant="footnote" tone="secondary">Explore the bags to see what Stockpile tracks.</T>
+          <T variant="footnote" tone="secondary">Explore the bags to see what Newsbid tracks.</T>
           <Link to="/bags" className={cn("t-subhead inline-flex min-h-11 items-center gap-1 text-accent", focus)}>Browse bags <IoArrowForward size={14} /></Link>
         </div>
       )}

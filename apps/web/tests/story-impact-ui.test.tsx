@@ -1,7 +1,7 @@
 import { expect, it } from "bun:test";
-import type { StoryBagConnection } from "@stockpile/api-client";
+import type { StoryBagConnection } from "@newsbid/api-client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { compareLine, ImpactBreakdown, ImpactCompare, ReelImpact, UnavailableNotice } from "../src/components/stockpile/story-impact";
+import { compareLine, ImpactBreakdown, ImpactCompare, ReelImpact, UnavailableNotice } from "../src/components/newsbid/story-impact";
 import { storyImpact } from "../src/lib/story-impact";
 
 const story = { title: "Microsoft launches a record product", summary: "Microsoft news" };

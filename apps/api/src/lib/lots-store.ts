@@ -1,7 +1,7 @@
 // Persistence for bag lots (kept separate from positions.ts so tests can mock storage without interpreting Drizzle SQL).
 import { and, eq, inArray } from "drizzle-orm";
-import { db } from "@stockpile/core/db";
-import { bagLots } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { bagLots } from "@newsbid/core/db/schema";
 
 export type LotRow = typeof bagLots.$inferSelect;
 export type NewLot = typeof bagLots.$inferInsert;

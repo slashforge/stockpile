@@ -5,29 +5,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as WebBrowser from "expo-web-browser";
 import { View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { useAssetColors } from "@/components/stockpile/allocation";
-import { bagTheme } from "@/components/stockpile/bag-art";
+import { useAssetColors } from "@/components/newsbid/allocation";
+import { bagTheme } from "@/components/newsbid/bag-art";
 import {
   bagTradable,
   researchOnlyReason,
   TradeStatus,
-} from "@/components/stockpile/bag-card";
+} from "@/components/newsbid/bag-card";
 import {
   Collapsible,
   Divider,
   MessageState,
   Screen,
   Skeleton,
-} from "@/components/stockpile/layout";
+} from "@/components/newsbid/layout";
 import {
   PriceChart,
   RangeChips,
   useChartColor,
-} from "@/components/stockpile/price-chart";
-import { PrimaryButton } from "@/components/stockpile/primary-button";
-import { SaveButton } from "@/components/stockpile/save-button";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
-import { FullText, T } from "@/components/stockpile/type";
+} from "@/components/newsbid/price-chart";
+import { PrimaryButton } from "@/components/newsbid/primary-button";
+import { SaveButton } from "@/components/newsbid/save-button";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
+import { FullText, T } from "@/components/newsbid/type";
 import { useOpenBuy } from "@/hooks/use-open-buy";
 import { useOpenSell } from "@/hooks/use-open-sell";
 import { useBagPosition } from "@/hooks/use-positions";
@@ -35,8 +35,8 @@ import { useBag } from "@/hooks/use-bags";
 import { useBagChart } from "@/hooks/use-charts";
 import { collectStories, useBagStories } from "@/hooks/use-feed";
 import { connectionFor, type Story } from "@/services/api/feed";
-import { formatStoryDate } from "@/components/stockpile/story-reel";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { formatStoryDate } from "@/components/newsbid/story-reel";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import {
   bagCurator,
   bagMarket,
@@ -58,7 +58,7 @@ import {
 import type { Bag } from "@/services/api/types";
 import { density } from "@/config/sizing";
 import { formatBps } from "@/utils/amounts";
-import { HapticPressable } from "@/components/stockpile/haptic-pressable";
+import { HapticPressable } from "@/components/newsbid/haptic-pressable";
 
 function hostOf(url: string) {
   try {
@@ -567,7 +567,7 @@ function RelatedStories({ bag }: { bag: Bag }) {
 
 // Fallback only; the API supplies bag-specific risks.
 const GENERAL_RISKS = [
-  "Inclusion and weights are Stockpile's reading of the sources, not claims by them or a recommendation.",
+  "Inclusion and weights are Newsbid's reading of the sources, not claims by them or a recommendation.",
   "Tokenized stocks are issued by third parties, may not carry shareholder rights and can trade away from the share price.",
   "Prices can fall. Swaps have slippage and network fees, and you may lose money.",
 ];
@@ -593,7 +593,7 @@ export default function BagScreen() {
   const bag = useBag(id);
   const [range, setRange] = useState<ChartRange>("1M");
   const chart = useBagChart(id, range);
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const { theme } = useUnistyles();
   const openBuy = useOpenBuy();
   const openSell = useOpenSell();
@@ -612,7 +612,7 @@ export default function BagScreen() {
     }, [refetchBag]),
   );
 
-  // `stockpile://bag/<id>?buy=1` opens "Put money in the bag" once the bag has loaded.
+  // `newsbid://bag/<id>?buy=1` opens "Put money in the bag" once the bag has loaded.
   const autoBuyDone = useRef(false);
   const loaded = !!bag.data;
   useEffect(() => {

@@ -1,18 +1,18 @@
 import { useNavigate } from "@tanstack/react-router";
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { IoAddCircle, IoAlertCircleOutline, IoArrowForward, IoLockClosed, IoMail } from "react-icons/io5";
-import { AllocationBar, useAssetColors } from "@/components/stockpile/allocation";
-import { BagArt } from "@/components/stockpile/bag-art";
-import { bagTradable, researchOnlyReason, TradeStatus } from "@/components/stockpile/bag-card";
-import { SaveButton } from "@/components/stockpile/save-button";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { AllocationBar, useAssetColors } from "@/components/newsbid/allocation";
+import { BagArt } from "@/components/newsbid/bag-art";
+import { bagTradable, researchOnlyReason, TradeStatus } from "@/components/newsbid/bag-card";
+import { SaveButton } from "@/components/newsbid/save-button";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
 import { PrimaryButton } from "@/components/ui/button";
 import { Divider, MessageState, Skeleton } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { useBag } from "@/hooks/use-bags";
 import { useOpenBuy } from "@/hooks/use-navigation";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatBps } from "@/utils/amounts";
 import { Sheet } from "./sheet";
 
@@ -25,7 +25,7 @@ export function useBagSheet() {
 }
 
 function BagSheetBody({ bagId, onOpenDetail, onBuy }: { bagId: string; onOpenDetail: () => void; onBuy: () => void }) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const bag = useBag(bagId);
   const colors = useAssetColors(bag.data?.assets ?? []);
 

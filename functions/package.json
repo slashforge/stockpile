@@ -1,9 +1,9 @@
 {
-  "name": "@stockpile/functions",
+  "name": "@newsbid/functions",
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
     "sst": "*",
-    "@stockpile/core": "*"
+    "@newsbid/core": "*"
   }
 }

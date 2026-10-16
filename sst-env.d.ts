@@ -66,11 +66,11 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
-    "StockpileLanding": {
+    "NewsbidLanding": {
       "type": "sst.cloudflare.Astro"
       "url": string
     }
-    "StockpileWeb": {
+    "NewsbidWeb": {
       "type": "sst.cloudflare.StaticSite"
       "url": string
     }

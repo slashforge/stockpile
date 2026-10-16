@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { IoCloudOffline, IoLayers, IoNewspaper, IoRefresh, IoSparkles } from "react-icons/io5";
-import { BagCard } from "@/components/stockpile/bag-card";
-import { HeroState } from "@/components/stockpile/hero-state";
+import { BagCard } from "@/components/newsbid/bag-card";
+import { HeroState } from "@/components/newsbid/hero-state";
 import { CardSkeleton, Page } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { useBags } from "@/hooks/use-bags";

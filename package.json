@@ -1,5 +1,5 @@
 {
-  "name": "stockpile",
+  "name": "newsbid",
   "module": "index.ts",
   "type": "module",
   "private": true,

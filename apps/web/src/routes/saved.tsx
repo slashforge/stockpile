@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { IoBookmark, IoCloudOffline, IoHeart, IoLayers, IoRefresh } from "react-icons/io5";
-import { AuthGate } from "@/components/stockpile/auth-gate";
-import { BagCard } from "@/components/stockpile/bag-card";
-import { HeroState } from "@/components/stockpile/hero-state";
+import { AuthGate } from "@/components/newsbid/auth-gate";
+import { BagCard } from "@/components/newsbid/bag-card";
+import { HeroState } from "@/components/newsbid/hero-state";
 import { CardSkeleton, Page } from "@/components/ui/layout";
 import { useSavedBagIds } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";

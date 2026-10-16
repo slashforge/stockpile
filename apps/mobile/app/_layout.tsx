@@ -3,9 +3,9 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { useUnistyles } from "react-native-unistyles";
-import { BagSheetProvider } from "@/components/stockpile/bag-sheet";
-import { FundSheetProvider } from "@/components/stockpile/fund-sheet";
-import { SignInSheetProvider } from "@/components/stockpile/sign-in-sheet";
+import { BagSheetProvider } from "@/components/newsbid/bag-sheet";
+import { FundSheetProvider } from "@/components/newsbid/fund-sheet";
+import { SignInSheetProvider } from "@/components/newsbid/sign-in-sheet";
 import { RouteTour } from "@/components/dev/route-tour";
 import { RootProvider } from "@/providers/root-provider";
 

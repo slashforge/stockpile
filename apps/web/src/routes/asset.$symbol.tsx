@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { IoAdd, IoAlertCircleOutline, IoCheckmarkCircle, IoOpenOutline } from "react-icons/io5";
-import { bagTradable } from "@/components/stockpile/bag-card";
-import { EvidenceList, toneClass } from "@/components/stockpile/market";
-import { PriceChart, RangeChips, useChartColor } from "@/components/stockpile/price-chart";
-import { TokenAvatar } from "@/components/stockpile/token-avatar";
+import { bagTradable } from "@/components/newsbid/bag-card";
+import { EvidenceList, toneClass } from "@/components/newsbid/market";
+import { PriceChart, RangeChips, useChartColor } from "@/components/newsbid/price-chart";
+import { TokenAvatar } from "@/components/newsbid/token-avatar";
 import { Divider, MessageState, Page, Skeleton } from "@/components/ui/layout";
 import { cn, T } from "@/components/ui/type";
 import { usePortfolio } from "@/hooks/use-account";
@@ -14,7 +14,7 @@ import { useOpenBuy } from "@/hooks/use-navigation";
 import { disclosureEvidence, formatPrice, formatSignedPct, formatUsdCompact, underlyingCaption } from "@/lib/market";
 import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { type ChartPoint, type ChartRange, isDrawable } from "@/services/api/charts";
 import type { Bag, BagAsset } from "@/services/api/types";
 import { formatBps } from "@/utils/amounts";
@@ -49,7 +49,7 @@ function useAssetLookup(symbol: string, bagId: string | undefined) {
 }
 
 function Balance({ asset }: { asset: BagAsset }) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   const portfolio = usePortfolio();
   if (!authenticated || portfolio.data?.status !== "live") return null;
   const holding = asset.mint ? portfolio.data.holdings.find((item) => item.mint === asset.mint) : undefined;
@@ -72,7 +72,7 @@ function Balance({ asset }: { asset: BagAsset }) {
 }
 
 function BuyButton({ bag }: { bag: Bag }) {
-  const { configured } = useStockpileAuth();
+  const { configured } = useNewsbidAuth();
   const openBuy = useOpenBuy();
   if (!configured || !bagTradable(bag)) return null;
   return (

@@ -51,7 +51,7 @@ export function rounded(value: number) {
 }
 
 /**
- * Density tokens for the Stockpile screens. Every screen, card, row, chip and sheet spaces itself
+ * Density tokens for the Newsbid screens. Every screen, card, row, chip and sheet spaces itself
  * from these, so the overall density can be tuned in one place. Tap targets stay >= 44.
  */
 export const density = {

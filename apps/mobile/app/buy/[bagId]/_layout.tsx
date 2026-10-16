@@ -1,8 +1,8 @@
 import { Stack, useLocalSearchParams } from "expo-router";
 import type { ReactNode } from "react";
 import { useUnistyles } from "react-native-unistyles";
-import { BuyFlowProvider, useBuyFlow } from "@/components/stockpile/buy/flow-context";
-import { FlowShell } from "@/components/stockpile/buy/flow-header";
+import { BuyFlowProvider, useBuyFlow } from "@/components/newsbid/buy/flow-context";
+import { FlowShell } from "@/components/newsbid/buy/flow-header";
 
 const TITLES = { amount: "Buy bag", review: "Review", progress: "Buying bag" };
 

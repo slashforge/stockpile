@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, lazy, type ReactNode, Suspense, useContext } from "react";
 import { PRIVY_CONFIGURED } from "@/config/env";
-import { AuthContext, browseOnlyAuth, type StockpileAuth } from "./auth-context";
+import { AuthContext, browseOnlyAuth, type NewsbidAuth } from "./auth-context";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,7 +23,7 @@ const PrivyAuthProvider = PRIVY_CONFIGURED
   : null;
 
 /** While Privy loads, the app renders as "restoring session" instead of blocking on the chunk. */
-const loadingAuth: StockpileAuth = { ...browseOnlyAuth, configured: true, ready: false };
+const loadingAuth: NewsbidAuth = { ...browseOnlyAuth, configured: true, ready: false };
 
 function AuthProvider({ children }: { children: ReactNode }) {
   if (!PrivyAuthProvider) return <>{children}</>;

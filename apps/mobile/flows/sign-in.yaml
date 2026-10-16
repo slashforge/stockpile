@@ -1,6 +1,6 @@
 executionPrerequisite: >-
   Signed out, on a bag detail screen (run browse-to-detail first). Needs secrets
-  STOCKPILE_TEST_EMAIL and STOCKPILE_TEST_CODE (Privy test account) in ~/.argent/secrets.env.
+  NEWSBID_TEST_EMAIL and NEWSBID_TEST_CODE (Privy test account) in ~/.argent/secrets.env.
   Ends with the buy sheet open, because sign-in continues into "Put money in the bag".
 steps:
   - echo: Tap "Sign in to buy"
@@ -22,7 +22,7 @@ steps:
   - tool: keyboard
     delayMs: 500
     args:
-      text: "{{secret:STOCKPILE_TEST_EMAIL}}"
+      text: "{{secret:NEWSBID_TEST_EMAIL}}"
   - tool: gesture-tap
     delayMs: 500
     args:
@@ -42,7 +42,7 @@ steps:
   - tool: keyboard
     delayMs: 500
     args:
-      text: "{{secret:STOCKPILE_TEST_CODE}}"
+      text: "{{secret:NEWSBID_TEST_CODE}}"
       key: enter
   - tool: await-ui-element
     args:

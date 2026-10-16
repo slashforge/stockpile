@@ -1,6 +1,6 @@
 const SUB = $app.stage === "prod" ? "" : `${$app.stage}.`;
 
-const HOST = "stockpile.cash";
+const HOST = "newsbid.trade";
 
 export const domains = {
   api: `${SUB}api.${HOST}`,

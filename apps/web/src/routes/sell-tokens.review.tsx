@@ -14,14 +14,14 @@ import { USDC_DECIMALS } from "@/lib/solana/transaction";
 import { impactLevel } from "@/lib/trade/legs";
 import { legsToSign } from "@/lib/trade/purchase";
 import { isPreparedExpired } from "@/lib/trade/signing";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { formatMoney, shortAddress } from "@/utils/amounts";
 
 export const Route = createFileRoute("/sell-tokens/review")({ component: SellTokensReviewScreen });
 
 function SellTokensReviewScreen() {
   const flow = useTokenSellFlow();
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const navigate = useNavigate();
   const router = useRouter();
   const { prepared, preparedAt, expired, secondsLeft, request, prepare, signing, portionBps, subject, mints } = flow;
@@ -162,7 +162,7 @@ function SellTokensReviewScreen() {
         </T>
       ) : null}
       <T variant="caption" tone="tertiary" align="center">
-        Only tokens outside your bags are sold, so your bags stay as they are. Swiping signs every swap at once. Stockpile
+        Only tokens outside your bags are sold, so your bags stay as they are. Swiping signs every swap at once. Newsbid
         covers network fees. This can’t be undone.
       </T>
     </StepFrame>

@@ -5,7 +5,7 @@ import { PrimaryButton } from "@/components/ui/button";
 import { Notice } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
 import { usePortfolio } from "@/hooks/use-account";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { shortAddress } from "@/utils/amounts";
 import { Sheet } from "./sheet";
 
@@ -20,7 +20,7 @@ export function useCopyFeedback() {
 }
 
 function FundBody({ address }: { address: string }) {
-  const { fundWithCard } = useStockpileAuth();
+  const { fundWithCard } = useNewsbidAuth();
   // "It shows up in a few seconds": poll balances while the sheet is open so the deposit lands without a reload.
   usePortfolio({ pollMs: 5000 });
   const [opening, setOpening] = useState(false);
@@ -110,7 +110,7 @@ export function useFundSheet() {
 }
 
 export function FundSheetProvider({ children }: { children: ReactNode }) {
-  const { walletAddress } = useStockpileAuth();
+  const { walletAddress } = useNewsbidAuth();
   const [open, setOpen] = useState(false);
   const openFund = useCallback(() => setOpen(true), []);
   const close = useCallback(() => setOpen(false), []);

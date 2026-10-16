@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import {
   fetchActivity,
   fetchMe,
@@ -7,11 +7,11 @@ import {
   fetchSavedBagIds,
   saveBag,
   unsaveBag,
-} from "@/services/api/stockpile";
+} from "@/services/api/newsbid";
 import { queryKeys } from "./query-keys";
 
 export function useMe() {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return useQuery({
     queryKey: queryKeys.me,
     queryFn: fetchMe,
@@ -25,7 +25,7 @@ export function useMe() {
  * caller is waiting on a change (the fund sheet). React Query runs the fastest interval among observers.
  */
 export function usePortfolio({ pollMs }: { pollMs?: number } = {}) {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return useQuery({
     queryKey: queryKeys.portfolio,
     queryFn: fetchPortfolio,
@@ -36,7 +36,7 @@ export function usePortfolio({ pollMs }: { pollMs?: number } = {}) {
 }
 
 export function useSavedBagIds() {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return useQuery({
     queryKey: queryKeys.saved,
     queryFn: fetchSavedBagIds,
@@ -46,7 +46,7 @@ export function useSavedBagIds() {
 
 /** Wallet history, newest first, paged by `nextCursor`. */
 export function useActivity() {
-  const { authenticated } = useStockpileAuth();
+  const { authenticated } = useNewsbidAuth();
   return useInfiniteQuery({
     queryKey: queryKeys.activity,
     queryFn: ({ pageParam }) => fetchActivity(pageParam),

@@ -4,7 +4,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { selection } from "@/components/utils/haptics";
 import { useSavedBagIds, useToggleSaved } from "@/hooks/use-account";
 import { useSonner } from "@/hooks/use-sonner";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { useSignInSheet } from "./sign-in-sheet";
 
 /** Bookmark toggle. Signed-out users are sent to sign in; browse-only builds hide it. */
@@ -18,7 +18,7 @@ export function SaveButton({
   variant?: "plain" | "circle" | "glass";
 }) {
   const { theme } = useUnistyles();
-  const { configured, authenticated } = useStockpileAuth();
+  const { configured, authenticated } = useNewsbidAuth();
   const saved = useSavedBagIds();
   const toggle = useToggleSaved();
   const sonner = useSonner();

@@ -2,8 +2,8 @@ import { secret } from "../lib/config";
 import { and, eq } from "drizzle-orm";
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import { createMiddleware } from "hono/factory";
-import { db } from "@stockpile/core/db";
-import { savedBags } from "@stockpile/core/db/schema";
+import { db } from "@newsbid/core/db";
+import { savedBags } from "@newsbid/core/db/schema";
 import { findBag } from "../lib/bags";
 import { syncUser, verifyIdentity, type Identity } from "../lib/identity";
 import { readPortfolio, unavailablePortfolio } from "../lib/portfolio";
@@ -113,7 +113,7 @@ app.openapi(createRoute({ method: "post", path: "/trade/prepare", operationId: "
 });
 
 app.openapi(createRoute({ method: "post", path: "/trade/submit", operationId: "submitTransaction", tags: ["trade"], request: { body: { content: { "application/json": { schema: SubmitTransactionRequestSchema } } } }, responses: {
-  200: response(SubmitTransactionSchema, "Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status"), 400: response(ErrorSchema, "Not signed by your wallet, or definitively rejected by the provider"),
+  200: response(SubmitTransactionSchema, "Execute through Jupiter (legacy: Newsbid RPC); confirm with /trade/status"), 400: response(ErrorSchema, "Not signed by your wallet, or definitively rejected by the provider"),
   401: response(ErrorSchema, "Unauthorized"), 503: response(ErrorSchema, "Transaction provider not configured or unavailable") } }), async (c) => {
   const identity = c.get("identity");
   const walletAddress = identity.walletAddress;

@@ -1,6 +1,6 @@
-# Stockpile landing (`apps/landing`)
+# Newsbid landing (`apps/landing`)
 
-Astro 6 + Tailwind 3 marketing site for [stockpile.cash](https://stockpile.cash), deployed to Cloudflare via
+Astro 6 + Tailwind 3 marketing site for [newsbid.trade](https://newsbid.trade), deployed to Cloudflare via
 `@astrojs/cloudflare` (see `infra/landing.ts`). Includes an MDX blog and satori-rendered OG images.
 
 ## Structure

@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { useFundSheet } from "@/components/sheets/fund-sheet";
 import { useSignInSheet } from "@/components/sheets/sign-in-sheet";
-import { GradientCard, HeroState } from "@/components/stockpile/hero-state";
+import { GradientCard, HeroState } from "@/components/newsbid/hero-state";
 import { PrimaryButton } from "@/components/ui/button";
 import { Card, Collapsible, Divider, ListRow, Page, Section } from "@/components/ui/layout";
 import { T } from "@/components/ui/type";
@@ -22,13 +22,13 @@ import { API_URL } from "@/config/env";
 import { useMe } from "@/hooks/use-account";
 import { useBags } from "@/hooks/use-bags";
 import { explorerAccountUrl } from "@/lib/solana/transaction";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { shortAddress } from "@/utils/amounts";
 
 export const Route = createFileRoute("/account")({ component: AccountScreen });
 
 const RISKS = [
-  "Bags are Stockpile’s editorial research, not investment advice or a recommendation.",
+  "Bags are Newsbid’s editorial research, not investment advice or a recommendation.",
   "Tokenized stocks are issued by third parties, may not carry shareholder rights and can trade away from the share price.",
   "Swaps have slippage and network fees. You can lose money.",
 ];
@@ -108,7 +108,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 }
 
 function AccountScreen() {
-  const auth = useStockpileAuth();
+  const auth = useNewsbidAuth();
   const me = useMe();
   const { requestSignIn } = useSignInSheet();
   const { openFund } = useFundSheet();
@@ -186,7 +186,7 @@ function AccountScreen() {
           </Section>
           {me.isError ? (
             <T variant="footnote" tone="danger">
-              Couldn’t reach your Stockpile profile: {me.error.message}
+              Couldn’t reach your Newsbid profile: {me.error.message}
             </T>
           ) : null}
             </>
@@ -195,7 +195,7 @@ function AccountScreen() {
               gradient="rose"
               icon={IoPerson}
               accents={[IoMail, IoShieldCheckmark]}
-              title="Sign in to Stockpile"
+              title="Sign in to Newsbid"
               body="Save bags, see your balance and put money in a bag."
               actionLabel="Sign in"
               actionIcon={IoMail}
@@ -212,7 +212,7 @@ function AccountScreen() {
             <PrimaryButton label="Sign out" variant="outline" icon={IoLogOutOutline} loading={signingOut} onClick={signOut} />
           ) : null}
           <T variant="caption" tone="tertiary" align="center">
-            Stockpile for web{import.meta.env.DEV || local ? ` · ${apiHost}` : ""}
+            Newsbid for web{import.meta.env.DEV || local ? ` · ${apiHost}` : ""}
           </T>
         </div>
       </div>

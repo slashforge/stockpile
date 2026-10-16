@@ -4,7 +4,7 @@ import { IoLayers, IoLockClosed, IoMail } from "react-icons/io5";
 import { useSignInSheet } from "@/components/sheets/sign-in-sheet";
 import { type IconType, LoadingState } from "@/components/ui/layout";
 import type { GradientName } from "@/components/ui/theme";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { HeroState } from "./hero-state";
 
 /** Renders children only for signed-in users; otherwise an illustrated prompt that opens sign-in. */
@@ -23,7 +23,7 @@ export function AuthGate({
   gradient?: GradientName;
   children: ReactNode;
 }) {
-  const { configured, ready, authenticated } = useStockpileAuth();
+  const { configured, ready, authenticated } = useNewsbidAuth();
   const { requestSignIn } = useSignInSheet();
   const navigate = useNavigate();
 

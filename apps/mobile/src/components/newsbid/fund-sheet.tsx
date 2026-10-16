@@ -10,7 +10,7 @@ import QRCodeStyled, { useQRCodeData } from "react-native-qrcode-styled";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { usePortfolio } from "@/hooks/use-account";
 import { useCopyFeedback } from "@/hooks/use-copy-feedback";
-import { useStockpileAuth } from "@/providers/auth-context";
+import { useNewsbidAuth } from "@/providers/auth-context";
 import { Notice } from "./layout";
 import { NativeSheet } from "./native-sheet";
 import { PrimaryButton } from "./primary-button";
@@ -57,7 +57,7 @@ function AddressQr({ address }: { address: string }) {
 }
 
 function FundBody({ address }: { address: string }) {
-  const { fundWithCard } = useStockpileAuth();
+  const { fundWithCard } = useNewsbidAuth();
   const [opening, setOpening] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
   // Inline feedback: the toast layer renders behind the native sheet.
@@ -138,7 +138,7 @@ function FundPoller() {
 }
 
 export function FundSheetProvider({ children }: { children: React.ReactNode }) {
-  const { walletAddress } = useStockpileAuth();
+  const { walletAddress } = useNewsbidAuth();
   const [open, setOpen] = useState(false);
   const openFund = useCallback(() => setOpen(true), []);
   const close = useCallback(() => setOpen(false), []);

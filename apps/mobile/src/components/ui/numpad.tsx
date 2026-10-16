@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { T } from "@/components/stockpile/type";
+import { T } from "@/components/newsbid/type";
 import {
   lightImpact,
   mediumImpact,

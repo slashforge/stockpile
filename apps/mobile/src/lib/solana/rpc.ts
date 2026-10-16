@@ -1,13 +1,13 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { SOLANA_RPC_URL } from "@/config/env";
-import { fetchTransactionStatuses } from "@/services/api/stockpile";
+import { fetchTransactionStatuses } from "@/services/api/newsbid";
 import { createConfirmationPoller } from "./confirmations";
 
 export type { ConfirmationStatus } from "./confirmations";
 
 let connection: Connection | null = null;
 
-/** Read-only fallback (mint decimals). Sending and confirming go through the Stockpile API. */
+/** Read-only fallback (mint decimals). Sending and confirming go through the Newsbid API. */
 export function getConnection(): Connection {
   connection ??= new Connection(SOLANA_RPC_URL, "confirmed");
   return connection;
@@ -29,5 +29,5 @@ export async function fetchMintDecimals(mints: string[]): Promise<Record<string,
   return result;
 }
 
-/** Batched confirmation through Stockpile's `/trade/status` (Helius), shared by every in-flight swap. */
+/** Batched confirmation through Newsbid's `/trade/status` (Helius), shared by every in-flight swap. */
 export const waitForConfirmation = createConfirmationPoller(fetchTransactionStatuses);

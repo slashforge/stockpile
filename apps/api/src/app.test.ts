@@ -79,15 +79,15 @@ describe("public bags and auth boundaries", () => {
     expect((await app.request(`/assets/${"1".repeat(32)}/chart`)).status).toBe(404); // not an allowlisted asset
     expect((await app.request("/assets/not-a-mint/chart")).status).toBe(400);
   });
-  it("serves the Stockpile OpenAPI document without authentication", async () => {
+  it("serves the Newsbid OpenAPI document without authentication", async () => {
     const response = await app.request("/openapi.json");
     expect(response.status).toBe(200);
     const document = await response.json() as { info: { title: string }; paths: Record<string, { get?: { operationId: string }; post?: { operationId: string } }> };
-    expect(document.info.title).toBe("Stockpile API");
+    expect(document.info.title).toBe("Newsbid API");
     expect(Object.keys(document.paths).sort()).toEqual(["/activity", "/assets/{mint}/chart", "/bags", "/bags/returns", "/bags/sparklines", "/bags/{id}", "/bags/{id}/chart", "/bags/{id}/history", "/bags/{id}/stories", "/health", "/me", "/portfolio", "/positions", "/positions/legs", "/saved-bags", "/saved-bags/{bagId}", "/stories", "/trade/prepare", "/trade/quote", "/trade/status", "/trade/submit", "/trade/tokens/prepare", "/trade/tokens/quote"]);
     expect(document.paths["/bags"]?.get?.operationId).toBe("listBags");
     expect(document.paths["/trade/prepare"]?.post?.operationId).toBe("prepareBagTrade");
-    expect(JSON.stringify(document).replace(/Stockpile/g, "")).not.toMatch(/basket|pile/i);
+    expect(JSON.stringify(document).replace(/Newsbid/g, "")).not.toMatch(/basket|pile/i);
   });
   it("requires a Privy identity token for private endpoints", async () => {
     for (const route of ["/me", "/saved-bags", "/portfolio", "/activity", "/positions"]) {

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Stockpile API",
+    "title": "Newsbid API",
     "version": "1.0.0"
   },
   "components": {
@@ -2427,7 +2427,7 @@
               },
               "transaction": {
                 "type": "string",
-                "description": "Base64 legacy or v0 Jupiter order transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature."
+                "description": "Base64 legacy or v0 Jupiter order transaction, already signed by the Newsbid fee payer; the user's wallet adds its signature."
               },
               "lastValidBlockHeight": {
                 "type": [
@@ -2444,7 +2444,7 @@
               },
               "feePayer": {
                 "type": "string",
-                "description": "Stockpile paymaster that pays the network fee and token-account rent."
+                "description": "Newsbid paymaster that pays the network fee and token-account rent."
               }
             },
             "required": [
@@ -2481,7 +2481,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 4096,
-            "description": "Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored)."
+            "description": "Base64 transaction fully signed by the user's wallet (and the Newsbid fee payer when sponsored)."
           },
           "bagId": {
             "type": "string",
@@ -3630,7 +3630,7 @@
         },
         "responses": {
           "200": {
-            "description": "Execute through Jupiter (legacy: Stockpile RPC); confirm with /trade/status",
+            "description": "Execute through Jupiter (legacy: Newsbid RPC); confirm with /trade/status",
             "content": {
               "application/json": {
                 "schema": {

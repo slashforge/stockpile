@@ -19,12 +19,12 @@ import {
 } from "@/lib/funding";
 import { assertWalletSigned, decodeTransaction } from "@/lib/solana/transaction";
 import { definiteRejection, SubmissionError, transactionSignature } from "@/lib/trade/signing";
-import { AuthContext, type StockpileAuth } from "@/providers/auth-context";
+import { AuthContext, type NewsbidAuth } from "@/providers/auth-context";
 import {
   clearIdentityTokenGetter,
   setIdentityTokenGetter,
 } from "@/services/api/identity-token";
-import { ApiError, submitSignedTransaction } from "@/services/api/stockpile";
+import { ApiError, submitSignedTransaction } from "@/services/api/newsbid";
 
 type LinkedAccount = { type?: string; address?: string };
 
@@ -87,12 +87,12 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
   }, [privyLogout, queryClient]);
 
   const signAndSendTransaction = useMemo<
-    StockpileAuth["signAndSendTransaction"]
+    NewsbidAuth["signAndSendTransaction"]
   >(() => {
     const address = wallet?.address;
     if (!wallet || !address) return null;
-    // Swaps arrive pre-signed by Stockpile's fee payer, so the wallet only adds its signature. The
-    // exact checked bytes are sent to the Stockpile API, which broadcasts them via Jupiter execute,
+    // Swaps arrive pre-signed by Newsbid's fee payer, so the wallet only adds its signature. The
+    // exact checked bytes are sent to the Newsbid API, which broadcasts them via Jupiter execute,
     // never a public RPC from the device.
     return async (base64Transaction: string, options?: { bagId?: string; requestId?: string }) => {
       const transaction = decodeTransaction(base64Transaction);
@@ -130,7 +130,7 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
     ? ((client.app.getConfig()?.funding_config ?? null) as PrivyFundingConfig)
     : null;
   const cardAvailable = cardFundingAvailable(fundingConfig);
-  const fundWithCard = useMemo<StockpileAuth["fundWithCard"]>(() => {
+  const fundWithCard = useMemo<NewsbidAuth["fundWithCard"]>(() => {
     if (!walletAddress || !cardAvailable) return null;
     return () =>
       fundWallet({
@@ -141,7 +141,7 @@ function PrivyBridge({ children }: { children: React.ReactNode }) {
       });
   }, [walletAddress, cardAvailable, fundWallet, fundingConfig]);
 
-  const value = useMemo<StockpileAuth>(
+  const value = useMemo<NewsbidAuth>(
     () => ({
       configured: true,
       ready: isReady,

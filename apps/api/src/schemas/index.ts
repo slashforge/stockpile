@@ -44,10 +44,10 @@ const tradeEcho = { bagId: z.string(), side: TradeSideSchema, inputMint: z.strin
 export const QuoteSchema = z.object({ status: z.enum(["available", "unavailable"]), ...tradeEcho, legs: z.array(QuoteLegSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("QuoteResponse");
 export const PreparedTransactionSchema = QuoteLegSchema.extend({
   requestId: z.string().openapi({ description: "Jupiter order request ID; submit alongside the signed transaction to execute this order." }),
-  transaction: z.string().openapi({ description: "Base64 legacy or v0 Jupiter order transaction, already signed by the Stockpile fee payer; the user's wallet adds its signature." }),
+  transaction: z.string().openapi({ description: "Base64 legacy or v0 Jupiter order transaction, already signed by the Newsbid fee payer; the user's wallet adds its signature." }),
   lastValidBlockHeight: z.number().nullable(),
   slippageBps: z.number().nullable().openapi({ description: "Slippage limit this leg was built with (chosen by Jupiter when automatic)." }),
-  feePayer: z.string().openapi({ description: "Stockpile paymaster that pays the network fee and token-account rent." }),
+  feePayer: z.string().openapi({ description: "Newsbid paymaster that pays the network fee and token-account rent." }),
 }).openapi("PreparedTransaction");
 export const PrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tradeEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("PrepareResponse");
 export const TokenSellRequestSchema = z.object({
@@ -60,7 +60,7 @@ export const TokenSellQuoteSchema = z.object({ status: z.enum(["available", "una
 export const TokenSellPrepareSchema = z.object({ status: z.enum(["ready", "unavailable"]), ...tokenSellEcho, walletAddress: z.string().nullable(), transactions: z.array(PreparedTransactionSchema), error: TradeErrorSchema.nullable(), message: z.string().nullable() }).openapi("TokenSellPrepareResponse");
 export const SubmitTransactionRequestSchema = z.object({
   requestId: z.string().min(1).max(200).optional().openapi({ description: "Jupiter order request ID. When present, submits via Swap v2 execute; omitted uses the legacy Helius relay." }),
-  transaction: z.string().min(1).max(4096).openapi({ description: "Base64 transaction fully signed by the user's wallet (and the Stockpile fee payer when sponsored)." }),
+  transaction: z.string().min(1).max(4096).openapi({ description: "Base64 transaction fully signed by the user's wallet (and the Newsbid fee payer when sponsored)." }),
   bagId: z.string().min(1).optional().openapi({ description: "Bag this swap belongs to. The server links the leg to the bag once it confirms, even if the app closes first." }),
 }).openapi("SubmitTransactionRequest");
 export const SubmitTransactionSchema = z.object({ signature: z.string() }).openapi("SubmitTransactionResponse");
