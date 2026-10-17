@@ -5,8 +5,10 @@ import { cn, T } from "@/components/ui/type";
 import {
   changeTone,
   type Curator,
-  type DisclosureEvidence,
+  type Evidence,
+  evidenceCountLabel,
   evidenceLine,
+  evidenceLinkLabel,
   formatSignedPct,
   type LiquidityTier,
 } from "@/lib/market";
@@ -160,7 +162,7 @@ export function LiquidityPill({ tier }: { tier: LiquidityTier | null }) {
   );
 }
 
-export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
+export function EvidenceList({ items }: { items: Evidence[] }) {
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
   return (
@@ -173,19 +175,19 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
       >
         <IoDocumentTextOutline size={13} />
         <T as="span" variant="caption" tone="accent" className="font-semibold">
-          {items.length === 1 ? "1 filing" : `${items.length} filings`}
+          {evidenceCountLabel(items)}
         </T>
         {open ? <IoChevronUp size={12} /> : <IoChevronDown size={12} />}
       </button>
       {open
         ? items.map((item, index) => (
-            <div key={`${item.member}-${item.txnDate ?? index}-${index}`} className="flex items-start gap-2">
+            <div key={`${item.kind}-${item.url}-${index}`} className="flex items-start gap-2">
               <T variant="caption" tone="secondary" className="flex-1">
                 {evidenceLine(item)}
               </T>
               {item.url ? (
                 <a href={item.url} target="_blank" rel="noreferrer" className="t-caption font-semibold text-accent hover:underline">
-                  View filing
+                  {evidenceLinkLabel(item)}
                 </a>
               ) : null}
             </div>

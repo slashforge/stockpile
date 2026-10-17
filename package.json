@@ -16,6 +16,7 @@
     "xstocks:probe": "sst shell -- bun apps/api/scripts/probe-xstocks.ts",
     "prices:snapshot": "sst shell -- bun apps/api/scripts/snapshot-prices.ts",
     "congress:ingest": "sst shell -- bun apps/api/scripts/ingest-congress.ts",
+    "cramer:ingest": "sst shell -- bun apps/api/scripts/ingest-cramer.ts",
     "test:backend": "sst shell -- bun test tests/backend",
     "generate:sdk": "bun run --cwd apps/api generate:openapi && bun run --cwd packages/api-client generate"
   },

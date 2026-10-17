@@ -1,0 +1,38 @@
+---
+/** Overlapping token logos with white rings and a "+N" badge: apps/web `LogoCluster`. */
+import TokenAvatar from '../TokenAvatar.astro';
+import type { LandingAsset } from '../../lib/bags';
+
+interface Props {
+  assets: LandingAsset[];
+  size?: number;
+  limit?: number;
+  flat?: boolean;
+}
+
+const { assets, size = 56, limit = 4, flat = false } = Astro.props;
+const shown = assets.length > limit ? assets.slice(0, Math.max(1, limit - 1)) : assets;
+const rest = assets.length - shown.length;
+const overlap = size * 0.28;
+const ring = Math.min(3, Math.max(1.5, size * 0.1));
+const shadow = flat ? 'none' : `0 ${Math.max(1, size * 0.07)}px ${Math.max(3, size * 0.15)}px rgba(16,19,31,0.18)`;
+---
+
+<span class="inline-flex items-center" aria-hidden="true">
+  {shown.map((asset, index) => (
+    <span
+      class="relative inline-flex rounded-full bg-white"
+      style={`margin-left:${index === 0 ? 0 : -overlap}px; z-index:${shown.length - index}; border:${ring}px solid #fff; box-shadow:${shadow}`}
+    >
+      <TokenAvatar symbol={asset.symbol} iconUrl={asset.iconUrl} brandColor={asset.brandColor} size={size} index={index} />
+    </span>
+  ))}
+  {rest > 0 && (
+    <span
+      class="relative inline-flex items-center justify-center rounded-full bg-[#E9EDFF] font-extrabold text-[#2563EB]"
+      style={`margin-left:${-overlap}px; width:${size + ring * 2}px; height:${size + ring * 2}px; border:${ring}px solid #fff; box-shadow:${shadow}; font-size:${Math.max(11, size * 0.3)}px`}
+    >
+      +{rest}
+    </span>
+  )}
+</span>

@@ -85,6 +85,21 @@ export const congressIngest = isDeployed()
     })
   : undefined;
 
+// Jim Cramer calls for the inverse-cramer bag (apps/api/cramer-cron.ts) from CNBC's Mad Money feed. Mad Money articles
+// publish around 23:00 UTC on weekdays; every 6 h at :50 keeps clear of the other crons. At most 12 article fetches and
+// one OpenAI call per article that links a tradable ticker per run (typically 0-3).
+export const cramerIngest = isDeployed()
+  ? new sst.cloudflare.Cron("CramerIngest", {
+      schedules: ["50 */6 * * *"],
+      worker: {
+        handler: "apps/api/cramer-cron.ts",
+        build: WORKER_BUILD,
+        link: [...API_LINKS, database!],
+        transform: WORKER_TRANSFORM,
+      },
+    })
+  : undefined;
+
 export const apiUrl = isDeployed()
   ? $interpolate`https://${domains.api}`
   : "http://localhost:4040";

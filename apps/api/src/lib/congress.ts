@@ -112,17 +112,24 @@ export async function ingestCongress() {
 const midpoint = (item: { amountLow: number; amountHigh: number }) => (item.amountLow + item.amountHigh) / 2;
 const evidenceOf = (item: Disclosure): Evidence => ({ kind: "disclosure", member: item.member, chamber: item.chamber, txnType: item.txnType, txnDate: item.txnDate.toISOString().slice(0, 10), disclosedDate: item.disclosedDate.toISOString().slice(0, 10), amountRange: item.amountRange, amountMidUsd: midpoint(item), url: item.filingUrl });
 
+/** Splits 10000 bps proportionally to positive scores (already sorted largest first); the last entry absorbs rounding. */
+export function allocateBps(scores: number[]): number[] {
+  const total = scores.reduce((sum, value) => sum + value, 0);
+  if (!(total > 0)) return scores.map(() => 0);
+  let allocated = 0;
+  return scores.map((value, index) => {
+    const weightBps = index === scores.length - 1 ? 10000 - allocated : Math.round((value / total) * 10000);
+    allocated += weightBps;
+    return weightBps;
+  });
+}
+
 /** Normalises positive per-ticker scores into weightBps summing to 10000 (largest first; last absorbs rounding). */
 export function toTrackerAssets(scores: Map<string, { net: number; evidence: Evidence[] }>): TrackerAsset[] {
   const positive = [...scores].filter(([, value]) => value.net > 0).sort((a, b) => b[1].net - a[1].net || a[0].localeCompare(b[0]));
-  const total = positive.reduce((sum, [, value]) => sum + value.net, 0);
-  if (!total) return [];
-  let allocated = 0;
-  return positive.map(([ticker, value], index) => {
-    const weightBps = index === positive.length - 1 ? 10000 - allocated : Math.round((value.net / total) * 10000);
-    allocated += weightBps;
-    return { ticker, symbol: tickerToSymbol[ticker]!, name: `${tickerNames[ticker]} xStock`, weightBps, sourceUrl: value.evidence[0]?.url ?? "https://disclosures-clerk.house.gov/FinancialDisclosure", evidence: value.evidence, netUsd: value.net };
-  });
+  const weights = allocateBps(positive.map(([, value]) => value.net));
+  return positive.map(([ticker, value], index) => ({ ticker, symbol: tickerToSymbol[ticker]!, name: `${tickerNames[ticker]} xStock`, weightBps: weights[index]!,
+    sourceUrl: value.evidence[0]?.url ?? "https://disclosures-clerk.house.gov/FinancialDisclosure", evidence: value.evidence, netUsd: value.net }));
 }
 
 /** Pelosi Tracker: purchases disclosed in the last 12 months by Nancy Pelosi (filings include spouse trades), amount-midpoint weighted. */

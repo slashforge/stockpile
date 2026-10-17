@@ -10,8 +10,10 @@ import {
   type Change24hSource,
   changeTone,
   type Curator,
-  type DisclosureEvidence,
+  type Evidence,
+  evidenceCountLabel,
   evidenceLine,
+  evidenceLinkLabel,
   formatAsOf,
   formatImpactPct,
   formatPrice,
@@ -265,7 +267,7 @@ export function AssetMarketLine({
   );
 }
 
-export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
+export function EvidenceList({ items }: { items: Evidence[] }) {
   const { theme } = useUnistyles();
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
@@ -284,7 +286,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
           color={theme.ds.accent}
         />
         <T variant="caption" tone="accent" style={styles.bold}>
-          {items.length === 1 ? "1 filing" : `${items.length} filings`}
+          {evidenceCountLabel(items)}
         </T>
         <Ionicons
           name={open ? "chevron-up" : "chevron-down"}
@@ -295,7 +297,7 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
       {open
         ? items.map((item, index) => (
             <View
-              key={`${item.member}-${item.txnDate ?? index}-${index}`}
+              key={`${item.kind}-${item.url}-${index}`}
               style={styles.evidenceItem}
             >
               <T variant="caption" tone="secondary" style={styles.shrink}>
@@ -304,12 +306,12 @@ export function EvidenceList({ items }: { items: DisclosureEvidence[] }) {
               {item.url ? (
                 <HapticPressable
                   accessibilityRole="link"
-                  accessibilityLabel={`View filing: ${evidenceLine(item)}`}
+                  accessibilityLabel={`${evidenceLinkLabel(item)}: ${evidenceLine(item)}`}
                   hitSlop={8}
                   onPress={() => WebBrowser.openBrowserAsync(item.url!)}
                 >
                   <T variant="caption" tone="accent" style={styles.bold}>
-                    View filing
+                    {evidenceLinkLabel(item)}
                   </T>
                 </HapticPressable>
               ) : null}

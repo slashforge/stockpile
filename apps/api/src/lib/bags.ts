@@ -5,17 +5,20 @@ import { knownMint, seededMint, verifyListedMint } from "./mint-registry";
 import { xStockListing } from "./xstocks";
 import { assetMarket, bagMarket, cachedScaledUiMultiplier, liquidityTier, scaledUiMultiplier, trackMints, type AssetMarket } from "./market";
 import { congressConsensus, loadDisclosures, pelosiTracker, tickerToSymbol, type Evidence, type TrackerAsset } from "./congress";
+import { cramerExclusions, cramerSymbol, cramerUniverse, inverseCramer, loadCramerCalls, type CallEvidence, type CramerAsset } from "./cramer";
 
 export type Issuer = "xstocks" | "prestocks";
 export type AssetClass = "public-equity" | "pre-ipo";
 export type BagSource = { title: string; url: string };
-export type BagAssetDefinition = { symbol: string; name: string; weightBps: number; sourceUrl: string; underlyingTicker?: string; evidence?: Evidence[] };
+export type BagEvidence = Evidence | CallEvidence;
+export type BagAssetDefinition = { symbol: string; name: string; weightBps: number; sourceUrl: string; underlyingTicker?: string; evidence?: BagEvidence[] };
 export type Curator = { kind: "person" | "aggregate" | "editorial"; name: string; description: string };
 export type Bag = {
   id: string; title: string; subtitle: string; description: string; thesis: string; disclosure: string;
-  sourceType: "editorial" | "disclosure"; issuer: Issuer; assetClass: AssetClass; curator: Curator; risks: string[]; sources: BagSource[]; assets: BagAssetDefinition[];
-  /** Data-driven bags compute assets at request time from persisted disclosures; `minAssets` gates tradability. */
-  tracker?: { kind: "pelosi" | "consensus"; minAssets: number };
+  /** `media`: computed from a public figure's published on-air calls (inverse-cramer). */
+  sourceType: "editorial" | "disclosure" | "media"; issuer: Issuer; assetClass: AssetClass; curator: Curator; risks: string[]; sources: BagSource[]; assets: BagAssetDefinition[];
+  /** Data-driven bags compute assets at request time from persisted disclosures or calls; `minAssets` gates tradability. */
+  tracker?: { kind: "pelosi" | "consensus" | "inverse-cramer"; minAssets: number };
 };
 export type Reference = { markPrice: number; tokenPrice: number | null; impliedValuation: number | null; asOf: string };
 export type ResolvedAsset = { mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: Issuer; assetClass: AssetClass; reference: Reference | null; issuerIconUrl: string | null; issuerMint: string | null };
@@ -53,6 +56,14 @@ const disclosureRisks = [
 const clerk = { title: "House Clerk financial disclosures (PTR search)", url: "https://disclosures-clerk.house.gov/FinancialDisclosure" };
 const efd = { title: "Senate electronic financial disclosures (eFD)", url: "https://efdsearch.senate.gov/search/" };
 const congressInvests = { title: "CongressInvests API (normalised STOCK Act filings)", url: "https://congressinvests.com" };
+const cramerDisclosure = "Built from Jim Cramer's on-air stock calls as published in CNBC's Mad Money coverage. An AI model classifies each call as bullish, bearish or neutral, and every call cites a verbatim quote and the CNBC article; classifications can be wrong and calls only count once CNBC publishes them. Jim Cramer and CNBC are not affiliated with Newsbid and do not endorse this bag. This is not investment advice. Assets are xStocks tokens tracking the named stocks; xStocks restrictions and risks apply.";
+const cramerRisks = [
+  "Stances are classified by an AI model from CNBC's published article text, so sarcastic, conditional or hedged remarks can be misread; each holding links the quote and article it relied on.",
+  "Only Mad Money articles that link a tradable xStocks ticker are read. Most of Cramer's calls are on stocks not available here, so the bag reflects a small, skewed subset of what he says.",
+  "The bag only buys stocks Cramer turned bearish on. It never shorts his buy calls, so it does not track the performance of trading against him.",
+  "Jim Cramer and CNBC are not affiliated with Newsbid and do not endorse this bag.",
+  ...xstocksRisks.slice(0, 3),
+];
 // xStocks asset definitions. Every symbol here passed `apps/api/scripts/probe-xstocks.ts` on 2026-09-25 (10 USDC Jupiter quote
 // routes with <= 2.5% price impact, Tokens V2 verified, pool TVL >= $500, implied price within 10% of Jupiter's usdPrice).
 // Re-run the probe before adding a symbol; ARMx, V/MA/PYPL and every defense/pharma/pure-software name failed that gate on that date.
@@ -170,15 +181,26 @@ export const bags: Bag[] = [
     curator: { kind: "aggregate", name: "U.S. Congress (all members)", description: "Aggregated STOCK Act periodic transaction reports from the House Clerk and Senate eFD, normalised by CongressInvests. Public records; no member endorses this bag." },
     sources: [clerk, efd, congressInvests], assets: [], tracker: { kind: "consensus", minAssets: 2 },
   },
+  {
+    id: "inverse-cramer", title: "Inverse Cramer", subtitle: "What Cramer is dumping, plus the big names he isn't hyping",
+    description: "Built from Jim Cramer's calls in CNBC's Mad Money coverage over the last 60 days: each sell or avoid call scores +1 and each buy call -1. Every tradable stock he was net bullish on is left out; stocks he was net bearish on come first, and the largest stocks he has not talked up fill the bag to eight. Each bearish call adds one extra equal share of weight.",
+    thesis: "A long-only take on the 'inverse Cramer' meme: it cannot short his picks, so it avoids them and buys what he tells viewers to sell. Bearish calls on tradable megacaps are rare, so most of the bag is usually the biggest stocks he is not pumping. It is a contrarian experiment that follows his published calls, not evidence that fading him works.",
+    disclosure: cramerDisclosure, sourceType: "media", issuer: "xstocks", assetClass: "public-equity", risks: cramerRisks,
+    curator: { kind: "person", name: "Jim Cramer (inverted)", description: "Host of CNBC's Mad Money. His calls are read from CNBC's published Mad Money coverage and inverted by Newsbid; he has no affiliation with Newsbid and does not endorse this bag." },
+    sources: [{ title: "CNBC: Mad Money with Jim Cramer", url: "https://www.cnbc.com/mad-money/" }, { title: "CNBC: Jim Cramer", url: "https://www.cnbc.com/jim-cramer/" }],
+    assets: [], tracker: { kind: "inverse-cramer", minAssets: 2 },
+  },
 ];
 
 export function findBag(id: string) { return bags.find((bag) => bag.id === id); }
-export const allSymbols = () => new Set([...bags.flatMap((bag) => bag.assets.map((asset) => asset.symbol)), ...Object.values(tickerToSymbol)]);
+export const allSymbols = () => new Set([...bags.flatMap((bag) => bag.assets.map((asset) => asset.symbol)), ...Object.values(tickerToSymbol), ...Object.keys(cramerUniverse).map(cramerSymbol)]);
 const fromTracker = (asset: TrackerAsset): BagAssetDefinition => ({ symbol: asset.symbol, name: asset.name, weightBps: asset.weightBps, sourceUrl: asset.sourceUrl, underlyingTicker: asset.ticker, evidence: asset.evidence });
+const fromCramer = (asset: CramerAsset): BagAssetDefinition => ({ symbol: asset.symbol, name: asset.name, weightBps: asset.weightBps, sourceUrl: asset.sourceUrl, underlyingTicker: asset.ticker, evidence: asset.evidence });
 
-/** Asset definitions for a bag; tracker bags are computed from persisted disclosures (cached 5 min in congress.ts). */
+/** Asset definitions for a bag; tracker bags are computed from persisted disclosures or calls (cached 5 min in congress.ts / cramer.ts). */
 export async function bagAssets(bag: Bag): Promise<BagAssetDefinition[]> {
   if (!bag.tracker) return bag.assets;
+  if (bag.tracker.kind === "inverse-cramer") return inverseCramer(await loadCramerCalls()).map(fromCramer);
   const rows = await loadDisclosures();
   return (bag.tracker.kind === "pelosi" ? pelosiTracker(rows) : congressConsensus(rows)).map(fromTracker);
 }
@@ -194,7 +216,8 @@ export function knownSymbol(mint: string): string | null {
 /** Editorial display name for a bag symbol (tracker tickers reuse the editorial xStocks names). */
 export function catalogueName(symbol: string): string | null {
   for (const bag of bags) for (const asset of bag.assets) if (asset.symbol === symbol) return asset.name;
-  return null;
+  const ticker = symbol.endsWith("x") ? symbol.slice(0, -1) : null;
+  return ticker && Object.hasOwn(cramerUniverse, ticker) ? `${cramerUniverse[ticker]} xStock` : null;
 }
 
 /** IDs of every bag (editorial or tracker) whose current assets include the known mint, in catalogue order. */
@@ -251,7 +274,7 @@ export async function isTradable(bag: Bag) {
   return true;
 }
 
-export type PublicAsset = BagAssetDefinition & ResolvedAsset & { evidence: Evidence[]; market: AssetMarket | null; liquidityTier: ReturnType<typeof liquidityTier>; iconUrl: string | null; iconSource: "jupiter-token" | "issuer-token" | "underlying-brand" | null; brandColor: string | null };
+export type PublicAsset = BagAssetDefinition & ResolvedAsset & { evidence: BagEvidence[]; market: AssetMarket | null; liquidityTier: ReturnType<typeof liquidityTier>; iconUrl: string | null; iconSource: "jupiter-token" | "issuer-token" | "underlying-brand" | null; brandColor: string | null };
 
 export async function publicBag(bag: Bag) {
   const definitions = await bagAssets(bag);
@@ -266,8 +289,14 @@ export async function publicBag(bag: Bag) {
   const blocked = trackerBlocked(bag, definitions);
   const tradable = assets.length > 0 && !blocked && assets.every((asset) => asset.mint !== null);
   const { tracker, ...rest } = bag;
-  const tradableReason = !assets.length ? "No qualifying disclosures found yet" : blocked ? `Research-only: only ${assets.length} disclosed ticker${assets.length === 1 ? "" : "s"} overlap tradable xStocks (minimum ${tracker!.minAssets})` : tradable ? null : "One or more assets have no verified mint";
-  return { ...rest, tradable, tradableReason, market: bagMarket(assets), assets };
+  const media = bag.sourceType === "media";
+  const tradableReason = !assets.length ? (media ? "No qualifying calls found yet" : "No qualifying disclosures found yet")
+    : blocked ? `Research-only: only ${assets.length} ${media ? "eligible" : "disclosed"} ticker${assets.length === 1 ? "" : "s"} overlap tradable xStocks (minimum ${tracker!.minAssets})`
+    : tradable ? null : "One or more assets have no verified mint";
+  // Inverse Cramer: name what was left out (net-bullish calls) so the exclusions are auditable from the bag itself.
+  const excluded = tracker?.kind === "inverse-cramer" && assets.length ? cramerExclusions(await loadCramerCalls()) : [];
+  const thesis = excluded.length ? `${rest.thesis} Left out right now because he talked them up: ${excluded.join(", ")}.` : rest.thesis;
+  return { ...rest, thesis, tradable, tradableReason, market: bagMarket(assets), assets };
 }
 
 /** Registers every known issuer mint with the market cache so one batched refresh covers all bags. */

@@ -1,0 +1,213 @@
+---
+/**
+ * Static twin of the app's feed card (apps/web `StoryReel`): photo or brand-tinted poster,
+ * publisher overline, headline, source link, the bag-impact takeaway and the related-bag bar.
+ */
+import Icon from './Icon.astro';
+import LogoCluster from './LogoCluster.astro';
+import ImpactChip from './ImpactChip.astro';
+import TokenAvatar from '../TokenAvatar.astro';
+import { bagGradient, formatWeight, type LandingBag } from '../../lib/bags';
+import { storyDate, storyHost, type LandingStory } from '../../lib/stories';
+
+interface Props {
+  story: LandingStory;
+  bag: LandingBag;
+  class?: string;
+  compact?: boolean;
+}
+
+const { story, bag, class: className = '', compact = false } = Astro.props;
+const holdings = bag.assets
+  .filter((asset) => story.analysis.affectedSymbols.includes(asset.symbol))
+  .sort((a, b) => b.weightBps - a.weightBps);
+const lead = holdings[0] ?? bag.assets[0];
+const exposure = holdings.reduce((sum, asset) => sum + asset.weightBps, 0);
+const brand = lead?.brandColor && /^#[0-9a-f]{6}$/i.test(lead.brandColor) ? lead.brandColor : bagGradient(bag)[0];
+const company = lead?.name.replace(/\s+(xStocks?|PreStocks?|Tokenized.*|Token)$/i, '').trim();
+const ticker = lead?.symbol.replace(/x$/, '');
+const date = storyDate(story.publishedAt);
+const exposureText = holdings.length
+  ? `${holdings.slice(0, 2).map((a) => a.symbol).join(', ')} · ${formatWeight(exposure)} of bag`
+  : 'Theme-level';
+---
+
+<article
+  class:list={['reel', compact && 'reel--compact', className]}
+  style={`--brand:${brand}`}
+  aria-label={`Example Newsbid story: ${story.title}`}
+>
+  {story.imageUrl ? (
+    <div class="reel__photo" aria-hidden="true">
+      <img src={story.imageUrl} alt="" referrerpolicy="no-referrer" loading="eager" decoding="async" onerror="this.closest('.reel').classList.add('reel--poster');this.remove()" />
+    </div>
+  ) : null}
+  <div class:list={['reel__poster', !story.imageUrl && 'is-on']} aria-hidden="true">
+    {lead && (
+      <div class="reel__lead">
+        <TokenAvatar symbol={lead.symbol} iconUrl={lead.iconUrl} brandColor={lead.brandColor} size={compact ? 44 : 56} />
+        <span class="reel__ticker">{ticker}</span>
+        {company && <span class="reel__company">{company}</span>}
+      </div>
+    )}
+  </div>
+  <div class="reel__topfade" aria-hidden="true"></div>
+
+  <div class="relative flex flex-wrap gap-2 px-4 pt-4">
+    <span class="glass-chip"><Icon name="newspaper" size={13} /> News</span>
+    {story.provenance === 'ai' && <span class="glass-chip"><Icon name="sparkles" size={13} /> AI summary</span>}
+    {bag.issuer === 'prestocks' && <span class="glass-chip"><Icon name="hourglass" size={13} /> Pre-IPO</span>}
+  </div>
+
+  <div class="relative flex flex-col gap-2 px-4 pb-4">
+    <div class="flex items-center gap-2">
+      <span class="h-3.5 w-[3px] rounded-sm" style="background:var(--brand)"></span>
+      <span class="text-[12px] leading-4 font-bold uppercase tracking-[1.2px] text-white truncate">{story.publisher}</span>
+      {date && <span class="text-[12px] leading-4 font-semibold text-white/60 shrink-0">{date}</span>}
+    </div>
+    <h3 class:list={['reel__title', compact && 'reel__title--compact']}>{story.title}</h3>
+    {!compact && <p class="text-[15px] leading-[21px] text-white/85 line-clamp-2">{story.summary}</p>}
+
+    <div class="mt-0.5 flex items-center gap-2">
+      <a
+        href={story.sourceUrl}
+        target="_blank"
+        rel="noreferrer"
+        class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-white px-4 text-[14px] font-bold text-[#10131F] hover:opacity-90"
+      >
+        Read story <Icon name="arrow" size={15} />
+      </a>
+      <span class="text-[12px] text-white/60 truncate">{storyHost(story.sourceUrl)}</span>
+    </div>
+
+    <div class="flex flex-col gap-1 rounded-2xl bg-[rgba(16,19,31,0.55)] px-3 py-2.5 ring-1 ring-white/10 backdrop-blur-md">
+      <div class="flex flex-wrap items-center gap-2">
+        <ImpactChip direction={story.analysis.direction} onDark />
+        <span class="text-[12px] font-semibold text-white/65 tabular-nums truncate">{exposureText}</span>
+      </div>
+      <p class="text-[13px] leading-[18px] text-white/90 line-clamp-2">
+        <span class="font-semibold text-white">{story.analysis.headline}.</span>
+      </p>
+    </div>
+
+    <div class="mt-1 flex items-center gap-2.5 rounded-3xl bg-white p-2.5 pl-3">
+      <LogoCluster assets={bag.assets} size={compact ? 28 : 34} limit={3} />
+      <div class="flex min-w-0 flex-1 flex-col">
+        <span class="text-[16px] leading-[21px] font-semibold text-text truncate">{bag.title}</span>
+        <span class="text-[12px] leading-4 text-text-muted truncate">{bag.assets.length} tokens · {bag.subtitle}</span>
+      </div>
+      <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+        <Icon name="chevron-up" size={18} />
+      </span>
+    </div>
+  </div>
+</article>
+
+<style>
+  .reel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 9 / 17;
+    max-height: 700px;
+    border-radius: 34px;
+    background: #090b14;
+    color: #fff;
+    isolation: isolate;
+  }
+  .reel--compact {
+    aspect-ratio: 9 / 15;
+    border-radius: 28px;
+  }
+  .reel__photo {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 70%;
+    z-index: -1;
+  }
+  .reel__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .reel__photo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(9, 11, 20, 0) 30%, rgba(9, 11, 20, 0.55) 58%, rgba(9, 11, 20, 0.9) 82%, #090b14 100%);
+  }
+  .reel__poster {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    display: none;
+    background: linear-gradient(215deg, color-mix(in srgb, var(--brand) 55%, transparent) 0%, rgba(77, 163, 255, 0.18) 40%, rgba(9, 11, 20, 0) 75%);
+  }
+  .reel__poster.is-on,
+  :global(.reel--poster) .reel__poster {
+    display: block;
+  }
+  .reel__lead {
+    position: absolute;
+    inset: 84px 18px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .reel--compact .reel__lead {
+    top: 64px;
+  }
+  .reel__lead > :first-child {
+    margin-bottom: 10px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  }
+  .reel__ticker {
+    font-size: clamp(44px, 5vw, 64px);
+    line-height: 1.05;
+    font-weight: 900;
+    letter-spacing: -0.035em;
+  }
+  .reel__company {
+    font-size: 17px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .reel__topfade {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 120px;
+    z-index: -1;
+    background: linear-gradient(180deg, rgba(9, 11, 20, 0.55), rgba(9, 11, 20, 0));
+  }
+  .reel__title {
+    font-size: 26px;
+    line-height: 31px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .reel__title--compact {
+    font-size: 21px;
+    line-height: 26px;
+    -webkit-line-clamp: 3;
+  }
+  .glass-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(16, 19, 31, 0.42);
+    backdrop-filter: blur(12px);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+  }
+</style>

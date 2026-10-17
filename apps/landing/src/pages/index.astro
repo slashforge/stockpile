@@ -2,35 +2,59 @@
 import BaseHead from "../components/BaseHead.astro";
 import Nav from "../components/Nav.astro";
 import Footer from "../components/Footer.astro";
+import Ticker from "../components/Ticker.astro";
+import BagCard from "../components/BagCard.astro";
+import Icon from "../components/app/Icon.astro";
+import StoryReel from "../components/app/StoryReel.astro";
+import ImpactCard from "../components/app/ImpactCard.astro";
+import BagHoldings from "../components/app/BagHoldings.astro";
+import TradeReview from "../components/app/TradeReview.astro";
+import LogoCluster from "../components/app/LogoCluster.astro";
 import { APP_URL, SITE_DESCRIPTION, SITE_TITLE } from "../consts";
-import { loadBagCatalogue, formatWeight, monogram } from "../lib/bags";
+import { loadBagCatalogue, uniqueAssets } from "../lib/bags";
+import { loadStories } from "../lib/stories";
 import "../styles/home.css";
 
 const catalogue = await loadBagCatalogue();
-const featured = ["ai-infrastructure", "consumer-frontiers", "megacap-builders"]
-  .map((id) => catalogue.bags.find((bag) => bag.id === id))
-  .filter((bag): bag is NonNullable<typeof bag> => Boolean(bag));
-const preview = featured[0] ?? catalogue.bags[0];
+const bagsById = new Map(catalogue.bags.map((bag) => [bag.id, bag]));
+const { stories, source: storySource } = await loadStories(catalogue.bags);
+
+const heroStory = stories.find((s) => s.analysis.direction === "tailwind") ?? stories[0];
+const heroBag = heroStory ? bagsById.get(heroStory.bagId) : undefined;
+const feedStory = stories.find((s) => s !== heroStory && s.bagId !== heroStory?.bagId) ?? stories.find((s) => s !== heroStory) ?? heroStory;
+const feedBag = feedStory ? bagsById.get(feedStory.bagId) : undefined;
+const impactStory =
+  stories.find((s) => s.analysis.direction === "headwind" && s !== feedStory && s !== heroStory) ??
+  stories.find((s) => s !== feedStory && s !== heroStory) ??
+  heroStory;
+const impactBag = impactStory ? bagsById.get(impactStory.bagId) : undefined;
+const tradeBag = bagsById.get("ai-infrastructure") ?? catalogue.bags.find((b) => b.tradable && b.assets.length > 2);
+
+const themed = catalogue.bags.filter((b) => b.sourceType === "editorial");
+const trackers = catalogue.bags.filter((b) => b.sourceType !== "editorial");
+const tokenCount = uniqueAssets(catalogue.bags).length;
+const closingAssets = uniqueAssets(themed).slice(0, 6);
+
 const faqs = [
   [
     "What is a bag?",
-    "A bag is a themed basket of tokens with a defined allocation. You can inspect its holdings, weights, sources, and risks before deciding whether to buy. A bag is not an ETF or a managed fund.",
+    "A themed basket of tokens with a fixed allocation, like \"AI Infrastructure\" or \"Frontier AI Labs\". You see every holding, its weight, the sources behind it and the risks before you buy. A bag is not an ETF or a managed fund.",
   ],
   [
     "Am I buying actual shares?",
-    "You are buying tokens, not shares directly through a stockbroker. Tokenized stocks and pre-IPO tokens have issuer-specific structures, rights, and restrictions. Read the issuer documentation and Newsbid disclosures to understand what each token represents.",
+    "No. You buy tokens: xStocks track listed shares and PreStocks give exposure to private companies. Each issuer has its own structure, rights and restrictions. Read the issuer documentation and our disclosures.",
   ],
   [
-    "How do news stories connect to bags?",
-    "Newsbid links stories to relevant bags and explains the connection, including evidence, uncertainty, and what to watch. AI-assisted interpretations are not predictions or investment advice. You can always open the original source.",
+    "How does a story connect to a bag?",
+    "Each story is linked to the bags it touches. An AI model reads the publisher's excerpt and says which holdings it affects, the share of the bag they make up, and what is still uncertain. When there's no validated analysis, the app says so. It is never a forecast.",
   ],
   [
     "Who controls my wallet?",
-    "Your wallet is secured by Privy. You review and authorize transactions; Newsbid does not make investment decisions or buy on your behalf. Swaps are routed through Jupiter on Solana.",
+    "You do. Your wallet is secured by Privy. Every swap is quoted by Jupiter on Solana and you approve each one. Newsbid never trades on your behalf.",
   ],
   [
     "What should I know before buying?",
-    "You can lose your entire investment. Liquidity, token prices, issuer restrictions, and availability can change. Pre-IPO tokens carry additional risks, and congressional disclosures are delayed reports, not real-time trades. Review all relevant disclosures before trading.",
+    "You can lose everything you put in. Liquidity, prices, issuer restrictions and availability change. Pre-IPO tokens carry extra risk, and congressional disclosures are delayed reports, not live trades.",
   ],
 ];
 ---
@@ -38,384 +62,225 @@ const faqs = [
 <!doctype html>
 <html lang="en">
   <head>
-    <BaseHead
-      title={`${SITE_TITLE} — Follow the story. Explore the trade.`}
-      description={SITE_DESCRIPTION}
-    />
+    <BaseHead title={`${SITE_TITLE} — Swipe the news. Buy the bag.`} description={SITE_DESCRIPTION} />
   </head>
-  <body class="landing-home">
-    <a class="skip-link" href="#main">
-      Skip to content
-    </a>
+  <body class="landing-home bg-background text-text antialiased">
+    <a class="skip-link" href="#main">Skip to content</a>
     <Nav />
     <main id="main">
-      <section class="home-hero home-container">
-        <div class="hero-copy">
-          <p class="home-kicker">
-            <span class="status-dot"></span> News. Context. Conviction.
-          </p>
-          <h1>
-            Follow the story.
-            <br />
-            Find your <span>next move.</span>
-          </h1>
-          <p class="hero-description">
-            The news moves fast. See what it means for the companies behind it,
-            explore themed baskets of tokens, and decide what comes next.
-          </p>
-          <div class="home-actions">
-            <a class="home-button" href={APP_URL}>
-              Explore Newsbid <span aria-hidden="true">↗</span>
-            </a>
-            <a class="home-text-link" href="#how">
-              See how it works <span aria-hidden="true">↓</span>
-            </a>
-          </div>
-          <p class="hero-note">
-            Tokenized stocks &amp; pre-IPO tokens. On Solana.
-          </p>
-        </div>
-
-        <div
-          class="product-scene"
-          aria-label="Illustrative Newsbid story and bag preview"
-        >
-          <div class="scene-topline">
-            <span>THE SIGNAL, NOT THE NOISE</span>
-            <span>01 / NEWSBID</span>
-          </div>
-          <div class="story-preview">
-            <div class="preview-toolbar">
-              <span class="preview-brand">
-                <img src="/favicon.svg" width="22" height="22" alt="" /> Newsbid
-              </span>
-              <span class="preview-tab">Your daily perspective</span>
-              <span class="preview-avatar">N</span>
-            </div>
-            <div class="story-art" aria-hidden="true">
-              <div class="art-grid"></div>
-              <div class="chip chip-one"></div>
-              <div class="chip chip-two"></div>
-              <div class="chip chip-three"></div>
-              <span class="art-label">THE NEXT COMPUTE ERA</span>
-              <span class="art-index">NB / 001</span>
-            </div>
-            <div class="story-preview-body">
-              <div class="story-meta">
-                <span>TECHNOLOGY</span>
-                <span>Illustrative story</span>
-              </div>
-              <h2>The AI race is also an infrastructure story.</h2>
-              <p>
-                Behind the models: chips, cloud platforms, and the companies
-                building the next layer.
-              </p>
-              <div class="story-insight">
-                <span class="insight-mark" aria-hidden="true">
-                  ↳
-                </span>
-                <div>
-                  <strong>Look beyond the headline</strong>
-                  <span>Explore the businesses connected to the story.</span>
-                </div>
-              </div>
-              {preview && (
-                <a
-                  class="linked-bag"
-                  href={`${APP_URL}/bag/${encodeURIComponent(preview.id)}`}
-                >
-                  <span class="mini-bag-icon" aria-hidden="true">
-                    ↗
-                  </span>
-                  <span>
-                    <small>RELATED BAG</small>
-                    <strong>{preview.title}</strong>
-                  </span>
-                  <span class="linked-bag-arrow" aria-hidden="true">
-                    ↗
-                  </span>
-                </a>
-              )}
-            </div>
-          </div>
-          {preview && (
-            <div class="allocation-preview">
-              <div class="allocation-heading">
-                <span class="status-dot"></span> Inside the bag{" "}
-                <span>ALLOCATION</span>
-              </div>
-              {preview.assets.slice(0, 3).map((asset) => (
-                <div class="allocation-row">
-                  <span
-                    class="asset-monogram"
-                    style={`--asset-color: ${asset.brandColor ?? "#2563eb"}`}
-                  >
-                    {monogram(asset.symbol)}
-                  </span>
-                  <div>
-                    <strong>{asset.symbol}</strong>
-                    <span>{asset.name.replace(" xStock", "")}</span>
-                  </div>
-                  <strong>{formatWeight(asset.weightBps)}</strong>
-                </div>
-              ))}
-              <a href={`${APP_URL}/bag/${encodeURIComponent(preview.id)}`}>
-                See all holdings <span aria-hidden="true">↗</span>
+      <!-- Hero -->
+      <section class="hero">
+        <div class="hero__glow" aria-hidden="true"></div>
+        <div class="container-x hero__grid">
+          <div class="hero__copy">
+            <span class="eyebrow-pill">
+              <span class="rounded-full bg-brand-soft px-2 py-0.5 text-brand">On Solana</span>
+              Tokenized stocks &amp; pre-IPO tokens
+            </span>
+            <h1>
+              Swipe the news.
+              <br />
+              <span class="text-brand">Buy the bag.</span>
+            </h1>
+            <p class="hero__lead">
+              Newsbid is a news feed where every story links to a <strong>bag</strong>: a themed basket of tokenized
+              stocks and pre-IPO names. See which holdings a headline touches, look inside, and buy the whole basket in
+              one slide.
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <a class="btn-pill btn-pill--solid" href={APP_URL}>
+                Open Newsbid <Icon name="arrow" size={18} />
               </a>
+              <a class="btn-pill btn-pill--outline" href="#how">See how it works</a>
+            </div>
+            <ul class="hero__facts">
+              <li><span><Icon name="newspaper" size={14} /></span> Source on every story</li>
+              <li><span><Icon name="layers" size={14} /></span> Every weight in view</li>
+              <li><span><Icon name="wallet" size={14} /></span> Your wallet, your approval</li>
+            </ul>
+          </div>
+
+          {heroStory && heroBag && (
+            <div class="hero__stage">
+              <div class="hero__phone">
+                <StoryReel story={heroStory} bag={heroBag} />
+              </div>
+              <div class="hero__float hero__float--sheet">
+                <BagHoldings bag={heroBag} limit={3} highlight={heroStory.analysis.affectedSymbols} />
+              </div>
+              <span class="hero__tag hero__tag--feed">The feed</span>
+              <span class="hero__tag hero__tag--bag">The bag behind it</span>
             </div>
           )}
-          <p class="scene-caption">
-            <span class="caption-line"></span> A little more context. A more
-            informed decision.
-          </p>
         </div>
       </section>
 
-      <div class="home-foundation">
-        <div class="home-container foundation-inner">
-          <span>
-            A clearer path from
-            <br />
-            <strong>headline to holdings.</strong>
-          </span>
-          <div>
-            <span class="foundation-icon" aria-hidden="true">
-              ↗
-            </span>{" "}
-            Source-linked stories
-          </div>
-          <div>
-            <span class="foundation-icon" aria-hidden="true">
-              ▦
-            </span>{" "}
-            Transparent allocations
-          </div>
-          <div>
-            <span class="foundation-icon" aria-hidden="true">
-              ◎
-            </span>{" "}
-            Your own wallet
-          </div>
-        </div>
-      </div>
+      <Ticker bags={catalogue.bags} />
 
-      <section id="how" class="home-section home-container">
-        <div class="section-heading">
-          <div>
-            <p class="home-kicker">01 / THE IDEA</p>
-            <h2>
-              Less noise.
-              <br />
-              More perspective.
-            </h2>
-          </div>
-          <p>
-            A headline is only the beginning. Newsbid brings the story, the
-            companies, and the context into one place.
-          </p>
+      <!-- How it works -->
+      <section id="how" class="container-x section-y">
+        <div class="section-head">
+          <span class="eyebrow-pill">How it works</span>
+          <h2>From headline to holdings in three taps.</h2>
+          <p>These are the real screens, filled with stories and bags from the app today.</p>
         </div>
-        <div class="steps-grid">
-          <article class="step">
-            <div class="step-top">
-              <span>01</span>
-              <span aria-hidden="true">↘</span>
-            </div>
-            <div class="step-visual visual-news" aria-hidden="true">
-              <span class="paper-line"></span>
-              <span class="paper-line"></span>
-              <span class="paper-line short"></span>
-              <div class="source-label">
-                <span class="status-dot"></span> Start with the source
+
+        <div class="flow">
+          {feedStory && feedBag && (
+            <article class="flow-row">
+              <div class="flow-row__visual flow-row__visual--narrow">
+                <StoryReel story={feedStory} bag={feedBag} compact />
               </div>
-            </div>
-            <h3>Catch the story.</h3>
-            <p>
-              Browse a swipeable feed of news and public disclosures. Open the
-              original source whenever you want to go deeper.
-            </p>
-          </article>
-          <article class="step">
-            <div class="step-top">
-              <span>02</span>
-              <span aria-hidden="true">↘</span>
-            </div>
-            <div class="step-visual visual-connect" aria-hidden="true">
-              <span>THE STORY</span>
-              <i></i>
-              <span class="connection-bag">
-                THE BAG <b>↗</b>
-              </span>
-            </div>
-            <h3>Connect the dots.</h3>
-            <p>
-              See related bags, the reasoning behind the connection, and the
-              uncertainty. Inspect every holding and allocation.
-            </p>
-          </article>
-          <article class="step">
-            <div class="step-top">
-              <span>03</span>
-              <span aria-hidden="true">↗</span>
-            </div>
-            <div class="step-visual visual-review" aria-hidden="true">
-              <div>
-                <span>Review your trade</span>
-                <b>You're in control</b>
+              <div class="flow-row__copy">
+                <span class="step-num">1</span>
+                <h3>Swipe the story.</h3>
+                <p>
+                  The feed is one story per screen from publishers like CNBC, TechCrunch and Ars Technica, plus public
+                  disclosures. Each card shows the publisher, the source link and the bag it relates to.
+                </p>
+                <ul class="checks">
+                  <li><Icon name="check" size={16} /> Open the original article any time</li>
+                  <li><Icon name="check" size={16} /> AI summaries are labeled as AI</li>
+                  <li><Icon name="check" size={16} /> Swipe up on the bag bar to look inside</li>
+                </ul>
               </div>
-              <span class="review-check">✓</span>
-            </div>
-            <h3>Make your own move.</h3>
-            <p>
-              Choose your amount, review the individual swaps, and authorize the
-              transaction from your wallet. The decision stays yours.
-            </p>
-          </article>
+            </article>
+          )}
+
+          {impactStory && impactBag && (
+            <article class="flow-row flow-row--flip">
+              <div class="flow-row__visual flow-row__stack">
+                <ImpactCard story={impactStory} bag={impactBag} />
+                <BagHoldings bag={impactBag} limit={4} highlight={impactStory.analysis.affectedSymbols} class="flow-row__under" />
+              </div>
+              <div class="flow-row__copy">
+                <span class="step-num">2</span>
+                <h3>See what it touches.</h3>
+                <p>
+                  Every story says which holdings it's about and what share of the bag they make up. It flags a
+                  potential <span class="text-positive font-semibold">tailwind</span> or
+                  <span class="text-danger font-semibold">headwind</span> and says what's still uncertain.
+                </p>
+                <ul class="checks">
+                  <li><Icon name="check" size={16} /> Exposure is the bag's allocation, not a price forecast</li>
+                  <li><Icon name="check" size={16} /> No validated analysis? It says "Analysis unavailable"</li>
+                  <li><Icon name="check" size={16} /> Weights, sources and risks for every bag</li>
+                </ul>
+              </div>
+            </article>
+          )}
+
+          {tradeBag && (
+            <article class="flow-row">
+              <div class="flow-row__visual flow-row__visual--narrow">
+                <TradeReview bag={tradeBag} />
+              </div>
+              <div class="flow-row__copy">
+                <span class="step-num">3</span>
+                <h3>Buy the bag in one slide.</h3>
+                <p>
+                  Pick an amount in USDC. Newsbid splits it by the bag's weights into one swap per token, routed by
+                  Jupiter. Check each leg, then slide to buy.
+                </p>
+                <ul class="checks">
+                  <li><Icon name="check" size={16} /> Price impact shown for every swap</li>
+                  <li><Icon name="check" size={16} /> Tokens land in your own Privy wallet</li>
+                  <li><Icon name="check" size={16} /> Sell the whole bag, or single tokens, later</li>
+                </ul>
+              </div>
+            </article>
+          )}
         </div>
       </section>
 
-      <section id="bags" class="bags-section">
-        <div class="home-container home-section">
-          <div class="section-heading">
+      <!-- Bags -->
+      <section id="bags" class="bags-band section-y">
+        <div class="container-x">
+          <div class="section-head section-head--split">
             <div>
-              <p class="home-kicker">02 / EXPLORE THE THEMES</p>
-              <h2>
-                Big ideas.
-                <br />
-                Unpacked into bags.
-              </h2>
+              <span class="eyebrow-pill">The bags</span>
+              <h2>{catalogue.bags.length} bags. {tokenCount} tokens.</h2>
             </div>
-            <div>
+            <div class="flex flex-col items-start gap-3">
               <p>
-                From the infrastructure powering AI to the platforms you use
-                every day. See exactly what's inside.
+                Themed bags picked by our editors, plus trackers built from public records: Congress's STOCK Act filings
+                and an Inverse Cramer bag built from Mad Money calls.
               </p>
-              <a class="home-text-link" href={`${APP_URL}/bags`}>
-                Explore all bags <span aria-hidden="true">↗</span>
+              <a class="btn-pill btn-pill--outline" href={`${APP_URL}/bags`}>
+                Browse all bags <Icon name="arrow-up-right" size={16} />
               </a>
             </div>
           </div>
-          <div class="home-bag-grid">
-            {featured.map((bag, index) => (
-              <a
-                class={`home-bag-card bag-tone-${index}`}
-                href={`${APP_URL}/bag/${encodeURIComponent(bag.id)}`}
-              >
-                <div class="bag-artwork" aria-hidden="true">
-                  <span class="bag-art-index">NB / 0{index + 1}</span>
-                  <div class="bag-sculpture">
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                  </div>
-                  <span class="bag-art-type">THEMATIC BAG</span>
-                  <span class="bag-art-arrow">↗</span>
-                </div>
-                <div class="bag-card-content">
-                  <div class="bag-card-meta">
-                    <span>
-                      {bag.issuer === "prestocks"
-                        ? "PRE-IPO TOKENS"
-                        : "TOKENIZED STOCKS"}
-                    </span>
-                    <span>{bag.assets.length} assets</span>
-                  </div>
-                  <h3>{bag.title}</h3>
-                  <p>{bag.subtitle}</p>
-                  <div class="bag-holdings">
-                    {bag.assets.slice(0, 4).map((asset) => (
-                      <span>{asset.symbol}</span>
-                    ))}
-                    {bag.assets.length > 4 && (
-                      <span>+{bag.assets.length - 4}</span>
-                    )}
-                  </div>
-                </div>
+
+          <h3 class="group-label"><span class="dot bg-brand"></span> Themes <span>{themed.length}</span></h3>
+          <div class="bag-grid bag-grid--feature">
+            {themed.map((bag) => (
+              <a href={`${APP_URL}/bag/${encodeURIComponent(bag.id)}`} class="block rounded-[28px]" aria-label={`${bag.title}: ${bag.subtitle}`}>
+                <BagCard bag={bag} />
               </a>
             ))}
           </div>
-          <p class="catalogue-note">
-            Composition shown for context, not a recommendation. Availability
-            and liquidity vary.{" "}
-            {catalogue.source === "static" &&
-              "Illustrative catalogue; check the app for current holdings."}
+
+          {trackers.length > 0 && (
+            <>
+              <h3 class="group-label mt-12"><span class="dot bg-coral"></span> Trackers <span>{trackers.length}</span></h3>
+              <div class="bag-grid">
+                {trackers.map((bag) => (
+                  <a href={`${APP_URL}/bag/${encodeURIComponent(bag.id)}`} class="block rounded-[28px]" aria-label={`${bag.title}: ${bag.subtitle}`}>
+                    <BagCard bag={bag} />
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+
+          <p class="mt-8 text-center text-[13px] text-text-muted">
+            {catalogue.source === "live" ? "Line-ups pulled from the Newsbid API" : "Line-ups from the latest snapshot"}{storySource === "live" ? " and stories from the live feed" : ""}.
+            Shown for context, not as a recommendation. Prices and liquidity live in the app.
           </p>
         </div>
       </section>
 
-      <section
-        id="trust"
-        class="home-section home-container transparency-section"
-      >
-        <div class="transparency-intro">
-          <p class="home-kicker">03 / NO BLACK BOX</p>
-          <h2>
-            Know what you're
-            <br />
-            getting into.
-          </h2>
-          <p>
-            Good design shouldn't hide the details. From the source of a story
-            to the tokens in your wallet, the important things stay in view.
-          </p>
-          <a class="home-text-link" href="/disclosures">
-            Read the disclosures <span aria-hidden="true">↗</span>
-          </a>
-          <div class="transparency-stamp">
-            <span aria-hidden="true">◎</span>
-            <div>
-              Built on Solana.
-              <br />
-              <strong>Built around your decision.</strong>
-            </div>
-          </div>
+      <!-- Trust -->
+      <section id="trust" class="container-x section-y">
+        <div class="section-head">
+          <span class="eyebrow-pill">Know what you're buying</span>
+          <h2>The details stay in view.</h2>
         </div>
-        <div class="principles">
-          <article>
-            <span>01</span>
-            <div>
-              <h3>The evidence, not just the take.</h3>
-              <p>
-                Original sources, issuer information, and public filings are
-                linked. AI-assisted story interpretations include uncertainty,
-                not a promise of what happens next.
-              </p>
-            </div>
+        <div class="trust-grid">
+          <article class="trust-card">
+            <span class="trust-icon bg-brand-soft text-brand"><Icon name="document" size={20} /></span>
+            <h3>Sources, not vibes</h3>
+            <p>Every story links to its publisher. Every bag lists the sources and filings behind it.</p>
           </article>
-          <article>
-            <span>02</span>
-            <div>
-              <h3>Your wallet. Your authorization.</h3>
-              <p>
-                A Privy-secured wallet and Jupiter-powered swaps. Review amounts
-                and transaction details before you authorize a trade.
-              </p>
-            </div>
+          <article class="trust-card">
+            <span class="trust-icon bg-tertiary-soft text-tertiary"><Icon name="sparkles" size={20} /></span>
+            <h3>Honest AI</h3>
+            <p>AI analysis is labeled, says what's uncertain, and goes quiet when it's stale. It never predicts prices.</p>
           </article>
-          <article>
-            <span>03</span>
-            <div>
-              <h3>Different tokens. Different risks.</h3>
-              <p>
-                Tokenized stocks aren't direct share ownership. Pre-IPO tokens
-                have additional issuer and liquidity risks. Congressional
-                reports are delayed, not live signals.
-              </p>
-            </div>
+          <article class="trust-card">
+            <span class="trust-icon bg-mint-soft text-positive"><Icon name="wallet" size={20} /></span>
+            <h3>Your keys, your call</h3>
+            <p>A Privy-secured wallet and Jupiter swaps. You review and approve every transaction yourself.</p>
+          </article>
+          <article class="trust-card">
+            <span class="trust-icon bg-caution-soft text-caution"><Icon name="shield" size={20} /></span>
+            <h3>Risks up front</h3>
+            <p>Tokens aren't shares. Pre-IPO tokens and thin pools carry more risk. Each bag says so before you buy.</p>
           </article>
         </div>
       </section>
 
-      <section class="faq-section home-container">
+      <!-- FAQ -->
+      <section class="container-x section-y faq">
         <div>
-          <p class="home-kicker">A LITTLE MORE CONTEXT</p>
-          <h2>
-            Good questions.
-            <br />
-            Straight answers.
-          </h2>
+          <span class="eyebrow-pill">FAQ</span>
+          <h2>Straight answers.</h2>
+          <p class="mt-3 text-text-subtle">
+            More in the <a class="link" href="/disclosures">disclosures</a>.
+          </p>
         </div>
-        <div class="faq-list">
+        <div class="faq__list">
           {faqs.map(([question, answer]) => (
             <details>
               <summary>
@@ -428,26 +293,22 @@ const faqs = [
         </div>
       </section>
 
-      <section class="home-container closing-section">
-        <div class="closing-card">
-          <div>
-            <p class="home-kicker">YOUR NEXT PERSPECTIVE STARTS HERE</p>
-            <h2>
-              Read the world.
-              <br />
-              <span>Decide for yourself.</span>
-            </h2>
-            <p>The stories, the context, and the bags. All in one place.</p>
-            <a class="home-button" href={APP_URL}>
-              Explore Newsbid <span aria-hidden="true">↗</span>
+      <!-- Closing -->
+      <section class="container-x pb-24">
+        <div class="closing">
+          <svg class="closing__motif" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <circle cx="368" cy="24" r="150" fill="#fff" fill-opacity="0.14"></circle>
+            <circle cx="32" cy="228" r="90" fill="#fff" fill-opacity="0.12"></circle>
+            <path d="M0 170 C 120 103, 240 228, 400 146 L 400 240 L 0 240 Z" fill="#fff" fill-opacity="0.1"></path>
+          </svg>
+          <div class="relative flex flex-col items-start gap-5">
+            <LogoCluster assets={closingAssets} size={52} limit={6} />
+            <h2>Read the news. Pick your bag.</h2>
+            <p>Free to browse. Sign in with email when you're ready to buy.</p>
+            <a class="btn-pill btn-pill--light" href={APP_URL}>
+              Open Newsbid <Icon name="arrow" size={18} />
             </a>
           </div>
-          <div class="closing-symbol" aria-hidden="true">
-            n<span>↗</span>
-          </div>
-          <span class="closing-footnote">
-            No investment advice. No guaranteed outcomes. Just more context.
-          </span>
         </div>
       </section>
     </main>

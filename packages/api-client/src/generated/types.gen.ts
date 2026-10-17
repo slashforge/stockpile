@@ -19,7 +19,7 @@ export type Bag = {
     description: string;
     thesis: string;
     disclosure: string;
-    sourceType: 'editorial' | 'disclosure';
+    sourceType: 'editorial' | 'disclosure' | 'media';
     issuer: Issuer;
     assetClass: AssetClass;
     curator: Curator;
@@ -111,7 +111,13 @@ export type QuoteProbe = {
     asOf: string;
 } | null;
 
-export type Evidence = {
+export type Evidence = ({
+    kind: 'disclosure';
+} & DisclosureEvidence) | ({
+    kind: 'call';
+} & CallEvidence);
+
+export type DisclosureEvidence = {
     kind: 'disclosure';
     member: string;
     chamber: 'House' | 'Senate';
@@ -120,6 +126,16 @@ export type Evidence = {
     disclosedDate: string;
     amountRange: string;
     amountMidUsd: number;
+    url: string;
+};
+
+export type CallEvidence = {
+    kind: 'call';
+    source: 'CNBC Mad Money';
+    stance: 'bullish' | 'bearish';
+    saidAt: string;
+    title: string;
+    quote: string;
     url: string;
 };
 

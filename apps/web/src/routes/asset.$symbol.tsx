@@ -11,7 +11,7 @@ import { usePortfolio } from "@/hooks/use-account";
 import { useBag, useBags } from "@/hooks/use-bags";
 import { useAssetChart } from "@/hooks/use-charts";
 import { useOpenBuy } from "@/hooks/use-navigation";
-import { disclosureEvidence, formatPrice, formatSignedPct, formatUsdCompact, underlyingCaption } from "@/lib/market";
+import { assetEvidence, formatPrice, formatSignedPct, formatUsdCompact, underlyingCaption } from "@/lib/market";
 import { formatHoldingAmount, formatUsdValue } from "@/lib/portfolio";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
 import { useNewsbidAuth } from "@/providers/auth-context";
@@ -217,7 +217,7 @@ function Details({ asset }: { asset: BagAsset }) {
           {mark} · not a quote
         </T>
       ) : null}
-      <EvidenceList items={disclosureEvidence(asset)} />
+      <EvidenceList items={assetEvidence(asset)} />
     </div>
   );
 }

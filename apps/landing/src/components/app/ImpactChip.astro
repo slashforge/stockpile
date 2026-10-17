@@ -1,0 +1,30 @@
+---
+/** Signal chip from apps/web `ImpactChip`: tailwind / headwind / neutral, light or on the dark reel. */
+import Icon from './Icon.astro';
+import { SIGNAL_LABEL, type Signal } from '../../lib/stories';
+
+interface Props {
+  direction: Signal;
+  onDark?: boolean;
+  label?: string;
+}
+
+const { direction, onDark = false, label } = Astro.props;
+const icon = direction === 'tailwind' ? 'trend-up' : direction === 'headwind' ? 'trend-down' : 'help';
+const tone = onDark
+  ? direction === 'tailwind'
+    ? 'bg-[rgba(79,209,168,0.2)] text-[#6FE3BD]'
+    : direction === 'headwind'
+      ? 'bg-[rgba(255,133,147,0.2)] text-[#FF9AA6]'
+      : 'bg-white/15 text-white/85'
+  : direction === 'tailwind'
+    ? 'bg-mint-soft text-positive'
+    : direction === 'headwind'
+      ? 'bg-danger-soft text-danger'
+      : 'bg-surface-subtle text-text-subtle';
+---
+
+<span class:list={['inline-flex shrink-0 items-center gap-1 self-start rounded-full px-2 py-0.5 text-[12px] leading-4 font-bold', tone]}>
+  <Icon name={icon} size={13} />
+  {label ?? SIGNAL_LABEL[direction]}
+</span>

@@ -24,7 +24,7 @@ import { useNewsbidAuth } from "@/providers/auth-context";
 import { issuerMarkLabel } from "@/lib/pre-ipo";
 import {
   changeTone,
-  disclosureEvidence,
+  assetEvidence,
   formatPrice,
   formatSignedPct,
   formatUsdCompact,
@@ -240,7 +240,7 @@ function Details({ asset }: { asset: BagAsset }) {
         ? "OK"
         : `${asset.liquidityTier[0].toUpperCase()}${asset.liquidityTier.slice(1)}`,
     ]);
-  const evidence = disclosureEvidence(asset);
+  const evidence = assetEvidence(asset);
   return (
     <View style={styles.group}>
       <T variant="title3" accessibilityRole="header">

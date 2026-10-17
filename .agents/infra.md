@@ -13,7 +13,7 @@ config.ts    AppConfig Linkable: apiUrl/webUrl/corsOrigins/authFromEmail/appSche
 secrets.ts   SST secrets: DatabaseUrl, Privy*, JupiterApiKey, HeliusApiKey, SolanaPaymasterKey, TokensApiKey, PythApiKey, CongressApiKey, OpenaiApiKey, BlockedMints (`apiSecrets` = those linked to the API)
 domains.ts   newsbid.trade; stage-prefixed subdomains except prod (api.<host>, <host>)
 database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
-api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly) + Cron `StoryRefresh` (apps/api/stories-cron.ts, :15/:45) + Cron `CongressIngest` (apps/api/congress-cron.ts, every 6 h at :30). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
+api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly) + Cron `StoryRefresh` (apps/api/stories-cron.ts, :15/:45) + Cron `CongressIngest` (apps/api/congress-cron.ts, every 6 h at :30) + Cron `CramerIngest` (apps/api/cramer-cron.ts, every 6 h at :50). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
 landing.ts   Astro site deployment
 web.ts       apps/web Vite SPA as StaticSiteV2 (Worker static assets) at app.<host>; injects VITE_API_URL + Privy ids; local dev on :5173
 expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL and the Privy ids from secrets

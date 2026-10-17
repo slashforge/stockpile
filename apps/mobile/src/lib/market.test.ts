@@ -97,6 +97,19 @@ describe("evidenceLine", () => {
       }),
     ).toBe("Pelosi · Sale");
   });
+  test("formats on-air calls with stance, date and quote", () => {
+    expect(
+      evidenceLine({
+        kind: "call",
+        source: "CNBC Mad Money",
+        stance: "bearish",
+        saidAt: "2026-09-10",
+        title: "Cramer's lightning round",
+        quote: "I would sell it.",
+        url: "https://www.cnbc.com/2026/09/10/example.html",
+      }),
+    ).toBe("Bearish call · Sep 10 · “I would sell it.”");
+  });
 });
 
 describe("underlyingCaption", () => {

@@ -1,0 +1,46 @@
+---
+/** Small stroke icon set standing in for the app's Ionicons. Decorative. */
+const PATHS = {
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+  'arrow-up-right': 'M7 17 17 7M8 7h9v9',
+  'chevron-up': 'M6 15l6-6 6 6',
+  'chevron-right': 'M9 6l6 6-6 6',
+  newspaper: 'M4 5h13v14H6a2 2 0 0 1-2-2V5zm13 4h3v8a2 2 0 0 1-2 2M8 9h5M8 13h5M8 16h3',
+  sparkles: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z',
+  'trend-up': 'M3 17l6-6 4 4 8-8M15 7h6v6',
+  'trend-down': 'M3 7l6 6 4-4 8 8M15 17h6v-6',
+  flash: 'M13 2 4 14h7l-1 8 9-12h-7l1-8z',
+  hourglass: 'M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9',
+  shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3zm-3 9 2 2 4-4',
+  document: 'M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm7 0v5h5M9 13h6M9 17h6',
+  wallet: 'M4 7a2 2 0 0 1 2-2h11v4M4 7v10a2 2 0 0 0 2 2h14V9H6a2 2 0 0 1-2-2zm12 7h.01',
+  check: 'M5 12.5l4.5 4.5L19 7',
+  layers: 'M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm-2.5-11.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01',
+  bookmark: 'M7 3h10v18l-5-4-5 4V3z',
+} as const;
+
+interface Props {
+  name: keyof typeof PATHS;
+  size?: number;
+  class?: string;
+  fill?: boolean;
+}
+
+const { name, size = 16, class: className = '', fill = false } = Astro.props;
+---
+
+<svg
+  class={className}
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill={fill ? 'currentColor' : 'none'}
+  stroke={fill ? 'none' : 'currentColor'}
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path d={PATHS[name]}></path>
+</svg>

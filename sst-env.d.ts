@@ -25,6 +25,7 @@ declare module "sst" {
       "value": string
     }
     "CongressIngestHandler": import("@cloudflare/workers-types").Service
+    "CramerIngestHandler": import("@cloudflare/workers-types").Service
     "Database": import("@cloudflare/workers-types").Hyperdrive
     "DatabaseUrl": {
       "type": "sst.sst.Secret"

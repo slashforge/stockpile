@@ -1,0 +1,71 @@
+---
+/** Bag header + holdings list from the app's bag screen: allocation bar, token rows and weights. */
+import Icon from './Icon.astro';
+import TokenAvatar from '../TokenAvatar.astro';
+import { bagGradient, bagTradable, CHART_PALETTE, formatWeight, type LandingBag } from '../../lib/bags';
+
+interface Props {
+  bag: LandingBag;
+  limit?: number;
+  class?: string;
+  highlight?: string[];
+}
+
+const { bag, limit = 5, class: className = '', highlight = [] } = Astro.props;
+const [from, to] = bagGradient(bag);
+const tradable = bagTradable(bag);
+const shown = bag.assets.slice(0, limit);
+const rest = bag.assets.length - shown.length;
+const color = (index: number) => bag.assets[index]?.brandColor ?? CHART_PALETTE[index % CHART_PALETTE.length];
+---
+
+<div class:list={['flex flex-col gap-3 rounded-[28px] bg-white p-5 shadow-[0_10px_20px_rgba(27,34,80,0.08)]', className]}>
+  <div class="flex items-center gap-3">
+    <span class="flex size-12 shrink-0 items-center justify-center rounded-[16px] text-white" style={`background:linear-gradient(135deg, ${from}, ${to})`}>
+      <Icon name="layers" size={22} />
+    </span>
+    <div class="flex min-w-0 flex-col gap-1">
+      <span class="text-[18px] leading-[23px] font-bold tracking-[-0.2px] text-text truncate">{bag.title}</span>
+      <div class="flex flex-wrap gap-1.5">
+        <span class="rounded-full bg-brand-soft px-[7px] py-0.5 text-[12px] leading-4 font-bold text-brand">
+          {bag.issuer === 'prestocks' ? 'PreStocks · Pre-IPO' : 'xStocks'}
+        </span>
+        <span class:list={['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] leading-4 font-bold', tradable ? 'bg-mint-soft text-positive' : 'bg-surface-subtle text-text-subtle']}>
+          <Icon name={tradable ? 'flash' : 'document'} size={11} fill={tradable} />
+          {tradable ? 'Open to buy' : 'Research only'}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-baseline justify-between">
+    <span class="text-[16px] font-semibold text-text">Holdings</span>
+    <span class="text-[13px] text-text-muted">{bag.assets.length} assets</span>
+  </div>
+  <div class="flex h-1.5 gap-0.5 overflow-hidden rounded-[3px]" aria-hidden="true">
+    {bag.assets.map((asset, index) => <div style={`flex:${asset.weightBps}; background:${color(index)}`}></div>)}
+  </div>
+  <ul class="flex flex-col">
+    {shown.map((asset, index) => (
+      <li class:list={['flex items-center gap-2.5 py-2', index > 0 && 'border-t border-border', highlight.includes(asset.symbol) && 'is-hit']}>
+        <TokenAvatar symbol={asset.symbol} name={asset.name} iconUrl={asset.iconUrl} brandColor={asset.brandColor} size={38} index={index} />
+        <div class="flex min-w-0 flex-1 flex-col">
+          <span class="text-[15px] leading-5 font-semibold text-text">{asset.symbol}</span>
+          <span class="text-[12px] leading-4 text-text-subtle truncate">{asset.name}</span>
+        </div>
+        <span class="text-[15px] font-bold tabular-nums text-text">{formatWeight(asset.weightBps)}</span>
+      </li>
+    ))}
+  </ul>
+  {rest > 0 && <span class="text-[12px] font-semibold text-text-muted">+{rest} more in the app</span>}
+</div>
+
+<style>
+  .is-hit {
+    margin-inline: -8px;
+    padding-inline: 8px;
+    border-radius: 14px;
+    border-color: transparent !important;
+    background: #e8f0ff;
+  }
+</style>

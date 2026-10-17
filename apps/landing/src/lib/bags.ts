@@ -3,12 +3,12 @@
  *
  * At build time we try the Newsbid API (`LANDING_API_URL`, default
  * http://localhost:4040). If it is unreachable we fall back to a static
- * snapshot of the same twelve bags. Only composition metadata is used —
+ * snapshot of the same thirteen bags. Only composition metadata is used —
  * never prices — so a stale snapshot is still truthful.
  */
 
 export type Issuer = 'xstocks' | 'prestocks';
-export type SourceType = 'editorial' | 'disclosure';
+export type SourceType = 'editorial' | 'disclosure' | 'media';
 export type CuratorKind = 'person' | 'aggregate' | 'editorial';
 
 export interface LandingAsset {
@@ -254,6 +254,17 @@ export const STATIC_BAGS: LandingBag[] = [
     tradableReason: 'Composition is computed from STOCK Act filings at request time.',
     assets: [],
   },
+  {
+    id: 'inverse-cramer',
+    title: 'Inverse Cramer',
+    subtitle: "What Cramer is dumping, plus the big names he isn't hyping",
+    sourceType: 'media',
+    issuer: 'xstocks',
+    curator: { kind: 'person', name: 'Jim Cramer (inverted)' },
+    tradable: false,
+    tradableReason: "Composition is computed from Jim Cramer's Mad Money calls at request time.",
+    assets: [],
+  },
 ];
 
 interface ApiAsset {
@@ -305,7 +316,8 @@ function normalise(bag: ApiBag): LandingBag {
 export async function loadBagCatalogue(): Promise<BagCatalogue> {
   const base = (import.meta.env.PUBLIC_API_URL ?? 'http://localhost:4040').replace(/\/$/, '');
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4000);
+  // /bags computes the tracker bags on request and can take several seconds.
+  const timer = setTimeout(() => controller.abort(), 20000);
 
   try {
     const response = await fetch(`${base}/bags`, { signal: controller.signal });

@@ -11,7 +11,7 @@ stocks (xStocks) and pre-IPO tokens (PreStocks), with the evidence behind each h
 ## What a bag is
 
 A bag is a weighted list of tokens with a thesis, a curator, a disclosure paragraph, and a list of risks. Right now
-there are twelve:
+there are thirteen:
 
 - **Editorial xStocks bags** — Megacap Builders, AI Infrastructure, Consumer Frontiers, Crypto & Fintech Rails,
   Cloud & Software, Everyday Brands, Index Basics. Hand-picked by Newsbid Editorial from the issuer's product directory and
@@ -22,6 +22,8 @@ there are twelve:
   Anthropic, Figure AI, Neuralink, Kalshi, Polymarket, and Anduril via PreStocks tokens.
 - **Disclosure bags** — Pelosi Tracker and Congress Consensus, computed from periodic transaction reports filed under
   the STOCK Act. Every holding cites the filings that put it there.
+- **Inverse Cramer** — a long-only fade of Jim Cramer's Mad Money calls from CNBC's published coverage: it skips what he
+  is talking up and leads with what he says to sell. Every bearish holding cites the quote and article behind it.
 
 Weights are editorial (or derived from disclosed amount ranges). They are not recommendations, and the page you are
 reading never shows prices or performance.

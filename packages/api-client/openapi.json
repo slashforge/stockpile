@@ -56,7 +56,8 @@
             "type": "string",
             "enum": [
               "editorial",
-              "disclosure"
+              "disclosure",
+              "media"
             ]
           },
           "issuer": {
@@ -512,6 +513,23 @@
         ]
       },
       "Evidence": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/DisclosureEvidence"
+          },
+          {
+            "$ref": "#/components/schemas/CallEvidence"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "disclosure": "#/components/schemas/DisclosureEvidence",
+            "call": "#/components/schemas/CallEvidence"
+          }
+        }
+      },
+      "DisclosureEvidence": {
         "type": "object",
         "properties": {
           "kind": {
@@ -563,6 +581,51 @@
           "disclosedDate",
           "amountRange",
           "amountMidUsd",
+          "url"
+        ]
+      },
+      "CallEvidence": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "call"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "CNBC Mad Money"
+            ]
+          },
+          "stance": {
+            "type": "string",
+            "enum": [
+              "bullish",
+              "bearish"
+            ]
+          },
+          "saidAt": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source",
+          "stance",
+          "saidAt",
+          "title",
+          "quote",
           "url"
         ]
       },

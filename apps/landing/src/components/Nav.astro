@@ -16,7 +16,7 @@ import { APP_URL, SITE_TITLE } from "../consts";
         The bags
       </a>
       <a href="/#trust" class="wide-link">
-        Transparency
+        Trust
       </a>
       <a href="/blog" class="desktop-link">
         Journal
@@ -33,7 +33,7 @@ import { APP_URL, SITE_TITLE } from "../consts";
       <div>
         <a href="/#how">How it works</a>
         <a href="/#bags">The bags</a>
-        <a href="/#trust">Transparency</a>
+        <a href="/#trust">Trust</a>
         <a href="/blog">Journal</a>
       </div>
     </details>
@@ -45,26 +45,26 @@ import { APP_URL, SITE_TITLE } from "../consts";
     position: fixed;
     inset: 0 0 auto;
     z-index: 50;
-    background: #fafbf9f2;
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid #e0e5e8;
+    background: rgba(245, 246, 251, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid #e6e8f1;
   }
   .site-navigation {
     display: flex;
     align-items: center;
     gap: 25px;
-    width: min(1200px, calc(100% - 96px));
-    height: 80px;
+    width: min(1180px, calc(100% - 40px));
+    height: 72px;
     margin-inline: auto;
   }
   .site-wordmark {
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 22px;
-    font-weight: 650;
-    letter-spacing: -0.055em;
-    color: #141c2b;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: #10131f;
   }
   .site-links {
     display: flex;
@@ -77,51 +77,44 @@ import { APP_URL, SITE_TITLE } from "../consts";
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-    font-size: 12px;
-    color: #657082;
+    font-size: 14px;
+    font-weight: 600;
+    color: #555c72;
   }
   .site-links a:hover {
-    color: #245ce6;
+    color: #2563eb;
   }
   .nav-open {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    min-height: 40px;
-    padding: 9px 16px;
-    border: 1px solid #d8dfe6;
-    border-radius: 6px;
-    font-size: 12px;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 14px;
     font-weight: 600;
-    color: #20304b;
-    background: white;
-    transition: border-color 0.2s;
+    color: #fff;
+    background: #2563eb;
+    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.28);
+    transition: background-color 0.15s;
   }
   .nav-open:hover {
-    border-color: #245ce6;
-    color: #245ce6;
+    background: #1d4ed8;
   }
   .nav-open span {
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
   }
   .mobile-navigation {
     display: none;
   }
   @media (max-width: 1100px) {
-    .site-navigation {
-      width: calc(100% - 64px);
-    }
     .site-links {
       gap: 22px;
     }
   }
   @media (max-width: 800px) {
-    .site-navigation {
-      width: calc(100% - 48px);
-      height: 72px;
-    }
     .wide-link {
       display: none !important;
     }
@@ -131,8 +124,7 @@ import { APP_URL, SITE_TITLE } from "../consts";
   }
   @media (max-width: 580px) {
     .site-navigation {
-      width: calc(100% - 40px);
-      height: 68px;
+      height: 64px;
       gap: 14px;
     }
     .site-wordmark {
@@ -147,8 +139,7 @@ import { APP_URL, SITE_TITLE } from "../consts";
     }
     .nav-open {
       margin-left: auto;
-      gap: 16px;
-      padding-inline: 12px;
+      padding-inline: 14px;
     }
     .mobile-navigation {
       display: block;
@@ -169,24 +160,25 @@ import { APP_URL, SITE_TITLE } from "../consts";
     .mobile-navigation summary span {
       width: 20px;
       height: 1px;
-      background: #263a57;
+      background: #10131f;
       margin-inline: auto;
     }
     .mobile-navigation > div {
       position: absolute;
-      top: 68px;
+      top: 64px;
       inset-inline: 0;
       padding: 12px 20px 20px;
-      border-bottom: 1px solid #e0e5e8;
-      background: #fafbf9;
+      border-bottom: 1px solid #e6e8f1;
+      background: #f5f6fb;
       box-shadow: 0 14px 20px #192e5010;
     }
     .mobile-navigation a {
       display: flex;
       align-items: center;
       min-height: 48px;
-      color: #40516a;
-      font-size: 14px;
+      color: #10131f;
+      font-size: 15px;
+      font-weight: 600;
     }
   }
 </style>

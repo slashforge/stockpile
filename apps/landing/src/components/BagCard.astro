@@ -20,7 +20,9 @@ const r2 = 70 + (seed % 3) * 18;
 const wave = 150 + (seed % 4) * 12;
 const tokenCount = bag.assets.length
   ? `${bag.assets.length} ${bag.assets.length === 1 ? 'token' : 'tokens'}`
-  : 'From STOCK Act filings';
+  : bag.sourceType === 'media'
+    ? 'From Mad Money calls'
+    : 'From STOCK Act filings';
 ---
 
 <article class:list={['bag-card squircle', className]} style={`--from:${from}; --to:${to}`}>

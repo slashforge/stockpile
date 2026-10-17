@@ -1,4 +1,4 @@
-import { index, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 
 export const priceSnapshots = pgTable("price_snapshots", {
   mint: text("mint").notNull(),
@@ -22,3 +22,26 @@ export const congressDisclosures = pgTable("congress_disclosures", {
   source: text("source").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [index("congress_disclosures_ticker_txn_idx").on(table.ticker, table.txnDate), index("congress_disclosures_member_idx").on(table.member)]);
+
+/** CNBC Mad Money articles already examined for Jim Cramer calls (one row per article URL, including ones with no calls). */
+export const cramerArticles = pgTable("cramer_articles", {
+  url: text("url").primaryKey(),
+  title: text("title").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("cramer_articles_published_idx").on(table.publishedAt)]);
+
+/** One classified stance per (article, ticker); feeds the inverse-cramer tracker bag. */
+export const cramerCalls = pgTable("cramer_calls", {
+  id: text("id").primaryKey(),
+  articleUrl: text("article_url").notNull(),
+  ticker: text("ticker").notNull(),
+  stance: text("stance").notNull(),
+  saidAt: timestamp("said_at", { withTimezone: true }).notNull(),
+  title: text("title").notNull(),
+  quote: text("quote").notNull(),
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("cramer_calls_said_idx").on(table.saidAt), index("cramer_calls_ticker_idx").on(table.ticker, table.saidAt)]);

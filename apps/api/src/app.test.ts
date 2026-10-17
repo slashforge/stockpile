@@ -12,7 +12,7 @@ afterEach(() => { resetConfig(); });
 type Bag = { id: string; sourceType: string; issuer: string; assetClass: string; risks: string[]; disclosure: string; tradable: boolean; tradableReason: string | null; curator: { kind: string; name: string }; market: unknown; assets: { symbol: string; weightBps: number; mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: string; assetClass: string; reference: unknown; iconUrl: string | null; iconSource: string | null }[]; sources: { url: string }[] };
 
 describe("public bags and auth boundaries", () => {
-  it("returns ten editorial and two disclosure bags that are research-only without an allowlist or issuer directory", async () => {
+  it("returns ten editorial, two disclosure and one media bag that are research-only without an allowlist or issuer directory", async () => {
     const response = await app.request("/bags");
     expect(response.status).toBe(200);
     const { bags } = await response.json() as { bags: Bag[] };
@@ -20,8 +20,12 @@ describe("public bags and auth boundaries", () => {
       ["megacap-builders", "xstocks", "public-equity"], ["ai-infrastructure", "xstocks", "public-equity"], ["consumer-frontiers", "xstocks", "public-equity"],
       ["crypto-fintech-rails", "xstocks", "public-equity"], ["cloud-software", "xstocks", "public-equity"], ["everyday-brands", "xstocks", "public-equity"], ["index-basics", "xstocks", "public-equity"],
       ["frontier-ai-labs", "prestocks", "pre-ipo"], ["prediction-markets", "prestocks", "pre-ipo"], ["defense-space", "prestocks", "pre-ipo"],
-      ["pelosi-tracker", "xstocks", "public-equity"], ["congress-consensus", "xstocks", "public-equity"]]);
-    expect(bags.map((bag) => bag.curator.kind)).toEqual([...Array<string>(10).fill("editorial"), "person", "aggregate"]);
+      ["pelosi-tracker", "xstocks", "public-equity"], ["congress-consensus", "xstocks", "public-equity"], ["inverse-cramer", "xstocks", "public-equity"]]);
+    expect(bags.map((bag) => bag.curator.kind)).toEqual([...Array<string>(10).fill("editorial"), "person", "aggregate", "person"]);
+    const cramer = bags.find((bag) => bag.sourceType === "media")!;
+    expect(cramer).toMatchObject({ id: "inverse-cramer", tradable: false, tradableReason: "No qualifying calls found yet", market: null, assets: [] });
+    expect(cramer.disclosure).toContain("not affiliated with Newsbid");
+    expect(cramer.risks.join(" ")).toMatch(/AI model/);
     for (const bag of bags.filter((item) => item.sourceType === "disclosure")) {
       expect(bag.tradable).toBe(false);
       expect(bag.tradableReason).toBeTruthy();

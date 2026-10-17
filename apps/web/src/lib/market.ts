@@ -16,7 +16,9 @@ import type {
 export type AssetMarket = NonNullable<GeneratedAssetMarket>;
 export type BagMarket = NonNullable<GeneratedBagMarket>;
 export type LiquidityTier = NonNullable<BagAsset["liquidityTier"]>;
-export type DisclosureEvidence = Evidence;
+export type DisclosureEvidence = Extract<Evidence, { kind: "disclosure" }>;
+export type CallEvidence = Extract<Evidence, { kind: "call" }>;
+export type { Evidence };
 export type { Change24hSource, Curator };
 
 export const EM_DASH = "—";
@@ -41,8 +43,19 @@ export function bagCurator(bag: Bag): Curator | null {
     : null;
 }
 
-export function disclosureEvidence(asset: BagAsset): DisclosureEvidence[] {
-  return (asset.evidence ?? []).filter((item) => item.kind === "disclosure");
+/** Filings (congress bags) and on-air calls (inverse-cramer); unknown future kinds are dropped. */
+export function assetEvidence(asset: BagAsset): Evidence[] {
+  return (asset.evidence ?? []).filter((item) => item.kind === "disclosure" || item.kind === "call");
+}
+
+/** "2 filings" / "1 call" for the evidence toggle. */
+export function evidenceCountLabel(items: Evidence[]): string {
+  const noun = items.every((item) => item.kind === "call") ? "call" : "filing";
+  return `${items.length} ${noun}${items.length === 1 ? "" : "s"}`;
+}
+
+export function evidenceLinkLabel(item: Evidence): string {
+  return item.kind === "call" ? "Read on CNBC" : "View filing";
 }
 
 export function isDisclosureStory(story: Story): boolean {
@@ -68,10 +81,15 @@ export function underlyingCaption(
     : null;
 }
 
-const TXN_LABEL: Record<Evidence["txnType"], string> = {
+const TXN_LABEL: Record<DisclosureEvidence["txnType"], string> = {
   buy: "Purchase",
   sell: "Sale",
   exchange: "Exchange",
+};
+
+const STANCE_LABEL: Record<CallEvidence["stance"], string> = {
+  bullish: "Bullish call",
+  bearish: "Bearish call",
 };
 
 export type ChangeTone = "up" | "down" | "flat";
@@ -154,8 +172,14 @@ export function formatShortDate(
     : date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** "Pelosi · Purchase · $1M–5M · disclosed Aug 12" */
-export function evidenceLine(item: DisclosureEvidence): string {
+/** "Pelosi · Purchase · $1M–5M · disclosed Aug 12" or "Bearish call · Oct 8 · “I would sell it”" */
+export function evidenceLine(item: Evidence): string {
+  if (item.kind === "call") {
+    const said = formatShortDate(item.saidAt);
+    return [STANCE_LABEL[item.stance] ?? item.stance, said, `“${item.quote}”`]
+      .filter(Boolean)
+      .join(" · ");
+  }
   const disclosed = formatShortDate(item.disclosedDate);
   return [
     item.member,
