@@ -217,7 +217,8 @@ describe("sell quotes", () => {
     const result = await quoteBag({ bagId: "megacap-builders", side: "sell", portionBps: 5000, slippageBps: 50 }, context);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.legs.map((leg) => [leg.asset.symbol, leg.inputMint, leg.outputMint, leg.amount, leg.outputDecimals, leg.asset.weightBps])).toEqual([[ "NVDAx", NVDAX, USDC, 300000n, 6, findBag("megacap-builders")!.assets.find((a) => a.symbol === "NVDAx")!.weightBps ], ["AAPLx", AAPLX, USDC, 150000n, 6, 1800]]);
+    const weight = (symbol: string) => findBag("megacap-builders")!.assets.find((a) => a.symbol === symbol)!.weightBps;
+    expect(result.value.legs.map((leg) => [leg.asset.symbol, leg.inputMint, leg.outputMint, leg.amount, leg.outputDecimals, leg.asset.weightBps])).toEqual([["NVDAx", NVDAX, USDC, 300000n, 6, weight("NVDAx")], ["AAPLx", AAPLX, USDC, 150000n, 6, weight("AAPLx")]]);
     expect(result.value.quotes.map((quote) => quote.outAmount)).toEqual(["3000", "1500"]);
     expect(requests.filter((r) => r.method === "quote").map((r) => Object.fromEntries(new URLSearchParams(r.url)))).toEqual([
       { inputMint: NVDAX, outputMint: USDC, amount: "300000", slippageBps: "50", excludeRouters: "jupiterz,dflow,okx", excludeDexes: "Manifest" },

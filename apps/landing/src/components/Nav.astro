@@ -1,67 +1,207 @@
 ---
-import { APP_URL, SITE_TITLE } from '../consts';
+import { APP_URL, SITE_TITLE } from "../consts";
 ---
 
-<nav class="fixed top-3 sm:top-4 inset-x-0 z-50 px-3 sm:px-5" aria-label="Primary">
-  <div
-    id="nav"
-    class="nav-pill max-w-5xl mx-auto flex items-center justify-between gap-2 rounded-full pl-2 pr-2 py-2 transition-all duration-300"
-  >
-    <a href="/" class="flex items-center gap-2.5 pl-1 pr-2" aria-label={`${SITE_TITLE} home`}>
-      <span class="w-9 h-9 rounded-full bg-grad-blue grid place-items-center shadow-[0_4px_12px_rgba(37,99,235,0.35)]">
-        <img src="/logo-mark.svg" alt="" class="w-5 h-5" width="20" height="20" />
-      </span>
-      <span class="text-[17px] font-extrabold text-text tracking-tight">{SITE_TITLE}</span>
+<header class="site-header">
+  <nav class="site-navigation" aria-label="Primary">
+    <a href="/" class="site-wordmark" aria-label={`${SITE_TITLE} home`}>
+      <img src="/favicon.svg" alt="" width="29" height="29" />
+      <span>{SITE_TITLE}</span>
     </a>
-
-    <div class="flex items-center gap-0.5 sm:gap-1">
-      <a href="/#how" class="nav-link hidden md:inline-flex">How it works</a>
-      <a href="/#bags" class="nav-link hidden sm:inline-flex">Bags</a>
-      <a href="/#trust" class="nav-link hidden md:inline-flex">Safety</a>
-      <a href="/blog" class="nav-link inline-flex">Blog</a>
-      <a href={APP_URL} class="ml-1 inline-flex items-center gap-1.5 rounded-full bg-brand text-white text-sm font-semibold px-4 py-2.5 hover:bg-brand-hover active:scale-[0.97] transition shadow-[0_6px_16px_rgba(37,99,235,0.35)]">
-        Open app
+    <div class="site-links">
+      <a href="/#how" class="desktop-link">
+        How it works
+      </a>
+      <a href="/#bags" class="desktop-link">
+        The bags
+      </a>
+      <a href="/#trust" class="wide-link">
+        Transparency
+      </a>
+      <a href="/blog" class="desktop-link">
+        Journal
       </a>
     </div>
-  </div>
-</nav>
+    <a href={APP_URL} class="nav-open">
+      Open app <span aria-hidden="true">↗</span>
+    </a>
+    <details class="mobile-navigation">
+      <summary aria-label="Navigation menu">
+        <span></span>
+        <span></span>
+      </summary>
+      <div>
+        <a href="/#how">How it works</a>
+        <a href="/#bags">The bags</a>
+        <a href="/#trust">Transparency</a>
+        <a href="/blog">Journal</a>
+      </div>
+    </details>
+  </nav>
+</header>
 
 <style>
-  .nav-pill {
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: saturate(180%) blur(18px);
-    -webkit-backdrop-filter: saturate(180%) blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow:
-      0 1px 0 rgba(16, 19, 31, 0.04),
-      0 8px 28px -10px rgba(27, 34, 80, 0.18);
+  .site-header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 50;
+    background: #fafbf9f2;
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid #e0e5e8;
   }
-  .nav-pill.is-scrolled {
-    background: rgba(255, 255, 255, 0.86);
-    box-shadow:
-      0 1px 0 rgba(16, 19, 31, 0.05),
-      0 12px 32px -10px rgba(27, 34, 80, 0.26);
-  }
-  .nav-link {
+  .site-navigation {
+    display: flex;
     align-items: center;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #555c72;
-    transition:
-      background-color 0.2s,
-      color 0.2s;
+    gap: 25px;
+    width: min(1200px, calc(100% - 96px));
+    height: 80px;
+    margin-inline: auto;
   }
-  .nav-link:hover {
-    background: #eef0f7;
-    color: #10131f;
+  .site-wordmark {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.055em;
+    color: #141c2b;
+  }
+  .site-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    margin-inline: auto;
+  }
+  .site-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 12px;
+    color: #657082;
+  }
+  .site-links a:hover {
+    color: #245ce6;
+  }
+  .nav-open {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    min-height: 40px;
+    padding: 9px 16px;
+    border: 1px solid #d8dfe6;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #20304b;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  .nav-open:hover {
+    border-color: #245ce6;
+    color: #245ce6;
+  }
+  .nav-open span {
+    font-size: 18px;
+    line-height: 1;
+  }
+  .mobile-navigation {
+    display: none;
+  }
+  @media (max-width: 1100px) {
+    .site-navigation {
+      width: calc(100% - 64px);
+    }
+    .site-links {
+      gap: 22px;
+    }
+  }
+  @media (max-width: 800px) {
+    .site-navigation {
+      width: calc(100% - 48px);
+      height: 72px;
+    }
+    .wide-link {
+      display: none !important;
+    }
+    .site-links {
+      gap: 20px;
+    }
+  }
+  @media (max-width: 580px) {
+    .site-navigation {
+      width: calc(100% - 40px);
+      height: 68px;
+      gap: 14px;
+    }
+    .site-wordmark {
+      font-size: 21px;
+    }
+    .site-wordmark img {
+      width: 26px;
+      height: 26px;
+    }
+    .site-links {
+      display: none;
+    }
+    .nav-open {
+      margin-left: auto;
+      gap: 16px;
+      padding-inline: 12px;
+    }
+    .mobile-navigation {
+      display: block;
+    }
+    .mobile-navigation summary {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      width: 32px;
+      min-height: 44px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .mobile-navigation summary::-webkit-details-marker {
+      display: none;
+    }
+    .mobile-navigation summary span {
+      width: 20px;
+      height: 1px;
+      background: #263a57;
+      margin-inline: auto;
+    }
+    .mobile-navigation > div {
+      position: absolute;
+      top: 68px;
+      inset-inline: 0;
+      padding: 12px 20px 20px;
+      border-bottom: 1px solid #e0e5e8;
+      background: #fafbf9;
+      box-shadow: 0 14px 20px #192e5010;
+    }
+    .mobile-navigation a {
+      display: flex;
+      align-items: center;
+      min-height: 48px;
+      color: #40516a;
+      font-size: 14px;
+    }
   }
 </style>
 
 <script>
-  const nav = document.getElementById('nav');
-  const update = () => nav?.classList.toggle('is-scrolled', window.scrollY > 24);
-  update();
-  window.addEventListener('scroll', update, { passive: true });
+  const menu = document.querySelector<HTMLDetailsElement>(".mobile-navigation");
+  menu?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      menu.open = false;
+    });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && menu?.open) {
+      menu.open = false;
+      menu.querySelector("summary")?.focus();
+    }
+  });
 </script>

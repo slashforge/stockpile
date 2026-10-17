@@ -24,6 +24,7 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "CongressIngestHandler": import("@cloudflare/workers-types").Service
     "Database": import("@cloudflare/workers-types").Hyperdrive
     "DatabaseUrl": {
       "type": "sst.sst.Secret"
@@ -36,6 +37,14 @@ declare module "sst" {
     "JupiterApiKey": {
       "type": "sst.sst.Secret"
       "value": string
+    }
+    "NewsbidLanding": {
+      "type": "sst.cloudflare.Astro"
+      "url": string
+    }
+    "NewsbidWeb": {
+      "type": "sst.cloudflare.StaticSite"
+      "url": string
     }
     "OpenaiApiKey": {
       "type": "sst.sst.Secret"
@@ -65,14 +74,6 @@ declare module "sst" {
     "SolanaPaymasterKey": {
       "type": "sst.sst.Secret"
       "value": string
-    }
-    "NewsbidLanding": {
-      "type": "sst.cloudflare.Astro"
-      "url": string
-    }
-    "NewsbidWeb": {
-      "type": "sst.cloudflare.StaticSite"
-      "url": string
     }
     "StoryRefreshHandler": import("@cloudflare/workers-types").Service
     "TokensApiKey": {

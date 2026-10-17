@@ -80,26 +80,32 @@ export function disclosureStory(item: Disclosure) {
   };
 }
 
-/** `bun run congress:ingest`: fetches every tracked ticker, upserts disclosures, and publishes one feed story per new disclosure. */
+/**
+ * `bun run congress:ingest` and the `CongressIngest` cron Worker (apps/api/congress-cron.ts): fetches every tracked ticker,
+ * upserts disclosures, and publishes one feed story per new disclosure. One batched insert per ticker keeps a Worker run
+ * to a handful of queries even though each ticker returns up to 500 rows.
+ */
 export async function ingestCongress() {
   let inserted = 0, storiesInserted = 0;
   const errors: string[] = [];
   for (const ticker of Object.keys(tickerToSymbol)) {
     try {
       const rows = await fetchTicker(ticker);
-      for (const item of rows) {
-        const result = await db.insert(congressDisclosures).values({ id: item.id, member: item.member, chamber: item.chamber, ticker: item.ticker, txnType: item.txnType, txnDate: item.txnDate, disclosedDate: item.disclosedDate,
-          amountRange: item.amountRange, amountLow: item.amountLow.toFixed(2), amountHigh: item.amountHigh.toFixed(2), asset: item.asset, filingUrl: item.filingUrl, source: CONGRESS_SOURCE }).onConflictDoNothing().returning({ id: congressDisclosures.id });
-        if (!result.length) continue;
-        inserted++;
-        // Only recent filings become feed reels; historical rows still feed the tracker bags.
-        if (item.disclosedDate.getTime() < Date.now() - storyWindowDays * 864e5) continue;
-        const story = disclosureStory(item);
-        const published = await db.insert(stories).values(story).onConflictDoNothing().returning({ id: stories.id });
-        storiesInserted += published.length;
-      }
+      // The same filing can appear twice in one response (identical hash); keep one so stories map 1:1 to new rows.
+      const unique = [...new Map(rows.map((item) => [item.id, item])).values()];
+      if (!unique.length) continue;
+      const result = await db.insert(congressDisclosures).values(unique.map((item) => ({ id: item.id, member: item.member, chamber: item.chamber, ticker: item.ticker, txnType: item.txnType, txnDate: item.txnDate, disclosedDate: item.disclosedDate,
+        amountRange: item.amountRange, amountLow: item.amountLow.toFixed(2), amountHigh: item.amountHigh.toFixed(2), asset: item.asset, filingUrl: item.filingUrl, source: CONGRESS_SOURCE }))).onConflictDoNothing().returning({ id: congressDisclosures.id });
+      inserted += result.length;
+      // Only recent filings become feed reels; historical rows still feed the tracker bags.
+      const added = new Set(result.map((row) => row.id));
+      const recent = unique.filter((item) => added.has(item.id) && item.disclosedDate.getTime() >= Date.now() - storyWindowDays * 864e5);
+      if (!recent.length) continue;
+      const published = await db.insert(stories).values(recent.map(disclosureStory)).onConflictDoNothing().returning({ id: stories.id });
+      storiesInserted += published.length;
     } catch (error) { errors.push(`${ticker}: ${error instanceof Error ? error.message : "unknown failure"}`); }
   }
+  if (inserted) resetCongressCache();
   return { inserted, storiesInserted, errors };
 }
 

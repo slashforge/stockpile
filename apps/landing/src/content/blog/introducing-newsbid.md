@@ -16,10 +16,10 @@ there are twelve:
 - **Editorial xStocks bags** — Megacap Builders, AI Infrastructure, Consumer Frontiers, Crypto & Fintech Rails,
   Cloud & Software, Everyday Brands, Index Basics. Hand-picked by Newsbid Editorial from the issuer's product directory and
   gated by live Jupiter liquidity (a 10 USDC quote must route with at most 2.5% price impact). Tokens: NVDAx, AAPLx,
-  MSFTx, GOOGLx, AMZNx, METAx, TSLAx, NFLXx, AMDx, AVGOx, PLTRx, ORCLx, INTCx, COINx, HOODx, MSTRx, CRCLx, BACx,
+  MSFTx, GOOGLx, AMZNx, METAx, TSLAx, SPCXx, NFLXx, AMDx, AVGOx, PLTRx, ORCLx, INTCx, COINx, HOODx, MSTRx, CRCLx, BACx,
   MCDx, WMTx, KOx, PGx, PEPx, SPYx, QQQx, GLDx.
-- **Editorial PreStocks bags** — Frontier AI Labs, Prediction Markets, Defense & Space. Pre-IPO exposure to OpenAI,
-  Anthropic, Figure AI, Neuralink, Kalshi, Polymarket, SpaceX, and Anduril via PreStocks tokens.
+- **Editorial PreStocks bags** — Frontier AI Labs, Prediction Markets, Autonomy & Defense. Pre-IPO exposure to OpenAI,
+  Anthropic, Figure AI, Neuralink, Kalshi, Polymarket, and Anduril via PreStocks tokens.
 - **Disclosure bags** — Pelosi Tracker and Congress Consensus, computed from periodic transaction reports filed under
   the STOCK Act. Every holding cites the filings that put it there.
 

@@ -9,11 +9,11 @@ import { secret } from "./config";
 export const companies = [
   { name: "OpenAI", pattern: /\bOpenAI\b/i, bags: ["frontier-ai-labs"] },
   { name: "Anthropic", pattern: /\bAnthropic\b/i, bags: ["frontier-ai-labs"] },
-  { name: "Figure AI", pattern: /\bFigure\s?AI\b/i, bags: ["frontier-ai-labs"] },
+  { name: "Figure AI", pattern: /\bFigure\s?AI\b/i, bags: ["frontier-ai-labs", "defense-space"] },
   { name: "Neuralink", pattern: /\bNeuralink\b/i, bags: ["frontier-ai-labs"] },
   { name: "Kalshi", pattern: /\bKalshi\b/i, bags: ["prediction-markets"] },
   { name: "Polymarket", pattern: /\bPolymarket\b/i, bags: ["prediction-markets"] },
-  { name: "SpaceX", pattern: /\bSpaceX\b|\bStarlink\b/i, bags: ["defense-space"] },
+  { name: "SpaceX", pattern: /\bSpaceX\b|\bStarlink\b/i, bags: ["megacap-builders"] },
   { name: "Anduril", pattern: /\bAnduril\b/i, bags: ["defense-space"] },
   { name: "NVIDIA", pattern: /\bNVIDIA\b/i, bags: ["megacap-builders", "ai-infrastructure"] },
   { name: "Microsoft", pattern: /\bMicrosoft\b/i, bags: ["megacap-builders", "ai-infrastructure", "cloud-software"] },

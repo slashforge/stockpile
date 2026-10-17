@@ -44,6 +44,10 @@ describe("PreStocks directory", () => {
     expect(parsePreStock(row({ symbol: "openai" }))).toBeNull();
     expect(parsePreStock(row({ markPrice: "1023" }))).toBeNull();
     expect(parsePreStock(row({ tokenPrice: -1 }))).toBeNull();
+    expect(parsePreStock(row({ supply: "12" }))).toBeNull();
+    // Live issuer shape since ~Oct 2026: token price, implied valuation and supply are null; the row is still usable.
+    expect(parsePreStock(row({ tokenPrice: null, impliedValuation: null, supply: null }))).toMatchObject({ symbol: "OPENAI", mint: MINT, markPrice: 1023.7, tokenPrice: null, impliedValuation: null, supply: null });
+    expect(parsePreStock(row({ markPrice: null }))).toBeNull();
     expect(parsePreStock(null)).toBeNull();
   });
   it("fetches once, caches, drops duplicates, and serves stale data when the issuer fails", async () => {
@@ -126,6 +130,11 @@ describe("PreStocks Jupiter verification and tradability gating", () => {
     // Directory down and nothing cached: research-only, no reference, no throw.
     resetPreStocksCache(); provider({ directory: () => new Response("down", { status: 503 }) });
     expect(await resolveAsset(bag, openai)).toMatchObject({ mint: null, reference: null, issuerIconUrl: null });
+  });
+  it("resolves and verifies assets when the issuer omits token price, implied valuation and supply", async () => {
+    const bag = bags.find((item) => item.id === "frontier-ai-labs")!;
+    provider({ directory: () => directoryResponse([row({ tokenPrice: null, impliedValuation: null, supply: null })]) });
+    expect(await resolveAsset(bag, bag.assets.find((item) => item.symbol === "OPENAI")!)).toMatchObject({ mint: MINT, issuerIconUrl: "https://www.prestocks.com/logos/openai.png", reference: { markPrice: 1023.7, tokenPrice: null, impliedValuation: null } });
   });
   it("keeps xStocks resolution independent of the PreStocks directory", async () => {
     globalThis.fetch = mock(async () => { throw new Error("must not fetch"); }) as unknown as typeof fetch;

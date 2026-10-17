@@ -71,6 +71,20 @@ export const storyRefresh = isDeployed()
     })
   : undefined;
 
+// STOCK Act disclosures for the congress tracker bags (apps/api/congress-cron.ts). CongressInvests refreshes every 6 h;
+// 8 requests per run x 4 runs = 32/day, inside the 100/day free tier. Offset to :30 to avoid the other crons.
+export const congressIngest = isDeployed()
+  ? new sst.cloudflare.Cron("CongressIngest", {
+      schedules: ["30 */6 * * *"],
+      worker: {
+        handler: "apps/api/congress-cron.ts",
+        build: WORKER_BUILD,
+        link: [...API_LINKS, database!],
+        transform: WORKER_TRANSFORM,
+      },
+    })
+  : undefined;
+
 export const apiUrl = isDeployed()
   ? $interpolate`https://${domains.api}`
   : "http://localhost:4040";

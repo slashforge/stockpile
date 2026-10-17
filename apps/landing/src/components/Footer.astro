@@ -4,14 +4,12 @@ import { GITHUB_URL, SITE_TITLE } from '../consts';
 const currentYear = new Date().getFullYear();
 ---
 
-<footer class="bg-white border-t border-border rounded-t-[36px] sm:rounded-t-[44px]">
+<footer class="bg-white border-t border-border">
   <div class="max-w-6xl mx-auto px-5 sm:px-6 py-12">
     <div class="grid md:grid-cols-[1fr_auto] gap-8 md:gap-10 items-start">
       <div class="max-w-md">
         <div class="flex items-center gap-2.5 mb-5">
-          <span class="w-8 h-8 rounded-full bg-grad-blue grid place-items-center">
-            <img src="/logo-mark.svg" alt="" class="w-4 h-4" width="16" height="16" />
-          </span>
+          <img src="/favicon.svg" alt="" width="28" height="28" />
           <span class="font-bold text-text tracking-tight">{SITE_TITLE}</span>
         </div>
         <p class="text-sm text-text-subtle text-pretty">
@@ -23,8 +21,8 @@ const currentYear = new Date().getFullYear();
       <nav class="flex flex-wrap md:justify-end gap-x-6 gap-y-3 text-sm md:pt-1.5" aria-label="Footer">
         <a href="/#how" class="text-text-subtle hover:text-text transition-colors">How it works</a>
         <a href="/#bags" class="text-text-subtle hover:text-text transition-colors">Bags</a>
-        <a href="/#trust" class="text-text-subtle hover:text-text transition-colors">Safety</a>
-        <a href="/blog" class="text-text-subtle hover:text-text transition-colors">Blog</a>
+        <a href="/#trust" class="text-text-subtle hover:text-text transition-colors">Transparency</a>
+        <a href="/blog" class="text-text-subtle hover:text-text transition-colors">Journal</a>
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">GitHub</a>
         <a href="https://xstocks.fi/products" target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">xStocks</a>
         <a href="https://prestocks.com" target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">PreStocks</a>
@@ -38,7 +36,7 @@ const currentYear = new Date().getFullYear();
         <a href="/privacy" class="hover:text-text transition-colors">Privacy</a>
         <a href="/terms" class="hover:text-text transition-colors">Terms</a>
       </div>
-      <p>Built for Solana Seeker · newsbid.trade</p>
+      <p>News, with perspective. Built on Solana.</p>
     </div>
   </div>
 </footer>

@@ -1,6 +1,6 @@
 export const SITE_TITLE = 'Newsbid';
 export const SITE_DESCRIPTION =
-  'Swipe the news, buy the bag. Source-backed baskets of tokenized stocks and pre-IPO tokens on Solana, bought in one flow from your own wallet.';
+  'Follow the story. Explore themed baskets of tokenized stocks and pre-IPO tokens, understand the sources and risks, and trade from your own wallet on Solana.';
 export const SITE_URL = 'https://newsbid.trade';
 // Web app (apps/web). SST injects the stage's URL (infra/landing.ts); prod is the fallback.
 export const APP_URL = (import.meta.env.PUBLIC_APP_URL || 'https://app.newsbid.trade').replace(/\/$/, '');

@@ -73,13 +73,14 @@ export const STATIC_BAGS: LandingBag[] = [
     tradable: true,
     tradableReason: null,
     assets: [
-      x('NVDAx', 'NVIDIA xStock', 2000, '#78b808'),
-      x('AAPLx', 'Apple xStock', 1800, '#1a1a1a'),
-      x('MSFTx', 'Microsoft xStock', 1800, '#fdb92c'),
+      x('NVDAx', 'NVIDIA xStock', 1800, '#78b808'),
+      x('AAPLx', 'Apple xStock', 1600, '#1a1a1a'),
+      x('MSFTx', 'Microsoft xStock', 1600, '#fdb92c'),
       x('GOOGLx', 'Alphabet xStock', 1400, '#f71603'),
       x('AMZNx', 'Amazon xStock', 1200, '#f89808'),
       x('METAx', 'Meta Platforms xStock', 1200, '#0866ff'),
       x('TSLAx', 'Tesla xStock', 600, '#ef0027'),
+      x('SPCXx', 'SpaceX xStock', 600, '#141414'),
     ],
   },
   {
@@ -219,16 +220,16 @@ export const STATIC_BAGS: LandingBag[] = [
   },
   {
     id: 'defense-space',
-    title: 'Defense & Space',
-    subtitle: 'Pre-IPO exposure to launch and autonomous defense',
+    title: 'Autonomy & Defense',
+    subtitle: 'Pre-IPO exposure to autonomous defense and humanoid robots',
     sourceType: 'editorial',
     issuer: 'prestocks',
     curator: editorial,
     tradable: true,
     tradableReason: null,
     assets: [
-      p('SPACEX', 'spacex', 'SpaceX PreStocks', 6000, '#054b83'),
-      p('ANDURIL', 'anduril', 'Anduril PreStocks', 4000, '#000000'),
+      p('ANDURIL', 'anduril', 'Anduril PreStocks', 6000, '#000000'),
+      p('FIGUREAI', 'figureai', 'Figure AI PreStocks', 4000, '#000000'),
     ],
   },
   {

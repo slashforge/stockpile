@@ -4,6 +4,7 @@
 // Every symbol also passed the on-chain liquidity gate in apps/api/scripts/probe-xstocks.ts on that date
 // (10 USDC quote routes, <= 2.5% impact, TVL >= $500, implied price within 10% of Jupiter usdPrice).
 // AMDx, AVGOx, NFLXx and TSMx are borderline (~2-2.3% impact); TSMx is allowlisted but not in an editorial bag.
+// SPCXx (SpaceX, Nasdaq-listed) was added 2026-10-17 after passing the same probe (0% impact, ~$2.6M TVL).
 // Used for icons and as mint pins: tradable mints are resolved live from the issuer directories (see mint-registry.ts),
 // and a live mint that disagrees with a pinned one is refused until someone re-verifies it. New listings need no pin.
 const mints: Record<string, string> = {
@@ -38,6 +39,7 @@ const mints: Record<string, string> = {
   SPYx: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
   QQQx: "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ",
   GLDx: "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re",
+  SPCXx: "Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8",
 };
 const decimals = 8;
 
@@ -50,6 +52,7 @@ export function issuerAsset(symbol: string) {
 
 // PreStocks contract addresses verified on 2026-09-25 against https://prestocks.com/api/prestocks and Jupiter
 // (verified + prestocks tags, live USDC route). Pins only: resolution still requires the live directory to agree.
+// SPACEX was dropped from the PreStocks directory by 2026-10-17 (SpaceX listed publicly; it trades as the SPCXx xStock).
 const preStockMints: Record<string, string> = {
   OPENAI: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
   ANTHROPIC: "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw",
@@ -57,7 +60,6 @@ const preStockMints: Record<string, string> = {
   NEURALINK: "PrekqLJvJ3qVdXmBGDiexvwUTF4rLFDa6HWS4HJbw9S",
   KALSHI: "PreLWGkkeqG1s4HEfFZSy9moCrJ7btsHuUtfcCeoRua",
   POLYMARKET: "Pre8AREmFPtoJFT8mQSXQLh56cwJmM7CFDRuoGBZiUP",
-  SPACEX: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
   ANDURIL: "PresTj4Yc2bAR197Er7wz4UUKSfqt6FryBEdAriBoQB",
 };
 

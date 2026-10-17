@@ -10,7 +10,8 @@ export const PRESTOCKS_DIRECTORY_URL = "https://prestocks.com/api/prestocks";
 export const PRESTOCKS_HOST = "www.prestocks.com";
 export const PRESTOCKS_DISCLAIMER = "PreStocks provide only economic exposure to private companies; confer no ownership, voting, dividend, information, or other legal rights; are risky investments; may result in total loss; have no guaranteed secondary-market liquidity; are not affiliated with, endorsed by, or issued by referenced companies; are not available in the U.S., to U.S. persons, or to other ineligible persons.";
 
-export type PreStock = { symbol: string; name: string; description: string; mint: string; imageUrl: string; productUrl: string; markPrice: number; tokenPrice: number; impliedValuation: number; markValuation: number; supply: number };
+/** `tokenPrice`, `impliedValuation` and `supply` are optional: the issuer API has returned them as null for every row since ~Oct 2026. */
+export type PreStock = { symbol: string; name: string; description: string; mint: string; imageUrl: string; productUrl: string; markPrice: number; tokenPrice: number | null; impliedValuation: number | null; markValuation: number; supply: number | null };
 export type PreStockVerification = { verified: boolean; decimals: number | null; uiAmountMultiplier: number; reason: string | null };
 export type Directory = { assets: PreStock[]; asOf: string };
 
@@ -43,6 +44,8 @@ export async function boundedJson(response: Response, maxBytes: number = maxDire
 }
 
 const finite = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+/** null when the issuer omits the field; undefined (row rejected) when it is present but malformed. */
+const optionalFinite = (value: unknown) => value === null || value === undefined ? null : finite(value) ?? undefined;
 
 /** Strictly validates one directory row; returns null for anything malformed. Exported for tests. */
 export function parsePreStock(row: unknown): PreStock | null {
@@ -54,8 +57,9 @@ export function parsePreStock(row: unknown): PreStock | null {
   const description = typeof value.description === "string" ? value.description.replace(/<[^>]*>/g, " ").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 600) : "";
   const image = safeUrl(value.image, /^\/logos\/[a-z0-9-]+\.png$/);
   const product = safeUrl(value.external_url, /^\/[a-z0-9-]+$/);
-  const markPrice = finite(value.markPrice), tokenPrice = finite(value.tokenPrice), impliedValuation = finite(value.impliedValuation), markValuation = finite(value.markValuation), supply = finite(value.supply);
-  if (!symbol || !mint || !name || !image || !product || markPrice === null || tokenPrice === null || impliedValuation === null || markValuation === null || supply === null) return null;
+  const markPrice = finite(value.markPrice), markValuation = finite(value.markValuation);
+  const tokenPrice = optionalFinite(value.tokenPrice), impliedValuation = optionalFinite(value.impliedValuation), supply = optionalFinite(value.supply);
+  if (!symbol || !mint || !name || !image || !product || markPrice === null || markValuation === null || tokenPrice === undefined || impliedValuation === undefined || supply === undefined) return null;
   return { symbol, name, description, mint, imageUrl: image, productUrl: product, markPrice, tokenPrice, impliedValuation, markValuation, supply };
 }
 

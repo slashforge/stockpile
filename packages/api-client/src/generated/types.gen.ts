@@ -79,8 +79,8 @@ export type BagAsset = {
 
 export type IssuerReference = {
     markPrice: number;
-    tokenPrice: number;
-    impliedValuation: number;
+    tokenPrice: number | null;
+    impliedValuation: number | null;
     asOf: string;
 } | null;
 

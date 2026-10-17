@@ -4,7 +4,7 @@ import { brandColorFor } from "./brand-color";
 // These are explicitly mapped underlying-company logos, not xStock token logos.
 const brandIcon: Record<string, string> = {
   AAPLx: "apple", NVDAx: "nvidia", AMDx: "amd",
-  GOOGLx: "google", TSLAx: "tesla", NFLXx: "netflix",
+  GOOGLx: "google", TSLAx: "tesla", NFLXx: "netflix", SPCXx: "spacex",
 };
 const brandBase = "https://cdn.jsdelivr.net/npm/simple-icons@15.16.0/icons/";
 const alternateBrandIcon: Record<string, string> = {

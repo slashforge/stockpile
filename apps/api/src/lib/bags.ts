@@ -17,7 +17,7 @@ export type Bag = {
   /** Data-driven bags compute assets at request time from persisted disclosures; `minAssets` gates tradability. */
   tracker?: { kind: "pelosi" | "consensus"; minAssets: number };
 };
-export type Reference = { markPrice: number; tokenPrice: number; impliedValuation: number; asOf: string };
+export type Reference = { markPrice: number; tokenPrice: number | null; impliedValuation: number | null; asOf: string };
 export type ResolvedAsset = { mint: string | null; decimals: number | null; uiAmountMultiplier: number; issuer: Issuer; assetClass: AssetClass; reference: Reference | null; issuerIconUrl: string | null; issuerMint: string | null };
 
 const xstocks = "https://xstocks.fi/products";
@@ -37,7 +37,7 @@ const prestocksRisks = [
   "PreStocks are not available in the U.S., to U.S. persons, or to other ineligible persons (PreStocks disclaimer).",
   "There is no guaranteed secondary-market liquidity: on-chain pools are thin, so even small USDC buys can show 1-3% price impact and exit may be slow or costly (PreStocks disclaimer; Newsbid live quotes).",
   "Private-company marks are issuer-reported, not exchange prices; the companies are not affiliated with PreStocks and may never list publicly. Total loss is possible (PreStocks disclaimer).",
-  "Some PreStocks tokens (for example OPENAI and SPACEX) use Token-2022 scaled UI amounts after split-style adjustments: raw on-chain units differ from wallet-displayed units by the multiplier shown on the asset.",
+  "Some PreStocks tokens (for example OPENAI) use Token-2022 scaled UI amounts after split-style adjustments: raw on-chain units differ from wallet-displayed units by the multiplier shown on the asset.",
   "Editorial bag composition and weights are Newsbid's own inference, not issuer views or recommendations.",
 ];
 const product = (slug: string) => `https://prestocks.com/${slug}`;
@@ -57,16 +57,17 @@ const congressInvests = { title: "CongressInvests API (normalised STOCK Act fili
 // routes with <= 2.5% price impact, Tokens V2 verified, pool TVL >= $500, implied price within 10% of Jupiter's usdPrice).
 // Re-run the probe before adding a symbol; ARMx, V/MA/PYPL and every defense/pharma/pure-software name failed that gate on that date.
 // AMDx, AVGOx and NFLXx sit at ~2% impact (borderline, admitted under the 2.5% gate).
+// SPCXx (SpaceX, Nasdaq-listed after leaving PreStocks) passed on 2026-10-17 at 0% impact with ~$2.6M pool TVL.
 const xs = (ticker: string, company: string, weightBps: number): BagAssetDefinition => ({ symbol: `${ticker}x`, underlyingTicker: ticker, name: `${company} xStock`, weightBps, sourceUrl: xstocks });
 
 export const bags: Bag[] = [
   {
     id: "megacap-builders", title: "Megacap Builders", subtitle: "Platforms behind everyday computing",
-    description: "An editorial look at the seven largest U.S. technology companies represented by xStocks tokens: Apple, Microsoft, NVIDIA, Alphabet, Amazon, Meta, and Tesla.",
-    thesis: "Newsbid editorial inference: these companies span devices, software, advertising, cloud, and compute infrastructure, and their tokens are the deepest xStocks pools on Solana. Weights lean toward the most liquid tokens; inclusion and weights are not supplied by the issuer.",
+    description: "An editorial look at the largest U.S. technology companies represented by xStocks tokens: Apple, Microsoft, NVIDIA, Alphabet, Amazon, Meta, Tesla, and SpaceX.",
+    thesis: "Newsbid editorial inference: these companies span devices, software, advertising, cloud, compute infrastructure, and launch and satellite connectivity, and their tokens are among the deepest xStocks pools on Solana. Weights lean toward the most liquid tokens; SpaceX carries a small weight because its public trading history is short. Inclusion and weights are not supplied by the issuer.",
     disclosure: xstocksDisclosure, sourceType: "editorial", issuer: "xstocks", assetClass: "public-equity", curator: editorialCurator, risks: xstocksRisks,
-    sources: [xstocksSource, { title: "Nasdaq-100 index constituents", url: "https://www.nasdaq.com/market-activity/quotes/nasdaq-ndx-index" }],
-    assets: [xs("NVDA", "NVIDIA", 2000), xs("AAPL", "Apple", 1800), xs("MSFT", "Microsoft", 1800), xs("GOOGL", "Alphabet", 1400), xs("AMZN", "Amazon", 1200), xs("META", "Meta Platforms", 1200), xs("TSLA", "Tesla", 600)],
+    sources: [xstocksSource, { title: "Nasdaq-100 index constituents", url: "https://www.nasdaq.com/market-activity/quotes/nasdaq-ndx-index" }, { title: "SpaceX updates", url: "https://www.spacex.com/updates/" }],
+    assets: [xs("NVDA", "NVIDIA", 1800), xs("AAPL", "Apple", 1600), xs("MSFT", "Microsoft", 1600), xs("GOOGL", "Alphabet", 1400), xs("AMZN", "Amazon", 1200), xs("META", "Meta Platforms", 1200), xs("TSLA", "Tesla", 600), xs("SPCX", "SpaceX", 600)],
   },
   {
     id: "ai-infrastructure", title: "AI Infrastructure", subtitle: "Hardware, platforms, and compute",
@@ -142,14 +143,15 @@ export const bags: Bag[] = [
     ],
   },
   {
-    id: "defense-space", title: "Defense & Space", subtitle: "Pre-IPO exposure to launch and autonomous defense",
-    description: "An editorial bag of PreStocks tokens tracking SpaceX and Anduril.",
-    thesis: "Newsbid editorial inference: launch, satellite broadband, and autonomous defense systems are capital-intensive private franchises with government and commercial demand. SpaceX carries the larger weight for scale; this is not an issuer view.",
+    // Id kept for saved bags, positions and story links; SpaceX left PreStocks when it listed and now sits in megacap-builders.
+    id: "defense-space", title: "Autonomy & Defense", subtitle: "Pre-IPO exposure to autonomous defense and humanoid robots",
+    description: "An editorial bag of PreStocks tokens tracking Anduril and Figure AI.",
+    thesis: "Newsbid editorial inference: autonomous defense systems and general-purpose humanoid robots are capital-intensive private hardware franchises built on the same autonomy stack, with government and commercial demand. Anduril carries the larger weight for scale and deeper on-chain liquidity. SpaceX, previously in this bag, is now publicly listed and held via its xStock in Megacap Builders. This is not an issuer view.",
     disclosure: prestocksDisclosure, sourceType: "editorial", issuer: "prestocks", assetClass: "pre-ipo", curator: editorialCurator, risks: prestocksRisks,
-    sources: [prestocksSource, { title: "PreStocks: SpaceX product page", url: product("spacex") }, { title: "PreStocks: Anduril product page", url: product("anduril") }, { title: "SpaceX updates", url: "https://www.spacex.com/updates/" }, { title: "Anduril press", url: "https://www.anduril.com/press" }],
+    sources: [prestocksSource, { title: "PreStocks: Anduril product page", url: product("anduril") }, { title: "PreStocks: Figure AI product page", url: product("figureai") }, { title: "Anduril press", url: "https://www.anduril.com/press" }, { title: "Figure AI news", url: "https://www.figure.ai/news" }],
     assets: [
-      { symbol: "SPACEX", name: "SpaceX PreStocks", weightBps: 6000, sourceUrl: product("spacex") },
-      { symbol: "ANDURIL", name: "Anduril PreStocks", weightBps: 4000, sourceUrl: product("anduril") },
+      { symbol: "ANDURIL", name: "Anduril PreStocks", weightBps: 6000, sourceUrl: product("anduril") },
+      { symbol: "FIGUREAI", name: "Figure AI PreStocks", weightBps: 4000, sourceUrl: product("figureai") },
     ],
   },
   {
