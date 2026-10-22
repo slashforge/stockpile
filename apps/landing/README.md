@@ -6,13 +6,15 @@ Astro 6 + Tailwind 3 marketing site for [newsbid.trade](https://newsbid.trade), 
 ## Structure
 
 ```
-src/pages/index.astro         Landing page (Hero, HowItWorks, Bags, Receipts, Builders, Footer)
-src/components/               Sections + TokenAvatar / BagCard / PhoneMock / StoreBadges
+src/pages/index.astro         Landing page: composes the sections in src/components/home
+src/components/home/          Hero, Tape, FrontPage (+ PinnedBag), Tour, BagDesk, FinePrint, Faq, Closing
+src/components/               Nav, Footer, BaseHead, IPhone frame, TokenAvatar; app/ holds small app-UI twins
 src/lib/bags.ts               Bag catalogue: live from the API at build time, static fallback otherwise
 src/pages/blog/, src/content  Blog (Markdown/MDX), config in src/content.config.ts
 src/pages/og/[...path].svg.ts OG image route (og-image-renderer.mjs + og-image-options.mjs)
 src/consts.ts                 Site title/description/URL, GitHub link
-tailwind.config.mjs           Design tokens mirrored from apps/mobile `theme.ds` (bright, cool palette)
+tailwind.config.mjs           Design tokens: app palette (apps/mobile `theme.ds`) + editorial paper/ink
+src/styles/home.css           Home page primitives (Newsreader serif, JetBrains Mono kickers, buttons)
 scripts/                      Dev-only helpers (headless Chrome screenshots / overflow check)
 ```
 

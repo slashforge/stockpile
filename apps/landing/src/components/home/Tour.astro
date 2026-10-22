@@ -1,0 +1,323 @@
+---
+/** Scroll-driven product tour: steps scroll past a sticky phone whose screen follows along. */
+import IPhone from '../IPhone.astro';
+import Icon from '../app/Icon.astro';
+
+const steps = [
+  {
+    label: 'Story',
+    title: 'Read the story.',
+    body: 'One story per screen from publishers like CNBC, TechCrunch and Ars Technica, plus public STOCK Act disclosures. Every card carries its source and the bag it is pinned to.',
+    checks: ['Open the original article any time', 'AI summaries are labelled as AI', 'Swipe up on the bag bar to look inside'],
+    src: '/screens/feed.webp',
+    alt: 'Newsbid feed: a news story linked to the Consumer Frontiers bag',
+  },
+  {
+    label: 'Bag',
+    title: 'Look inside the bag.',
+    body: 'Every holding, its weight and its issuer, before you spend anything. Each bag shows its thesis, the sources behind it and its risks, and says plainly when it is research-only.',
+    checks: ['An allocation bar with every weight', 'Sources and filings behind each pick', 'Pre-IPO tokens clearly marked'],
+    src: '/screens/bag-sheet.webp',
+    alt: 'Inside the Consumer Frontiers bag: Amazon, Tesla, Meta, Netflix and more with their weights',
+  },
+  {
+    label: 'Amount',
+    title: 'Pick an amount.',
+    body: 'Choose how much USDC to put in. Newsbid splits it across the bag by weight, one swap per token, so you never have to work out the maths yourself.',
+    checks: ['Quick amounts, or type your own', 'Split by the bag’s weights automatically'],
+    src: '/screens/buy.webp',
+    alt: 'Buy screen: entering a USDC amount for the Consumer Frontiers bag',
+  },
+  {
+    label: 'Review',
+    title: 'Check every swap, then slide.',
+    body: 'Each leg is quoted by Jupiter on Solana with its minimum received. Review the lot, then swipe to buy. Tokens land in your own Privy wallet.',
+    checks: ['Price impact shown for every swap', 'You approve every transaction', 'Sell the whole bag, or single tokens, later'],
+    src: '/screens/review.webp',
+    alt: 'Review screen: seven swaps routed by Jupiter with a swipe-to-buy button',
+  },
+];
+const pad = (n: number) => String(n + 1).padStart(2, '0');
+---
+
+<section id="how" class="tour">
+  <div class="container-x">
+    <header class="tour__head" data-reveal>
+      <span class="kicker kicker--rule tour__kicker">How it works</span>
+      <h2 class="section-title">From headline to holdings <em>in four steps.</em></h2>
+    </header>
+
+    <div class="tour__grid" data-tour>
+      <ol class="tour__steps">
+        {steps.map((step, index) => (
+          <li class:list={['tour__step', index === 0 && 'is-active']} data-step={index}>
+            <span class="tour__num">{pad(index)} <i></i> {step.label}</span>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+            <ul class="tour__checks">
+              {step.checks.map((check) => (
+                <li><Icon name="check" size={14} /> {check}</li>
+              ))}
+            </ul>
+            <div class="tour__inline">
+              <IPhone src={step.src} alt={step.alt} />
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div class="tour__stage" aria-hidden="true">
+        <div class="tour__sticky">
+          <div class="tour__phone">
+            <IPhone src={steps[0]!.src} alt="">
+              {steps.slice(1).map((step, index) => (
+                <img class="tour__screen" data-screen={index + 1} src={step.src} alt="" width="780" height="1696" loading="lazy" decoding="async" />
+              ))}
+            </IPhone>
+          </div>
+          <ol class="tour__progress">
+            {steps.map((step, index) => (
+              <li class:list={[index === 0 && 'is-active']} data-dot={index}>
+                <span>{pad(index)}</span>
+                {step.label}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const tour = document.querySelector<HTMLElement>('[data-tour]');
+  if (tour) {
+    const steps = [...tour.querySelectorAll<HTMLElement>('[data-step]')];
+    const screens = [...tour.querySelectorAll<HTMLElement>('[data-screen]')];
+    const dots = [...tour.querySelectorAll<HTMLElement>('[data-dot]')];
+    const activate = (index: number) => {
+      steps.forEach((el, i) => el.classList.toggle('is-active', i === index));
+      dots.forEach((el, i) => el.classList.toggle('is-active', i === index));
+      screens.forEach((el) => el.classList.toggle('is-on', Number(el.dataset.screen) <= index));
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) if (entry.isIntersecting) activate(Number((entry.target as HTMLElement).dataset.step));
+      },
+      { rootMargin: '-45% 0px -45% 0px' },
+    );
+    steps.forEach((step) => observer.observe(step));
+  }
+</script>
+
+<style>
+  .tour {
+    position: relative;
+    padding-block: 128px 64px;
+    background:
+      radial-gradient(900px 600px at 78% 30%, rgba(37, 99, 235, 0.22), transparent 70%),
+      var(--ink);
+    color: #fff;
+  }
+  .tour__head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  }
+  .tour__kicker {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .tour .section-title {
+    max-width: 880px;
+  }
+  .tour .section-title em {
+    color: #7fb0ff;
+  }
+
+  .tour__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
+  }
+  .tour__step {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 18px;
+    min-height: 78vh;
+    max-width: 500px;
+    opacity: 0.3;
+    transition: opacity 0.4s;
+  }
+  .tour__step.is-active {
+    opacity: 1;
+  }
+  .tour__num {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7fb0ff;
+  }
+  .tour__num i {
+    width: 24px;
+    height: 1px;
+    background: currentColor;
+  }
+  .tour__step h3 {
+    font-family: var(--serif);
+    font-size: clamp(36px, 3.6vw, 52px);
+    line-height: 1.02;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+  }
+  .tour__step p {
+    font-size: 17px;
+    line-height: 27px;
+    color: rgba(255, 255, 255, 0.68);
+    text-wrap: pretty;
+  }
+  .tour__checks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .tour__checks li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .tour__checks svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(79, 209, 168, 0.18);
+    color: #6fe3bd;
+  }
+  .tour__inline {
+    display: none;
+  }
+
+  .tour__stage {
+    position: relative;
+  }
+  .tour__sticky {
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    height: 100vh;
+    padding-top: 40px;
+  }
+  .tour__phone {
+    width: min(330px, 30vw, calc((100vh - 140px) * 0.47));
+  }
+  .tour__phone :global(.iphone) {
+    box-shadow:
+      inset 0 0 0 0.35cqw rgba(255, 255, 255, 0.22),
+      inset 0 0 0 1.1cqw #07080b,
+      0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 12cqw 30cqw -6cqw rgba(37, 99, 235, 0.55);
+  }
+  .tour__screen {
+    position: absolute;
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    margin: 0;
+    object-fit: cover;
+    opacity: 0;
+    transform: translateY(4%);
+    transition:
+      opacity 0.45s ease,
+      transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .tour__screen.is-on {
+    opacity: 1;
+    transform: none;
+  }
+  .tour__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .tour__progress li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.3s;
+  }
+  .tour__progress span {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    transition:
+      background-color 0.3s,
+      border-color 0.3s,
+      color 0.3s;
+  }
+  .tour__progress li.is-active {
+    color: #fff;
+  }
+  .tour__progress li.is-active span {
+    border-color: var(--brand);
+    background: var(--brand);
+  }
+
+  @media (max-width: 1023px) {
+    .tour {
+      padding-block: 96px 88px;
+    }
+    .tour__grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .tour__stage {
+      display: none;
+    }
+    .tour__steps {
+      display: flex;
+      flex-direction: column;
+    }
+    .tour__step {
+      min-height: 0;
+      max-width: none;
+      padding-block: 56px;
+      opacity: 1;
+    }
+    .tour__step + .tour__step {
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .tour__inline {
+      display: block;
+      width: min(280px, 72%);
+      margin: 24px auto 0;
+    }
+  }
+</style>

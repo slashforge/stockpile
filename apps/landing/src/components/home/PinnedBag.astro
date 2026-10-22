@@ -1,0 +1,155 @@
+---
+/** The story -> bag connection as a pinned clipping: signal, AI takeaway, exposure and the bag. */
+import ImpactChip from '../app/ImpactChip.astro';
+import LogoCluster from '../app/LogoCluster.astro';
+import Icon from '../app/Icon.astro';
+import { APP_URL } from '../../consts';
+import { formatWeight, type LandingBag } from '../../lib/bags';
+import type { LandingStory } from '../../lib/stories';
+
+interface Props {
+  story: LandingStory;
+  bag: LandingBag;
+  detailed?: boolean;
+}
+
+const { story, bag, detailed = false } = Astro.props;
+const hit = bag.assets
+  .filter((asset) => story.analysis.affectedSymbols.includes(asset.symbol))
+  .sort((a, b) => b.weightBps - a.weightBps);
+const exposure = hit.reduce((sum, asset) => sum + asset.weightBps, 0);
+const tone = story.analysis.direction === 'tailwind' ? 'up' : story.analysis.direction === 'headwind' ? 'down' : 'flat';
+---
+
+<a class:list={['pin', `pin--${tone}`]} href={`${APP_URL}/bag/${encodeURIComponent(bag.id)}`}>
+  <span class="pin__tab">Pinned bag</span>
+  <div class="pin__top">
+    <ImpactChip direction={story.analysis.direction} />
+    {hit.length > 0 && (
+      <span class="pin__exp">{hit.slice(0, 2).map((a) => a.symbol).join(', ')} · {formatWeight(exposure)} of bag</span>
+    )}
+  </div>
+  <p class="pin__headline">{story.analysis.headline}.</p>
+  {detailed && hit.length > 0 && (
+    <div class="pin__meter" aria-hidden="true"><span style={`width:${Math.max(3, exposure / 100)}%`}></span></div>
+  )}
+  {detailed && <p class="pin__unsure"><span>Still uncertain:</span> {story.analysis.uncertainty}</p>}
+  <div class="pin__bag">
+    <LogoCluster assets={bag.assets} size={24} limit={4} flat />
+    <span class="pin__name">{bag.title}</span>
+    <span class="pin__go"><Icon name="arrow-up-right" size={16} /></span>
+  </div>
+</a>
+
+<style>
+  .pin {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 18px 16px;
+    border: 1px solid #10131f;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 5px 5px 0 #10131f;
+    transition:
+      transform 0.2s,
+      box-shadow 0.2s;
+  }
+  .pin:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 var(--brand);
+  }
+  .pin__tab {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #10131f;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 16px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .pin__top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .pin__exp {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .pin__headline {
+    font-size: 15px;
+    line-height: 21px;
+    font-weight: 600;
+    color: var(--text);
+    text-wrap: pretty;
+  }
+  .pin__meter {
+    height: 6px;
+    border-radius: 999px;
+    background: #eef0f7;
+    overflow: hidden;
+  }
+  .pin__meter span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--text-muted);
+  }
+  .pin--up .pin__meter span {
+    background: var(--positive);
+  }
+  .pin--down .pin__meter span {
+    background: var(--danger);
+  }
+  .pin__unsure {
+    font-family: var(--serif);
+    font-size: 15px;
+    line-height: 21px;
+    font-style: italic;
+    color: var(--text-subtle);
+  }
+  .pin__unsure span {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .pin__bag {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(16, 19, 31, 0.2);
+  }
+  .pin__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .pin__go {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: #e8f0ff;
+    color: var(--brand);
+    flex: none;
+  }
+</style>

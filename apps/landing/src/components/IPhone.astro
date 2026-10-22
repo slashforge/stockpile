@@ -48,13 +48,14 @@ const { src, alt, loading = 'lazy', class: className = '' } = Astro.props;
     overflow: hidden;
     border-radius: 13.1cqw;
     aspect-ratio: 1206 / 2622;
-    background: #f5f6fb;
+    background: #07080b;
     isolation: isolate;
   }
-  .iphone__screen img {
+  .iphone__screen > img {
     display: block;
-    width: 100%;
-    height: 100%;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    margin: -1px;
     object-fit: cover;
     user-select: none;
   }

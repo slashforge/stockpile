@@ -1,0 +1,204 @@
+---
+/** Trust: four principles in newspaper columns, then the stack Newsbid runs on. */
+import Icon from '../app/Icon.astro';
+
+const principles = [
+  {
+    icon: 'document',
+    title: 'Sources, not vibes',
+    body: 'Every story links to its publisher. Every bag lists the sources and filings behind each holding.',
+  },
+  {
+    icon: 'sparkles',
+    title: 'Honest AI',
+    body: 'AI analysis is labelled, says what is uncertain, and goes quiet when it is stale. It never predicts prices.',
+  },
+  {
+    icon: 'wallet',
+    title: 'Your keys, your call',
+    body: 'A Privy-secured wallet and Jupiter swaps. Newsbid never trades for you; you approve every transaction.',
+  },
+  {
+    icon: 'shield',
+    title: 'Risks up front',
+    body: 'Tokens are not shares. Pre-IPO tokens and thin pools carry more risk, and each bag says so before you buy.',
+  },
+] as const;
+
+const stack = [
+  ['Wallet', 'Privy'],
+  ['Swaps', 'Jupiter'],
+  ['Network', 'Solana'],
+  ['Tokens', 'xStocks · PreStocks'],
+];
+---
+
+<section id="trust" class="section-y fine">
+  <div class="container-x">
+    <header class="section-head" data-reveal>
+      <div>
+        <span class="kicker kicker--brand kicker--rule">Know what you're buying</span>
+        <h2 class="section-title">The fine print, <em>printed large.</em></h2>
+      </div>
+      <p class="section-lead">
+        A bag is not an ETF or a managed fund. You hold tokens, in your own wallet, and you can see why each one is
+        there.
+      </p>
+    </header>
+
+    <div class="fine__grid">
+      {principles.map((item, index) => (
+        <article data-reveal style={`--d:${index}`}>
+          <span class="fine__num">{String(index + 1).padStart(2, '0')}</span>
+          <span class="fine__icon"><Icon name={item.icon} size={20} /></span>
+          <h3>{item.title}</h3>
+          <p>{item.body}</p>
+        </article>
+      ))}
+    </div>
+
+    <dl class="fine__stack" data-reveal>
+      {stack.map(([label, value]) => (
+        <div>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>
+
+<style>
+  .fine {
+    background: var(--paper-deep);
+  }
+  .fine__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-bottom: 1px solid var(--rule);
+  }
+  .fine__grid article {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 40px 28px 44px;
+  }
+  .fine__grid article:first-child {
+    padding-left: 0;
+  }
+  .fine__grid article + article {
+    border-left: 1px solid var(--rule);
+  }
+  .fine__num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+  .fine__icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: #fff;
+    color: var(--brand);
+    box-shadow: inset 0 0 0 1px var(--rule);
+  }
+  .fine__grid h3 {
+    margin-top: 8px;
+    font-family: var(--serif);
+    font-size: 28px;
+    line-height: 32px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .fine__grid p {
+    font-size: 15px;
+    line-height: 24px;
+    color: var(--text-subtle);
+    text-wrap: pretty;
+  }
+  .fine__stack {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 40px;
+    border: 1px solid var(--rule-strong);
+    border-radius: 20px;
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .fine__stack div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 20px 24px;
+  }
+  .fine__stack div + div {
+    border-left: 1px solid var(--rule);
+  }
+  .fine__stack dt {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .fine__stack dd {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+  @media (max-width: 1023px) {
+    .fine__grid,
+    .fine__stack {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .fine__grid article,
+    .fine__grid article:first-child {
+      padding: 36px 24px 36px 0;
+    }
+    .fine__grid article:nth-child(2n) {
+      padding-left: 24px;
+    }
+    .fine__grid article + article:nth-child(2n + 1) {
+      border-left: 0;
+    }
+    .fine__grid article:nth-child(n + 3) {
+      border-top: 1px solid var(--rule);
+    }
+    .fine__stack div + div:nth-child(2n + 1) {
+      border-left: 0;
+    }
+    .fine__stack div:nth-child(n + 3) {
+      border-top: 1px solid var(--rule);
+    }
+  }
+  @media (max-width: 640px) {
+    .fine__grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .fine__grid article,
+    .fine__grid article:first-child,
+    .fine__grid article + article:nth-child(2n) {
+      padding: 32px 0;
+      border-left: 0;
+    }
+    .fine__grid article + article {
+      border-left: 0;
+      border-top: 1px solid var(--rule);
+    }
+    .fine__stack dd {
+      font-size: 20px;
+      line-height: 26px;
+    }
+    .fine__stack div {
+      padding: 16px;
+    }
+  }
+</style>

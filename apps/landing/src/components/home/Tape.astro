@@ -1,0 +1,130 @@
+---
+/** Market-tape band: every token in the catalogue and how many bags hold it. No prices, by design. */
+import TokenAvatar from '../TokenAvatar.astro';
+import { uniqueAssets, type LandingBag } from '../../lib/bags';
+
+interface Props {
+  bags: LandingBag[];
+}
+
+const { bags } = Astro.props;
+const assets = uniqueAssets(bags);
+const holders = (symbol: string) => bags.filter((bag) => bag.assets.some((a) => a.symbol === symbol)).length;
+const company = (name: string) => name.replace(/\s+(xStocks?|PreStocks?)$/i, '');
+---
+
+<section class="tape" aria-label={`${assets.length} tokens held across Newsbid bags`}>
+  <div class="tape__label">
+    <span class="tape__dot" aria-hidden="true"></span>
+    On the tape
+  </div>
+  <div class="tape__rail">
+    {[0, 1].map((copy) => (
+      <ul class="tape__track" aria-hidden={copy === 1 ? 'true' : undefined}>
+        {assets.map((asset, index) => {
+          const count = holders(asset.symbol);
+          return (
+            <li>
+              <TokenAvatar symbol={asset.symbol} name={asset.name} iconUrl={asset.iconUrl} brandColor={asset.brandColor} size={22} index={index} />
+              <span class="tape__sym">{asset.symbol}</span>
+              <span class="tape__name">{company(asset.name)}</span>
+              <span class="tape__count">{count} {count === 1 ? 'bag' : 'bags'}</span>
+            </li>
+          );
+        })}
+      </ul>
+    ))}
+  </div>
+</section>
+
+<style>
+  .tape {
+    display: flex;
+    align-items: stretch;
+    background: var(--ink);
+    color: #fff;
+    border-block: 1px solid var(--ink);
+  }
+  .tape__label {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: none;
+    padding: 0 24px;
+    background: var(--brand);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .tape__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #fff;
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0.25;
+    }
+  }
+  .tape__rail {
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, #000 92%, transparent);
+  }
+  .tape__track {
+    display: flex;
+    flex: none;
+    animation: tape 80s linear infinite;
+  }
+  .tape__rail:hover .tape__track {
+    animation-play-state: paused;
+  }
+  .tape li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+  }
+  .tape__sym {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .tape__name {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  .tape__count {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+  }
+  @keyframes tape {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @media (max-width: 640px) {
+    .tape__label {
+      padding: 0 14px;
+    }
+    .tape__label {
+      font-size: 0;
+      gap: 0;
+    }
+  }
+</style>

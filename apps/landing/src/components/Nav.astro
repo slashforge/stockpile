@@ -1,29 +1,29 @@
 ---
 import { APP_URL, SITE_TITLE } from "../consts";
+
+const links = [
+  { href: "/#front-page", label: "Front page" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#bags", label: "Bags" },
+  { href: "/#trust", label: "Trust", wide: true },
+  { href: "/blog", label: "Journal" },
+];
 ---
 
-<header class="site-header">
+<header class="site-header" data-header>
   <nav class="site-navigation" aria-label="Primary">
     <a href="/" class="site-wordmark" aria-label={`${SITE_TITLE} home`}>
-      <img src="/favicon.svg" alt="" width="29" height="29" />
+      <img src="/favicon.svg" alt="" width="28" height="28" />
       <span>{SITE_TITLE}</span>
     </a>
     <div class="site-links">
-      <a href="/#how" class="desktop-link">
-        How it works
-      </a>
-      <a href="/#bags" class="desktop-link">
-        The bags
-      </a>
-      <a href="/#trust" class="wide-link">
-        Trust
-      </a>
-      <a href="/blog" class="desktop-link">
-        Journal
-      </a>
+      {links.map((link) => (
+        <a href={link.href} class:list={[link.wide && "wide-link"]}>{link.label}</a>
+      ))}
     </div>
     <a href={APP_URL} class="nav-open">
-      Open app <span aria-hidden="true">↗</span>
+      Open app
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"></path></svg>
     </a>
     <details class="mobile-navigation">
       <summary aria-label="Navigation menu">
@@ -31,10 +31,7 @@ import { APP_URL, SITE_TITLE } from "../consts";
         <span></span>
       </summary>
       <div>
-        <a href="/#how">How it works</a>
-        <a href="/#bags">The bags</a>
-        <a href="/#trust">Trust</a>
-        <a href="/blog">Journal</a>
+        {links.map((link) => <a href={link.href}>{link.label}</a>)}
       </div>
     </details>
   </nav>
@@ -45,76 +42,98 @@ import { APP_URL, SITE_TITLE } from "../consts";
     position: fixed;
     inset: 0 0 auto;
     z-index: 50;
-    background: rgba(245, 246, 251, 0.85);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid #e6e8f1;
+    background: rgba(243, 241, 236, 0.82);
+    backdrop-filter: saturate(1.4) blur(18px);
+    -webkit-backdrop-filter: saturate(1.4) blur(18px);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .site-header.is-scrolled {
+    border-bottom-color: rgba(16, 19, 31, 0.14);
   }
   .site-navigation {
     display: flex;
     align-items: center;
-    gap: 25px;
-    width: min(1180px, calc(100% - 40px));
+    gap: 24px;
+    width: min(1240px, calc(100% - 48px));
     height: 72px;
     margin-inline: auto;
   }
   .site-wordmark {
     display: flex;
     align-items: center;
-    gap: 9px;
-    font-size: 21px;
-    font-weight: 800;
+    gap: 10px;
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 600;
     letter-spacing: -0.03em;
     color: #10131f;
+  }
+  .site-wordmark img {
+    border-radius: 8px;
   }
   .site-links {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 30px;
+    gap: 32px;
     margin-inline: auto;
   }
   .site-links a {
+    position: relative;
     display: inline-flex;
     align-items: center;
     min-height: 44px;
     font-size: 14px;
-    font-weight: 600;
-    color: #555c72;
+    font-weight: 500;
+    color: #4d5468;
+    transition: color 0.15s;
+  }
+  .site-links a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s;
   }
   .site-links a:hover {
-    color: #2563eb;
+    color: #10131f;
+  }
+  .site-links a:hover::after {
+    transform: scaleX(1);
   }
   .nav-open {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 44px;
+    gap: 8px;
+    min-height: 42px;
     padding: 0 18px;
     border-radius: 999px;
     font-size: 14px;
     font-weight: 600;
     color: #fff;
-    background: #2563eb;
-    box-shadow: 0 6px 12px rgba(37, 99, 235, 0.28);
+    background: #0c0f19;
     transition: background-color 0.15s;
   }
   .nav-open:hover {
-    background: #1d4ed8;
-  }
-  .nav-open span {
-    font-size: 16px;
-    line-height: 1;
+    background: #2563eb;
   }
   .mobile-navigation {
     display: none;
   }
   @media (max-width: 1100px) {
     .site-links {
-      gap: 22px;
+      gap: 24px;
     }
   }
-  @media (max-width: 800px) {
+  @media (max-width: 860px) {
     .wide-link {
       display: none !important;
     }
@@ -122,13 +141,14 @@ import { APP_URL, SITE_TITLE } from "../consts";
       gap: 20px;
     }
   }
-  @media (max-width: 580px) {
+  @media (max-width: 720px) {
     .site-navigation {
+      width: calc(100% - 32px);
       height: 64px;
-      gap: 14px;
+      gap: 12px;
     }
     .site-wordmark {
-      font-size: 21px;
+      font-size: 24px;
     }
     .site-wordmark img {
       width: 26px;
@@ -148,8 +168,8 @@ import { APP_URL, SITE_TITLE } from "../consts";
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 5px;
-      width: 32px;
+      gap: 6px;
+      width: 36px;
       min-height: 44px;
       cursor: pointer;
       list-style: none;
@@ -159,31 +179,45 @@ import { APP_URL, SITE_TITLE } from "../consts";
     }
     .mobile-navigation summary span {
       width: 20px;
-      height: 1px;
+      height: 1.5px;
       background: #10131f;
       margin-inline: auto;
+      transition: transform 0.2s;
+    }
+    .mobile-navigation[open] summary span:first-child {
+      transform: translateY(3.75px) rotate(45deg);
+    }
+    .mobile-navigation[open] summary span:last-child {
+      transform: translateY(-3.75px) rotate(-45deg);
     }
     .mobile-navigation > div {
       position: absolute;
       top: 64px;
       inset-inline: 0;
-      padding: 12px 20px 20px;
-      border-bottom: 1px solid #e6e8f1;
-      background: #f5f6fb;
-      box-shadow: 0 14px 20px #192e5010;
+      padding: 8px 16px 20px;
+      border-bottom: 1px solid rgba(16, 19, 31, 0.14);
+      background: #f3f1ec;
     }
     .mobile-navigation a {
       display: flex;
       align-items: center;
-      min-height: 48px;
+      min-height: 52px;
+      border-bottom: 1px solid rgba(16, 19, 31, 0.1);
       color: #10131f;
-      font-size: 15px;
-      font-weight: 600;
+      font-family: "Newsreader", Georgia, serif;
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
     }
   }
 </style>
 
 <script>
+  const header = document.querySelector<HTMLElement>("[data-header]");
+  const onScroll = () => header?.classList.toggle("is-scrolled", window.scrollY > 8);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+
   const menu = document.querySelector<HTMLDetailsElement>(".mobile-navigation");
   menu?.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", () => {

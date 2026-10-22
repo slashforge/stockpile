@@ -1,42 +1,195 @@
 ---
-import { GITHUB_URL, SITE_TITLE } from '../consts';
+import { APP_URL, GITHUB_URL, SITE_TITLE, SUPPORT_EMAIL } from '../consts';
 
 const currentYear = new Date().getFullYear();
+const columns = [
+  {
+    title: 'Product',
+    links: [
+      { href: '/#front-page', label: 'Front page' },
+      { href: '/#how', label: 'How it works' },
+      { href: '/#bags', label: 'Bags' },
+      { href: APP_URL, label: 'Open the app' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { href: '/blog', label: 'Journal' },
+      { href: GITHUB_URL, label: 'GitHub', external: true },
+      { href: `mailto:${SUPPORT_EMAIL}`, label: 'Support' },
+    ],
+  },
+  {
+    title: 'Tokens',
+    links: [
+      { href: 'https://xstocks.fi/products', label: 'xStocks', external: true },
+      { href: 'https://prestocks.com', label: 'PreStocks', external: true },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { href: '/disclosures', label: 'Disclosures' },
+      { href: '/privacy', label: 'Privacy' },
+      { href: '/terms', label: 'Terms' },
+    ],
+  },
+];
 ---
 
-<footer class="bg-white border-t border-border">
-  <div class="max-w-6xl mx-auto px-5 sm:px-6 py-12">
-    <div class="grid md:grid-cols-[1fr_auto] gap-8 md:gap-10 items-start">
-      <div class="max-w-md">
-        <div class="flex items-center gap-2.5 mb-5">
-          <img src="/favicon.svg" alt="" width="28" height="28" />
-          <span class="font-bold text-text tracking-tight">{SITE_TITLE}</span>
-        </div>
-        <p class="text-sm text-text-subtle text-pretty">
-          Not investment advice. Tokenized stocks and pre-IPO tokens are high-risk and you can lose everything you put in.
-          <a href="/disclosures" class="font-semibold text-brand hover:text-brand-hover">Read the disclosures</a>.
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__top">
+      <div class="site-footer__brand">
+        <a href="/" class="site-footer__mark">
+          <img src="/favicon.svg" alt="" width="32" height="32" />
+          <span>{SITE_TITLE}</span>
+        </a>
+        <p>
+          Not investment advice. Tokenized stocks and pre-IPO tokens are high-risk, and you can lose everything you put
+          in. <a href="/disclosures">Read the disclosures</a>.
         </p>
       </div>
-
-      <nav class="flex flex-wrap md:justify-end gap-x-6 gap-y-3 text-sm md:pt-1.5" aria-label="Footer">
-        <a href="/#how" class="text-text-subtle hover:text-text transition-colors">How it works</a>
-        <a href="/#bags" class="text-text-subtle hover:text-text transition-colors">Bags</a>
-        <a href="/#trust" class="text-text-subtle hover:text-text transition-colors">Trust</a>
-        <a href="/blog" class="text-text-subtle hover:text-text transition-colors">Journal</a>
-        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">GitHub</a>
-        <a href="https://xstocks.fi/products" target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">xStocks</a>
-        <a href="https://prestocks.com" target="_blank" rel="noopener noreferrer" class="text-text-subtle hover:text-text transition-colors">PreStocks</a>
+      <nav class="site-footer__cols" aria-label="Footer">
+        {columns.map((column) => (
+          <div>
+            <p>{column.title}</p>
+            <ul>
+              {column.links.map((link) => (
+                <li>
+                  <a href={link.href} {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
     </div>
 
-    <div class="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-text-muted">
-      <p>&copy; {currentYear} {SITE_TITLE}. All rights reserved.</p>
-      <div class="flex items-center gap-5">
-        <a href="/disclosures" class="hover:text-text transition-colors">Disclosures</a>
-        <a href="/privacy" class="hover:text-text transition-colors">Privacy</a>
-        <a href="/terms" class="hover:text-text transition-colors">Terms</a>
-      </div>
-      <p>News, with perspective. Built on Solana.</p>
+    <div class="site-footer__base">
+      <span>&copy; {currentYear} {SITE_TITLE}</span>
+      <span>News, with perspective. Built on Solana.</span>
     </div>
+
+    <p class="site-footer__word" aria-hidden="true">{SITE_TITLE}</p>
   </div>
 </footer>
+
+<style>
+  .site-footer {
+    background: #0c0f19;
+    color: #fff;
+    overflow: hidden;
+  }
+  .site-footer__inner {
+    width: min(1240px, calc(100% - 48px));
+    margin-inline: auto;
+    padding-top: 80px;
+  }
+  .site-footer__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 48px;
+  }
+  .site-footer__brand {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 360px;
+  }
+  .site-footer__mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .site-footer__mark img {
+    border-radius: 9px;
+  }
+  .site-footer__brand p {
+    font-size: 14px;
+    line-height: 22px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+  .site-footer__brand a:not(.site-footer__mark) {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(255, 255, 255, 0.35);
+  }
+  .site-footer__cols {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 32px;
+  }
+  .site-footer__cols p {
+    margin-bottom: 16px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+  .site-footer__cols ul {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .site-footer__cols a {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.85);
+    transition: color 0.15s;
+  }
+  .site-footer__cols a:hover {
+    color: #7fb0ff;
+  }
+  .site-footer__word {
+    /* background-clip:text only paints inside the box, so the line box must clear the ascenders. */
+    margin: 32px 0 -0.24em;
+    padding-top: 0.04em;
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: clamp(96px, 21vw, 300px);
+    line-height: 1.05;
+    font-weight: 500;
+    letter-spacing: -0.05em;
+    text-align: center;
+    color: transparent;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.02));
+    -webkit-background-clip: text;
+    background-clip: text;
+    user-select: none;
+  }
+  .site-footer__base {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    margin-top: 64px;
+    padding: 20px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  @media (max-width: 900px) {
+    .site-footer__top {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (max-width: 640px) {
+    .site-footer__inner {
+      width: calc(100% - 32px);
+      padding-top: 64px;
+    }
+    .site-footer__cols {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

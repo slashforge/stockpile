@@ -1,0 +1,359 @@
+---
+/** The full bag catalogue as a markets-page index: swatch, thesis, allocation and status per row. */
+import Icon from '../app/Icon.astro';
+import LogoCluster from '../app/LogoCluster.astro';
+import { APP_URL } from '../../consts';
+import { bagGradient, bagTradable, CHART_PALETTE, formatWeight, type LandingBag } from '../../lib/bags';
+
+interface Props {
+  bags: LandingBag[];
+  tokenCount: number;
+  live: boolean;
+}
+
+const { bags, tokenCount, live } = Astro.props;
+const groups = [
+  {
+    key: 'themes',
+    label: 'Themes',
+    note: 'Picked by Newsbid editors',
+    bags: bags.filter((bag) => bag.sourceType === 'editorial'),
+  },
+  {
+    key: 'trackers',
+    label: 'Trackers',
+    note: 'Built from public records',
+    bags: bags.filter((bag) => bag.sourceType !== 'editorial'),
+  },
+].filter((group) => group.bags.length > 0);
+
+const color = (bag: LandingBag, index: number) => bag.assets[index]?.brandColor ?? CHART_PALETTE[index % CHART_PALETTE.length];
+const origin = (bag: LandingBag) =>
+  bag.sourceType === 'disclosure' ? 'Computed from STOCK Act filings' : bag.sourceType === 'media' ? 'Computed from Mad Money calls' : 'Editorial';
+---
+
+<section id="bags" class="section-y desk">
+  <div class="container-x">
+    <header class="section-head" data-reveal>
+      <div>
+        <span class="kicker kicker--brand kicker--rule">The bag desk</span>
+        <h2 class="section-title">{bags.length} bags. {tokenCount} tokens. <em>Every weight in view.</em></h2>
+      </div>
+      <div>
+        <p class="section-lead">
+          Themed bags picked by our editors, plus trackers built from public records: Congress's STOCK Act filings and an
+          Inverse Cramer bag built from Mad Money calls.
+        </p>
+        <a class="text-link" href={`${APP_URL}/bags`}>Browse every bag in the app <Icon name="arrow-up-right" size={16} /></a>
+      </div>
+    </header>
+
+    {groups.map((group) => (
+      <div class="desk__group" data-reveal>
+        <div class="desk__cols" aria-hidden="true">
+          <span>{group.label} <b>{group.bags.length}</b> <i>{group.note}</i></span>
+          <span>Holdings</span>
+          <span>Issuer</span>
+          <span>Status</span>
+        </div>
+        <ul>
+          {group.bags.map((bag) => {
+            const [from, to] = bagGradient(bag);
+            const tradable = bagTradable(bag);
+            return (
+              <li>
+                <a class="row" href={`${APP_URL}/bag/${encodeURIComponent(bag.id)}`}>
+                  <span class="row__swatch" style={`background:linear-gradient(135deg, ${from}, ${to})`}>
+                    <Icon name={bag.sourceType === 'editorial' ? 'layers' : 'document'} size={20} />
+                  </span>
+                  <span class="row__title">
+                    <strong>{bag.title}</strong>
+                    <span>{bag.subtitle}</span>
+                  </span>
+                  <span class="row__hold">
+                    {bag.assets.length > 0 ? (
+                      <>
+                        <span class="row__bar" aria-hidden="true">
+                          {bag.assets.map((asset, index) => <span style={`flex:${asset.weightBps}; background:${color(bag, index)}`}></span>)}
+                        </span>
+                        <span class="row__top">
+                          <LogoCluster assets={bag.assets} size={22} limit={4} flat />
+                          <span>
+                            {bag.assets.slice(0, 3).map((asset) => `${asset.symbol.replace(/x$/, '')} ${formatWeight(asset.weightBps)}`).join(' · ')}
+                          </span>
+                        </span>
+                      </>
+                    ) : (
+                      <span class="row__origin">
+                        <strong>{bag.curator.name}</strong>
+                        <span>{origin(bag)} · holdings in the app</span>
+                      </span>
+                    )}
+                  </span>
+                  <span class="row__issuer">
+                    {bag.issuer === 'prestocks' ? 'PreStocks' : 'xStocks'}
+                    {bag.issuer === 'prestocks' && <em>Pre-IPO</em>}
+                  </span>
+                  <span class:list={['row__status', tradable ? 'is-open' : 'is-research']}>
+                    <i aria-hidden="true"></i>
+                    {tradable ? 'Open to buy' : 'Research'}
+                  </span>
+                  <span class="row__go"><Icon name="arrow-up-right" size={18} /></span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ))}
+
+    <p class="desk__foot">
+      {live ? 'Line-ups pulled from the Newsbid API.' : 'Line-ups from the latest snapshot.'} Shown for context, not as a
+      recommendation. Prices, liquidity and performance live in the app.
+    </p>
+  </div>
+</section>
+
+<style>
+  .desk__group {
+    margin-top: 56px;
+  }
+  .desk__cols,
+  .row {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1.25fr) minmax(0, 1.35fr) 120px 128px 36px;
+    align-items: center;
+    column-gap: 24px;
+  }
+  .desk__cols {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-strong);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .desk__cols > :first-child {
+    grid-column: 1 / span 2;
+    color: var(--text);
+  }
+  .desk__cols b {
+    margin-left: 6px;
+    color: var(--brand);
+  }
+  .desk__cols i {
+    margin-left: 12px;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .desk__cols > :last-child {
+    grid-column: span 2;
+  }
+  .row {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--rule);
+    transition: background-color 0.2s;
+  }
+  .row:hover {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7) 8%, rgba(255, 255, 255, 0.7) 92%, transparent);
+  }
+  .row__swatch {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+  .row__title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+  .row__title strong {
+    font-family: var(--serif);
+    font-size: 25px;
+    line-height: 30px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    transition: color 0.15s;
+  }
+  .row:hover .row__title strong {
+    color: var(--brand);
+  }
+  .row__title span,
+  .row__origin span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--text-subtle);
+  }
+  .row__hold {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .row__bar {
+    display: flex;
+    gap: 2px;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+  }
+  .row__top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .row__top > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-subtle);
+  }
+  .row__origin {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .row__origin strong {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .row__issuer {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .row__issuer em {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #a1510a;
+  }
+  .row__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .row__status i {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+  }
+  .row__status.is-open {
+    color: var(--positive);
+  }
+  .row__status.is-open i {
+    background: #22c29a;
+    box-shadow: 0 0 0 4px rgba(34, 194, 154, 0.18);
+  }
+  .row__status.is-research {
+    color: var(--text-subtle);
+  }
+  .row__status.is-research i {
+    border: 1.5px solid var(--text-muted);
+  }
+  .row__go {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid var(--rule);
+    color: var(--text);
+    transition:
+      background-color 0.15s,
+      color 0.15s,
+      border-color 0.15s;
+  }
+  .row:hover .row__go {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+  }
+  .desk__foot {
+    margin-top: 28px;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 1100px) {
+    .desk__cols,
+    .row {
+      grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) 120px 36px;
+    }
+    .row__issuer,
+    .desk__cols > :nth-child(3) {
+      display: none;
+    }
+  }
+  @media (max-width: 760px) {
+    .desk__cols {
+      display: block;
+    }
+    .desk__cols > :not(:first-child) {
+      display: none;
+    }
+    .desk__cols i {
+      display: block;
+      margin: 4px 0 0;
+    }
+    .row {
+      grid-template-columns: 48px minmax(0, 1fr) 36px;
+      grid-template-areas:
+        'swatch title go'
+        'hold hold hold'
+        'status status status';
+      row-gap: 14px;
+      column-gap: 14px;
+      padding: 22px 0;
+    }
+    .row__swatch {
+      grid-area: swatch;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+    }
+    .row__title {
+      grid-area: title;
+    }
+    .row__title strong {
+      font-size: 23px;
+      line-height: 27px;
+    }
+    .row__hold {
+      grid-area: hold;
+    }
+    .row__status {
+      grid-area: status;
+      font-size: 13px;
+    }
+    .row__go {
+      grid-area: go;
+    }
+  }
+</style>

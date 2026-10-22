@@ -26,10 +26,14 @@ export default {
         error: '#D8394B',
         neutral: '#6B7288',
 
-        background: '#F5F6FB',
+        // Editorial surfaces: warm newsprint paper and near-black ink.
+        paper: { DEFAULT: '#F3F1EC', deep: '#E9E5DC' },
+        ink: { DEFAULT: '#0C0F19', soft: '#161B28', line: '#262C3B' },
+
+        background: '#F3F1EC',
         surface: {
           DEFAULT: '#FFFFFF',
-          dim: '#F5F6FB',
+          dim: '#F3F1EC',
           subtle: '#EEF0F7',
           hover: '#E6E8F1',
           pressed: '#D3D7E4',
@@ -50,6 +54,7 @@ export default {
       },
       fontFamily: {
         sans: [
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           'SF Pro Text',
@@ -60,7 +65,8 @@ export default {
           'system-ui',
           'sans-serif',
         ],
-        mono: ['SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        serif: ['Newsreader', 'Georgia', 'Times New Roman', 'serif'],
+        mono: ['JetBrains Mono', 'SF Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
       },
       fontSize: {
         xs: ['12px', { lineHeight: '16px' }],
