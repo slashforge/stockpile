@@ -7,6 +7,13 @@ export default $config({
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "cloudflare",
+      // AWS only hosts the OG image Lambda (infra/og.ts); everything else is Cloudflare.
+      providers: {
+        aws: {
+          profile: "slashforge",
+          region: "us-east-1",
+        },
+      },
     };
   },
   async run() {
@@ -18,6 +25,8 @@ export default $config({
 
     const { devMcpUrl } = await import("./infra/dev-mcp");
 
+    const { ogUrl } = await import("./infra/og");
+
     const { landing } = await import("./infra/landing");
 
     const { web } = await import("./infra/web");
@@ -27,6 +36,7 @@ export default $config({
     return {
       apiUrl: apiUrl,
       devMcpUrl,
+      ogUrl,
       landingUrl: landing.url,
       webUrl: web.url,
     };

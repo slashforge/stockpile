@@ -47,6 +47,11 @@ declare module "sst" {
       "type": "sst.cloudflare.StaticSite"
       "url": string
     }
+    "OgImages": {
+      "name": string
+      "type": "sst.aws.Function"
+      "url": string
+    }
     "OpenaiApiKey": {
       "type": "sst.sst.Secret"
       "value": string

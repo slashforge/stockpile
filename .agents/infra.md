@@ -15,7 +15,8 @@ domains.ts   newsbid.trade; stage-prefixed subdomains except prod (api.<host>, <
 database.ts  Cloudflare Hyperdrive (deployed only), origin parsed from DatabaseUrl; local dev uses DatabaseUrl directly
 api.ts       Deployed: cloudflare.Worker (handler apps/api/index.ts, esbuild defines process.version) + Cron `PriceSnapshots` (apps/api/cron.ts, hourly) + Cron `StoryRefresh` (apps/api/stories-cron.ts, :15/:45) + Cron `CongressIngest` (apps/api/congress-cron.ts, every 6 h at :30) + Cron `CramerIngest` (apps/api/cramer-cron.ts, every 6 h at :50). Local: DevCommand `bun dev` (apps/api/dev.ts) on :4040. No env vars, links only
 landing.ts   Astro site deployment
-web.ts       apps/web Vite SPA as StaticSiteV2 (Worker static assets) at app.<host>; injects VITE_API_URL + Privy ids; local dev on :5173
+web.ts       apps/web Vite SPA as StaticSiteV2 (Worker static assets) at app.<host>; injects VITE_API_URL + Privy ids; local dev on :5173. Router worker apps/web/worker runs first (link-preview tags, /og/* proxy); reads OG_ORIGIN / API_ORIGIN
+og.ts        OG card Lambda (functions/og, `sst.aws.Function` + function URL, the only AWS resource; `aws` provider in sst.config.ts uses the `slashforge` profile). Local: DevCommand `bun run og:serve` on :4500
 expo.ts      Local-only DevCommand for Expo (autostart: false), injects EXPO_PUBLIC_API_URL and the Privy ids from secrets
 dev-mcp.ts   Local-only DevCommand for apps/dev-mcp on :4444 (/mcp)
 orm.ts       Local DevCommand: drizzle-kit studio
@@ -30,7 +31,7 @@ Rules:
 
 Astro 6 + Tailwind 3 + MDX blog, deployed to Cloudflare via `@astrojs/cloudflare`. Local port 4321.
 
-- Pages: `src/pages/` (index, `blog/`, `og/` for satori-generated OG images via `src/lib/og-image.ts` + `og-image-renderer.mjs`).
+- Pages: `src/pages/` (index, `blog/`, legal). OG images are static PNGs written after `astro build` by `scripts/og.ts` (templates in `functions/og`).
 - Blog content: `src/content/blog/` (config in `src/content.config.ts`).
 - Components/layouts: `src/components/`, `src/layouts/BlogPost.astro`. Site constants: `src/consts.ts`.
 - Requires SST for config — do not run standalone.

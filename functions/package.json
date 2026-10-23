@@ -2,8 +2,18 @@
   "name": "@newsbid/functions",
   "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "og:serve": "bun og/serve.ts",
+    "og:preview": "bun og/preview.ts",
+    "og:static": "bun og/static.ts"
+  },
   "dependencies": {
-    "sst": "*",
-    "@newsbid/core": "*"
+    "@newsbid/core": "*",
+    "@resvg/resvg-js": "^2.6.2",
+    "satori": "^0.19.3",
+    "sst": "*"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164"
   }
 }

@@ -131,6 +131,12 @@
 }
 
 /* Type scale (apps/mobile/src/components/newsbid/type.tsx). */
+/* Brand wordmark: Newsreader, as on the landing site (index.html loads a subset with just these letters). */
+@utility font-wordmark {
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
 @utility t-display {
   font-size: 34px;
   line-height: 40px;

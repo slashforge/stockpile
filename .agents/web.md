@@ -21,6 +21,9 @@ src/components/trade/  Buy / sell / token-sell flow state + UI (review, slide-to
 src/lib, services/api, hooks, utils   Ported verbatim from apps/mobile/src (platform-free logic)
 src/lib/privy/         Privy provider bridge (identity token → API, sign + submit via API) and login form
 src/styles.css         Design tokens mirrored from apps/mobile/src/config/theme.ts (light + dark)
+worker/                Router worker run before the static assets when deployed: per-link preview tags for
+                       /bag/<id> and /asset/<symbol>, proxy + edge cache for their OG cards (functions/og/README.md)
+public/og-image.png    Default OG card (generated: `bun run --cwd functions og:static`)
 ```
 
 ## Conventions

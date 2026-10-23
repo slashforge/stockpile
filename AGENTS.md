@@ -25,8 +25,8 @@ apps/landing        Astro landing/blog site (Cloudflare)
 apps/dev-mcp        Local-only MCP server for dev tooling (port 4444)
 packages/core       @newsbid/core — shared Drizzle Postgres schema + db client
 packages/api-client @newsbid/api-client — SDK generated from the API's OpenAPI spec
-functions           Placeholder workspace (package.json only)
-infra/              SST components (api, database, config, secrets, domains, expo, landing, web, dev-mcp, orm)
+functions/og        OG card renderer (satori + resvg): landing build-time cards + web share-link Lambda
+infra/              SST components (api, database, config, secrets, domains, expo, landing, web, og, dev-mcp, orm)
 sst.config.ts       SST entrypoint; imports infra/* modules
 drizzle.config.ts   Root drizzle-kit config (Postgres, schema in packages/core/db/schema)
 scripts/setup.ts    Template rename script (`bun run setup`)

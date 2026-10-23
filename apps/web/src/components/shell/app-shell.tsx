@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import {
   IoAdd,
   IoBookmark,
@@ -56,19 +56,28 @@ function isFlow(pathname: string) {
   return /^\/(buy|sell|sell-tokens)(\/|$)/.test(pathname);
 }
 
+/** The Newsbid mark (bag with rising bars), same artwork as apps/landing/public/favicon.svg. */
 export function BrandMark({ size = 34 }: { size?: number }) {
+  // useId output can contain characters that break `url(#…)` references.
+  const gradient = `brand-${useId().replace(/[^\w-]/g, "")}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 500 500" aria-hidden>
       <defs>
-        <linearGradient id="brandMark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2563EB" />
-          <stop offset="1" stopColor="#38BDF8" />
+        <linearGradient id={gradient} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#3B82F6" />
+          <stop offset="1" stopColor="#2563EB" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="18" fill="url(#brandMark)" />
-      <rect x="16" y="34" width="32" height="10" rx="5" fill="#fff" fillOpacity=".55" />
-      <rect x="16" y="26" width="32" height="10" rx="5" fill="#fff" fillOpacity=".8" />
-      <rect x="16" y="18" width="32" height="10" rx="5" fill="#fff" />
+      <rect width="500" height="500" rx="120" fill={`url(#${gradient})`} />
+      <g transform="translate(40 40) scale(0.84)" fill="#fff" stroke="#fff">
+        <path
+          stroke="none"
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M136 186H364C386 186 398 198 400 218L418 398C421 426 404 444 376 444H124C96 444 79 426 82 398L100 218C102 198 114 186 136 186ZM177 322C168 322 162 328 162 337V386C162 395 168 401 177 401H203C212 401 218 395 218 386V337C218 328 212 322 203 322H177ZM237 282C228 282 222 288 222 297V386C222 395 228 401 237 401H263C272 401 278 395 278 386V297C278 288 272 282 263 282H237ZM297 238C288 238 282 244 282 253V386C282 395 288 401 297 401H323C332 401 338 395 338 386V253C338 244 332 238 323 238H297Z"
+        />
+        <path d="M172 196V172C172 132 206 106 250 106C294 106 328 132 328 172V196" fill="none" strokeWidth="30" strokeLinecap="round" />
+      </g>
     </svg>
   );
 }
@@ -128,8 +137,8 @@ function Sidebar({ pathname }: { pathname: string }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r border-line bg-canvas/90 px-3 py-5 backdrop-blur-xl md:flex lg:w-[260px] lg:px-4">
       <Link to="/" className="mb-6 flex items-center gap-2.5 px-1.5 lg:px-2" aria-label="Newsbid home">
-        <BrandMark />
-        <span className="hidden text-[21px] font-extrabold tracking-[-0.5px] text-ink lg:inline">Newsbid</span>
+        <BrandMark size={32} />
+        <span className="font-wordmark hidden text-[26px] leading-none text-ink lg:inline">Newsbid</span>
       </Link>
       <nav className="flex flex-col gap-1" aria-label="Main">
         {TABS.map((tab) => {
