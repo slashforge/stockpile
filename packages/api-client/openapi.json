@@ -2721,6 +2721,143 @@
           "message"
         ]
       },
+      "WithdrawPrepareResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable"
+            ]
+          },
+          "asset": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transaction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Base64 v0 transfer, already signed by the Newsbid fee payer; the user's wallet adds its signature and submits it via /trade/submit (no requestId)."
+          },
+          "lastValidBlockHeight": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "feePayer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Newsbid paymaster paying the network fee."
+          },
+          "createsAccount": {
+            "type": "boolean",
+            "description": "True when the transfer opens the recipient's token account; its rent comes from the user's wallet."
+          },
+          "rentLamports": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "SOL (lamports) the user's wallet pays to open the recipient's token account; 0 when none."
+          },
+          "error": {
+            "$ref": "#/components/schemas/WithdrawError"
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "asset",
+          "amount",
+          "destination",
+          "walletAddress",
+          "transaction",
+          "lastValidBlockHeight",
+          "feePayer",
+          "createsAccount",
+          "rentLamports",
+          "error",
+          "message"
+        ]
+      },
+      "WithdrawError": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "NO_WALLET",
+              "PROVIDER_NOT_CONFIGURED",
+              "INVALID_DESTINATION",
+              "INVALID_ASSET",
+              "AMOUNT_TOO_SMALL",
+              "INSUFFICIENT_FUNDS",
+              "NEEDS_SOL",
+              "UNSUPPORTED_TOKEN",
+              "REJECTED",
+              "PROVIDER_ERROR"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "WithdrawRequest": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "type": "string",
+            "pattern": "^(SOL|[1-9A-HJ-NP-Za-km-z]{32,44})$",
+            "description": "\"SOL\" for native SOL, otherwise the token mint."
+          },
+          "amount": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Base units (lamports for SOL)."
+          },
+          "destination": {
+            "type": "string",
+            "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$",
+            "description": "Recipient wallet address (not a token account)."
+          }
+        },
+        "required": [
+          "asset",
+          "amount",
+          "destination"
+        ]
+      },
       "TransactionStatusesResponse": {
         "type": "object",
         "properties": {
@@ -3802,6 +3939,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokenSellPrepareResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/withdraw/prepare": {
+      "post": {
+        "operationId": "prepareWithdrawal",
+        "tags": [
+          "wallet"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Simulated SOL/token transfer to another wallet, fee-sponsored and pre-signed by the paymaster, or unavailable with a typed error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WithdrawPrepareResponse"
                 }
               }
             }

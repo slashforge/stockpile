@@ -20,9 +20,9 @@ export const SENDER_URL = "https://sender.helius-rpc.com/fast?swqos_only=true";
 
 type RpcError = { code?: number; message?: string; data?: { err?: unknown; logs?: string[] | null } };
 
-class RpcUnavailable extends Error {}
+export class RpcUnavailable extends Error {}
 
-async function heliusRpc<T>(url: string, method: string, params: unknown[], retries = 2): Promise<{ result?: T; error?: RpcError }> {
+export async function heliusRpc<T>(url: string, method: string, params: unknown[], retries = 2): Promise<{ result?: T; error?: RpcError }> {
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {

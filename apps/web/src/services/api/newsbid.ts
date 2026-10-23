@@ -8,6 +8,7 @@ import {
   listSavedBags as sdkListSavedBags,
   prepareBagTrade as sdkPrepareBagTrade,
   prepareTokenSell as sdkPrepareTokenSell,
+  prepareWithdrawal as sdkPrepareWithdrawal,
   quoteBagTrade as sdkQuoteBagTrade,
   quoteTokenSell as sdkQuoteTokenSell,
   removeSavedBag as sdkRemoveSavedBag,
@@ -25,6 +26,8 @@ import type {
   TokenSellRequest,
   TradeQuote,
   TradeRequest,
+  WithdrawPrepared,
+  WithdrawRequest,
 } from "./types";
 
 export class ApiError extends Error {
@@ -145,6 +148,11 @@ export async function quoteTokenSell(body: TokenSellRequest): Promise<TokenSellQ
 
 export async function prepareTokenSell(body: TokenSellRequest): Promise<TokenSellPrepared> {
   return unwrap(sdkPrepareTokenSell({ body }));
+}
+
+/** A fee-sponsored transfer to another wallet, pre-signed by Newsbid's paymaster; submit it like a swap (no requestId). */
+export async function prepareWithdrawal(body: WithdrawRequest): Promise<WithdrawPrepared> {
+  return unwrap(sdkPrepareWithdrawal({ body }));
 }
 
 /**

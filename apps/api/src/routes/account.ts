@@ -11,7 +11,8 @@ import { cursorPattern, HELIUS_MAX_LIMIT, readActivity } from "../lib/activity";
 import { applyBagLinks, readPositions, recordLeg } from "../lib/positions";
 import { prepareBag, prepareTokenSell, quoteBag, quoteTokenSell, toQuoteLeg, tradeSide, type TokenSellRequest, type TradeError, type TradeRequest } from "../lib/trade";
 import { readStatuses, submitSigned } from "../lib/broadcast";
-import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema, SubmitTransactionRequestSchema, SubmitTransactionSchema, TokenSellPrepareSchema, TokenSellQuoteSchema, TokenSellRequestSchema, TransactionStatusRequestSchema, TransactionStatusesSchema } from "../schemas";
+import { prepareWithdrawal, type WithdrawError } from "../lib/withdraw";
+import { ActivityResponseSchema, BagLotResponseSchema, ErrorSchema, LegErrorSchema, MeResponseSchema, PendingLegSchema, PortfolioSchema, PositionsResponseSchema, RecordBagLegRequestSchema, SaveBagRequestSchema, SavedSchema, TradeRequestSchema, QuoteSchema, PrepareSchema, SubmitTransactionRequestSchema, SubmitTransactionSchema, TokenSellPrepareSchema, TokenSellQuoteSchema, TokenSellRequestSchema, TransactionStatusRequestSchema, TransactionStatusesSchema, WithdrawPrepareSchema, WithdrawRequestSchema } from "../schemas";
 
 export type Variables = { identity: Identity };
 export const app = new OpenAPIHono<{ Variables: Variables }>();
@@ -27,7 +28,7 @@ const requireIdentity = createMiddleware<{ Variables: Variables }>(async (c, nex
   c.set("identity", identity);
   await next();
 });
-for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/activity", "/trade/*", "/positions", "/positions/*"]) app.use(path, requireIdentity);
+for (const path of ["/me", "/saved-bags", "/saved-bags/*", "/portfolio", "/activity", "/trade/*", "/positions", "/positions/*", "/wallet/*"]) app.use(path, requireIdentity);
 
 async function listIds(userId: string) {
   const rows = await db.select({ bagId: savedBags.bagId }).from(savedBags).where(eq(savedBags.userId, userId));
@@ -153,6 +154,19 @@ app.openapi(createRoute({ method: "post", path: "/trade/tokens/prepare", operati
 });
 
 const LINK_DELAYS_MS = [1_500, 2_500, 4_000, 6_000, 8_000, 8_000];
+
+app.openapi(createRoute({ method: "post", path: "/wallet/withdraw/prepare", operationId: "prepareWithdrawal", tags: ["wallet"], request: { body: { content: { "application/json": { schema: WithdrawRequestSchema } } } }, responses: {
+  200: response(WithdrawPrepareSchema, "Simulated SOL/token transfer to another wallet, fee-sponsored and pre-signed by the paymaster, or unavailable with a typed error"), 401: response(ErrorSchema, "Unauthorized") } }), async (c) => {
+  const request = c.req.valid("json");
+  const walletAddress = c.get("identity").walletAddress;
+  const echo = { asset: request.asset, amount: request.amount, destination: request.destination, walletAddress };
+  const unavailable = (error: WithdrawError) => c.json({ status: "unavailable" as const, ...echo, transaction: null, lastValidBlockHeight: null, feePayer: null, createsAccount: false, rentLamports: null, error, message: error.message }, 200);
+  if (!walletAddress) return unavailable({ code: "NO_WALLET", message: "No verified Solana wallet linked to this Privy identity" });
+  const result = await prepareWithdrawal(request, walletAddress);
+  if (!result.ok) return unavailable(result.error);
+  return c.json({ status: "ready" as const, ...echo, ...result.value, error: null, message: "Sign to send. Transfers on Solana can't be reversed." }, 200);
+});
+
 /** Server-side twin of the app's lot recorder, so a leg still links if the app is closed or reloaded mid-confirmation. */
 async function linkWhenConfirmed(identity: Identity, bagId: string, signature: string) {
   try {

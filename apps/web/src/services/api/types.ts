@@ -24,6 +24,8 @@ export type {
   TokenSellRequest,
   TokenSellQuoteResponse as TokenSellQuote,
   TokenSellPrepareResponse as TokenSellPrepared,
+  WithdrawRequest,
+  WithdrawPrepareResponse as WithdrawPrepared,
 } from "@newsbid/api-client";
 
 export type BagSource = Bag["sources"][number];

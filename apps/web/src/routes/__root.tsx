@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 import { BagSheetProvider } from "@/components/sheets/bag-sheet";
 import { FundSheetProvider } from "@/components/sheets/fund-sheet";
 import { SignInSheetProvider } from "@/components/sheets/sign-in-sheet";
+import { WithdrawSheetProvider } from "@/components/sheets/withdraw-sheet";
 import { AppShell } from "@/components/shell/app-shell";
 import { MessageState } from "@/components/ui/layout";
 import { IoCompassOutline } from "react-icons/io5";
@@ -11,12 +12,14 @@ function RootLayout() {
   return (
     <SignInSheetProvider>
       <FundSheetProvider>
-        <BagSheetProvider>
-          <AppShell>
-            <Outlet />
-          </AppShell>
-          <Toaster position="top-center" richColors />
-        </BagSheetProvider>
+        <WithdrawSheetProvider>
+          <BagSheetProvider>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+            <Toaster position="top-center" richColors />
+          </BagSheetProvider>
+        </WithdrawSheetProvider>
       </FundSheetProvider>
     </SignInSheetProvider>
   );

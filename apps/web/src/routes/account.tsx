@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   IoAddCircle,
+  IoArrowUpCircle,
   IoCopyOutline,
   IoLockClosed,
   IoLogOutOutline,
@@ -14,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { useFundSheet } from "@/components/sheets/fund-sheet";
 import { useSignInSheet } from "@/components/sheets/sign-in-sheet";
+import { useWithdrawSheet } from "@/components/sheets/withdraw-sheet";
 import { GradientCard, HeroState } from "@/components/newsbid/hero-state";
 import { PrimaryButton } from "@/components/ui/button";
 import { Card, Collapsible, Divider, ListRow, Page, Section } from "@/components/ui/layout";
@@ -112,6 +114,7 @@ function AccountScreen() {
   const me = useMe();
   const { requestSignIn } = useSignInSheet();
   const { openFund } = useFundSheet();
+  const { openWithdraw } = useWithdrawSheet();
   const [signingOut, setSigningOut] = useState(false);
   const walletAddress = auth.walletAddress ?? me.data?.walletAddress ?? null;
   const email = auth.email ?? me.data?.email ?? null;
@@ -171,6 +174,8 @@ function AccountScreen() {
                 <CopyRow label="Solana wallet" value={walletAddress} />
                 <Divider inset={16} />
                 <ListRow title="Add funds" detail="Receive USDC on Solana" icon={IoAddCircle} onClick={openFund} />
+                <Divider inset={60} />
+                <ListRow title="Withdraw" detail="Send funds to another Solana wallet" icon={IoArrowUpCircle} onClick={() => openWithdraw()} />
                 <Divider inset={60} />
                 <ListRow
                   title="View on Solscan"

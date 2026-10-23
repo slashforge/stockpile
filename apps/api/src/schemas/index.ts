@@ -6,6 +6,7 @@ import { legErrorCodes, signaturePattern } from "../lib/positions";
 import { tokensIntervals } from "../lib/tokens-api";
 import { chartRanges, chartReasons } from "../lib/charts";
 import { MAX_STATUS_SIGNATURES } from "../lib/broadcast";
+import { withdrawErrorCodes } from "../lib/withdraw";
 
 export const ErrorSchema = z.object({ error: z.string() }).openapi("Error");
 export const HealthResponseSchema = z.object({ status: z.string() }).openapi("HealthResponse");
@@ -72,6 +73,21 @@ export const TransactionStatusRequestSchema = z.object({
 }).openapi("TransactionStatusRequest");
 export const TransactionStatusSchema = z.object({ signature: z.string(), status: z.enum(["pending", "confirmed", "failed"]), error: z.string().nullable() }).openapi("TransactionStatus");
 export const TransactionStatusesSchema = z.object({ statuses: z.array(TransactionStatusSchema) }).openapi("TransactionStatusesResponse");
+export const WithdrawRequestSchema = z.object({
+  asset: z.string().regex(/^(SOL|[1-9A-HJ-NP-Za-km-z]{32,44})$/).openapi({ description: "\"SOL\" for native SOL, otherwise the token mint." }),
+  amount: z.string().max(20).regex(/^[1-9][0-9]*$/).openapi({ description: "Base units (lamports for SOL)." }),
+  destination: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/).openapi({ description: "Recipient wallet address (not a token account)." }),
+}).openapi("WithdrawRequest");
+export const WithdrawErrorSchema = z.object({ code: z.enum(withdrawErrorCodes), message: z.string() }).openapi("WithdrawError");
+export const WithdrawPrepareSchema = z.object({
+  status: z.enum(["ready", "unavailable"]), asset: z.string(), amount: z.string(), destination: z.string(), walletAddress: z.string().nullable(),
+  transaction: z.string().nullable().openapi({ description: "Base64 v0 transfer, already signed by the Newsbid fee payer; the user's wallet adds its signature and submits it via /trade/submit (no requestId)." }),
+  lastValidBlockHeight: z.number().nullable(),
+  feePayer: z.string().nullable().openapi({ description: "Newsbid paymaster paying the network fee." }),
+  createsAccount: z.boolean().openapi({ description: "True when the transfer opens the recipient's token account; its rent comes from the user's wallet." }),
+  rentLamports: z.number().nullable().openapi({ description: "SOL (lamports) the user's wallet pays to open the recipient's token account; 0 when none." }),
+  error: WithdrawErrorSchema.nullable(), message: z.string().nullable(),
+}).openapi("WithdrawPrepareResponse");
 export const BalanceSchema = z.object({ amount: z.string(), decimals: z.number(), uiAmount: z.string(), usdPrice: z.number().nullable(), usdValue: z.number().nullable() }).openapi("Balance");
 export const HoldingSchema = z.object({ mint: z.string(), symbol: z.string().nullable(), name: z.string().nullable(), iconUrl: z.string().nullable(), amount: z.string(), decimals: z.number(), uiAmount: z.string().nullable(), program: z.enum(["token", "token-2022"]), usdPrice: z.number().nullable(), usdValue: z.number().nullable(), bagIds: z.array(z.string()) }).openapi("Holding");
 export const PortfolioSchema = z.object({ walletAddress: z.string().nullable(), status: z.enum(["live", "unavailable"]), holdings: z.array(HoldingSchema), sol: BalanceSchema.nullable(), usdc: BalanceSchema.nullable(), totalUsd: z.number().nullable(), unpricedCount: z.number(), asOf: z.string().nullable(), message: z.string().nullable() }).openapi("PortfolioResponse");

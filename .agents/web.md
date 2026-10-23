@@ -16,7 +16,7 @@ Privy (`@privy-io/react-auth`, email OTP + embedded Solana wallet). Deployed by 
 src/routes/            File routes (__root.tsx = app shell + sheets)
 src/components/ui/     Primitives: T (type scale), buttons, layout (Page, Card, Collapsible…), theme helpers
 src/components/newsbid/  Bag art/cards, story reel, market lines, charts, token avatars
-src/components/sheets/ Sign-in, fund, bag preview (bottom sheet on phones, dialog on desktop)
+src/components/sheets/ Sign-in, fund, withdraw, bag preview (bottom sheet on phones, dialog on desktop)
 src/components/trade/  Buy / sell / token-sell flow state + UI (review, slide-to-confirm, progress)
 src/lib, services/api, hooks, utils   Ported verbatim from apps/mobile/src (platform-free logic)
 src/lib/privy/         Privy provider bridge (identity token → API, sign + submit via API) and login form

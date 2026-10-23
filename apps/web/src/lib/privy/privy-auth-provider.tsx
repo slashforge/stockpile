@@ -1,5 +1,5 @@
 import { getAccessToken, getIdentityToken, PrivyProvider, useIdentityToken, usePrivy, type User } from "@privy-io/react-auth";
-import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { useCreateWallet, useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useQueryClient } from "@tanstack/react-query";
 import { Buffer } from "buffer";
@@ -57,6 +57,7 @@ function PrivyBridge({ children }: { children: ReactNode }) {
   const { identityToken } = useIdentityToken();
   const { wallets } = useWallets();
   const { signTransaction } = useSignTransaction();
+  const { createWallet } = useCreateWallet();
   // Private queries only run once the identity token exists, so no request goes out without the header.
   const authenticated = ready && privyAuthenticated && !!user && !!identityToken;
   // A token fetched when the wallet appears wins over the hook's (possibly wallet-less) value until the hook updates.
@@ -74,6 +75,16 @@ function PrivyBridge({ children }: { children: ReactNode }) {
     [wallets, embeddedAddress],
   );
   const walletAddress = wallet?.address ?? embeddedAddress;
+
+  // `createOnLogin` only runs inside Privy's modal; the headless OTP form never triggers it, so create the
+  // embedded Solana wallet here for any signed-in user who doesn't have one yet (once per user per page load).
+  const creatingFor = useRef<string | null>(null);
+  const userId = user?.id ?? null;
+  useEffect(() => {
+    if (!ready || !privyAuthenticated || !userId || embeddedAddress || creatingFor.current === userId) return;
+    creatingFor.current = userId;
+    createWallet().catch((error: unknown) => console.warn("Privy embedded wallet creation failed", error));
+  }, [ready, privyAuthenticated, userId, embeddedAddress, createWallet]);
 
   // Layout effect: registered before children's passive effects start fetching.
   useLayoutEffect(() => {

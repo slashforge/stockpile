@@ -23,6 +23,7 @@ import {
   IoWalletOutline,
 } from "react-icons/io5";
 import { useCopyFeedback, useFundSheet } from "@/components/sheets/fund-sheet";
+import { useWithdrawSheet } from "@/components/sheets/withdraw-sheet";
 import { AuthGate } from "@/components/newsbid/auth-gate";
 import { LogoCluster } from "@/components/newsbid/bag-art";
 import { GradientCard, HeroState } from "@/components/newsbid/hero-state";
@@ -202,6 +203,7 @@ function PositionsSection() {
 
 function WalletCard({ address, portfolio }: { address: string; portfolio: Portfolio }) {
   const { openFund } = useFundSheet();
+  const { openWithdraw } = useWithdrawSheet();
   const { copied, copy } = useCopyFeedback();
   const usdc = spendableUsdc(portfolio);
   const live = portfolio.status === "live";
@@ -247,6 +249,19 @@ function WalletCard({ address, portfolio }: { address: string; portfolio: Portfo
             Add funds
           </T>
         </button>
+        {live && portfolio.totalUsd !== 0 ? (
+          <button
+            type="button"
+            onClick={() => openWithdraw()}
+            aria-label="Withdraw"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-white/20 px-3.5 transition-opacity hover:opacity-85"
+          >
+            <IoArrowUp size={16} />
+            <T as="span" variant="subhead" tone="inherit" className="hidden sm:inline">
+              Withdraw
+            </T>
+          </button>
+        ) : null}
       </div>
     </GradientCard>
   );

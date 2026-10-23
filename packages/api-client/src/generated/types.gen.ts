@@ -655,6 +655,53 @@ export type TokenSellPrepareResponse = {
     message: string | null;
 };
 
+export type WithdrawPrepareResponse = {
+    status: 'ready' | 'unavailable';
+    asset: string;
+    amount: string;
+    destination: string;
+    walletAddress: string | null;
+    /**
+     * Base64 v0 transfer, already signed by the Newsbid fee payer; the user's wallet adds its signature and submits it via /trade/submit (no requestId).
+     */
+    transaction: string | null;
+    lastValidBlockHeight: number | null;
+    /**
+     * Newsbid paymaster paying the network fee.
+     */
+    feePayer: string | null;
+    /**
+     * True when the transfer opens the recipient's token account; its rent comes from the user's wallet.
+     */
+    createsAccount: boolean;
+    /**
+     * SOL (lamports) the user's wallet pays to open the recipient's token account; 0 when none.
+     */
+    rentLamports: number | null;
+    error: WithdrawError;
+    message: string | null;
+};
+
+export type WithdrawError = {
+    code: 'NO_WALLET' | 'PROVIDER_NOT_CONFIGURED' | 'INVALID_DESTINATION' | 'INVALID_ASSET' | 'AMOUNT_TOO_SMALL' | 'INSUFFICIENT_FUNDS' | 'NEEDS_SOL' | 'UNSUPPORTED_TOKEN' | 'REJECTED' | 'PROVIDER_ERROR';
+    message: string;
+} | null;
+
+export type WithdrawRequest = {
+    /**
+     * "SOL" for native SOL, otherwise the token mint.
+     */
+    asset: string;
+    /**
+     * Base units (lamports for SOL).
+     */
+    amount: string;
+    /**
+     * Recipient wallet address (not a token account).
+     */
+    destination: string;
+};
+
 export type TransactionStatusesResponse = {
     statuses: Array<TransactionStatus>;
 };
@@ -1296,6 +1343,31 @@ export type PrepareTokenSellResponses = {
 };
 
 export type PrepareTokenSellResponse = PrepareTokenSellResponses[keyof PrepareTokenSellResponses];
+
+export type PrepareWithdrawalData = {
+    body?: WithdrawRequest;
+    path?: never;
+    query?: never;
+    url: '/wallet/withdraw/prepare';
+};
+
+export type PrepareWithdrawalErrors = {
+    /**
+     * Unauthorized
+     */
+    401: _Error;
+};
+
+export type PrepareWithdrawalError = PrepareWithdrawalErrors[keyof PrepareWithdrawalErrors];
+
+export type PrepareWithdrawalResponses = {
+    /**
+     * Simulated SOL/token transfer to another wallet, fee-sponsored and pre-signed by the paymaster, or unavailable with a typed error
+     */
+    200: WithdrawPrepareResponse;
+};
+
+export type PrepareWithdrawalResponse = PrepareWithdrawalResponses[keyof PrepareWithdrawalResponses];
 
 export type GetTransactionStatusesData = {
     body?: TransactionStatusRequest;
